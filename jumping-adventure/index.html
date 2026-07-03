@@ -189,7 +189,7 @@
     var CW, GRAV, JUMP, SPEED0, SPEEDMAX, SPEEDACC, GAPMIN, GAPMAX, PWMIN, PWMAX, TOPMIN, TOPMAX, MAXRISE;
 
     function computeTunables() {
-      CW = H * 0.13;
+      CW = H * 0.16;
       GRAV = H * 2.4;
       JUMP = -H * 1.06;
       SPEED0 = H * 0.52;
@@ -443,31 +443,87 @@
       ctx.shadowBlur = 0;
     }
 
+    function roundRectFull(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    // A little astronaut, drawn on canvas (fits the space theme, renders everywhere)
     function drawCharacter(ts) {
       var cxp = char.x + char.w / 2, cyp = char.y + char.h / 2;
-      ctx.save();
-      ctx.translate(cxp, cyp);
-      ctx.rotate(char.tilt);
-      // rocket flame when rising
+      var s = char.h, c = ctx;
+      c.save();
+      c.translate(cxp, cyp);
+      c.rotate(char.tilt);
+
+      // rocket flame when boosting up
       if (char.vy < 0) {
-        var f = char.w * (0.4 + 0.2 * Math.sin(ts / 40));
-        ctx.beginPath();
-        ctx.moveTo(-char.w * 0.28, char.h * 0.28);
-        ctx.lineTo(-char.w * 0.05, char.h * 0.28 + f);
-        ctx.lineTo(char.w * 0.12, char.h * 0.28);
-        ctx.closePath();
-        ctx.fillStyle = '#ff8a3d';
-        ctx.shadowColor = '#ffb03d';
-        ctx.shadowBlur = char.w * 0.5;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        var f = s * (0.5 + 0.25 * Math.sin(ts / 40));
+        c.beginPath();
+        c.moveTo(-s * 0.16, s * 0.42);
+        c.lineTo(-s * 0.02, s * 0.42 + f);
+        c.lineTo(s * 0.14, s * 0.42);
+        c.closePath();
+        c.fillStyle = '#ff8a3d';
+        c.shadowColor = '#ffb03d';
+        c.shadowBlur = s * 0.6;
+        c.fill();
+        c.shadowBlur = 0;
       }
-      // pup
-      ctx.font = Math.floor(char.h) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🐕', 0, 0);
-      ctx.restore();
+
+      // soft shadow so the white suit reads on bright platforms
+      c.shadowColor = 'rgba(0,0,0,0.35)';
+      c.shadowBlur = s * 0.12;
+
+      // backpack
+      c.fillStyle = '#9aa6b8';
+      roundRectFull(c, -s * 0.30, -s * 0.10, s * 0.18, s * 0.36, s * 0.05); c.fill();
+      c.shadowBlur = 0;
+
+      // legs + boots
+      c.fillStyle = '#e9eefc';
+      roundRectFull(c, -s * 0.17, s * 0.16, s * 0.15, s * 0.26, s * 0.06); c.fill();
+      roundRectFull(c, s * 0.02, s * 0.16, s * 0.15, s * 0.26, s * 0.06); c.fill();
+      c.fillStyle = '#b9c2d6';
+      roundRectFull(c, -s * 0.19, s * 0.38, s * 0.18, s * 0.09, s * 0.03); c.fill();
+      roundRectFull(c, s * 0.01, s * 0.38, s * 0.18, s * 0.09, s * 0.03); c.fill();
+
+      // arms
+      c.fillStyle = '#f4f7ff';
+      roundRectFull(c, -s * 0.32, -s * 0.04, s * 0.13, s * 0.24, s * 0.06); c.fill();
+      roundRectFull(c, s * 0.19, -s * 0.04, s * 0.13, s * 0.24, s * 0.06); c.fill();
+
+      // torso
+      c.fillStyle = '#f7f9ff';
+      roundRectFull(c, -s * 0.23, -s * 0.08, s * 0.46, s * 0.36, s * 0.13); c.fill();
+
+      // chest control panel
+      c.fillStyle = '#2a3350';
+      roundRectFull(c, -s * 0.10, s * 0.02, s * 0.20, s * 0.13, s * 0.03); c.fill();
+      c.fillStyle = '#57c785'; roundRectFull(c, -s * 0.06, s * 0.05, s * 0.05, s * 0.03, s * 0.01); c.fill();
+      c.fillStyle = '#ffd166'; roundRectFull(c, s * 0.02, s * 0.05, s * 0.05, s * 0.03, s * 0.01); c.fill();
+      // orange suit stripe
+      c.fillStyle = '#ff8a3d';
+      roundRectFull(c, -s * 0.23, -s * 0.02, s * 0.46, s * 0.03, s * 0.01); c.fill();
+
+      // helmet
+      c.beginPath(); c.arc(0, -s * 0.26, s * 0.30, 0, Math.PI * 2);
+      c.fillStyle = '#f7f9ff'; c.fill();
+      // visor
+      var vg = c.createLinearGradient(0, -s * 0.5, 0, -s * 0.04);
+      vg.addColorStop(0, '#9ff0ff'); vg.addColorStop(1, '#2a6cff');
+      c.beginPath(); c.arc(s * 0.03, -s * 0.26, s * 0.2, 0, Math.PI * 2);
+      c.fillStyle = vg; c.fill();
+      // visor shine
+      c.beginPath(); c.arc(-s * 0.04, -s * 0.33, s * 0.06, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(255,255,255,0.75)'; c.fill();
+
+      c.restore();
     }
 
     function render(ts) {
