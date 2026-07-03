@@ -633,7 +633,9 @@
       if (!document.hidden) lastTs = 0;
     });
     // Block pinch-zoom / double-tap zoom
-    document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    // Block page scroll/rubber-band during play (single- or multi-finger). The game
+    // is full-screen and never scrolls; swipe-to-move uses touchstart/touchend.
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
     // Keep links inside the iOS home-screen (standalone) app instead of Safari
