@@ -216,7 +216,6 @@
     var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
     var GRID = CELLS * 2 + 1;      // full grid incl. walls (odd)
     var MOVE_MS = 110;             // octopus step animation duration
-    var WEED = '🌿';               // seaweed accent (renders on every iOS version)
 
     // ---------- State ----------
     var STATE = { START: 0, PLAYING: 1, WON: 2 };
@@ -322,24 +321,43 @@
       c.closePath();
     }
 
-    // A coral wall tile, drawn (not emoji) so it shows on every iOS version
+    // Coral colour palettes [deep, base, bright] chosen per tile from the seed
+    var CORAL_PALS = [
+      ['#c9426e', '#ff7fa3', '#ffb3cc'],  // pink
+      ['#d1633a', '#ff9e6b', '#ffc9a6'],  // orange
+      ['#a84e9c', '#e07fc8', '#f4b3e4']   // purple
+    ];
+
+    // A bumpy coral wall tile, drawn (not emoji) so it shows on every iOS version
     function drawCoralTile(c, px, py, seed) {
-      var pad = Math.max(1, tile * 0.06);
+      var pad = Math.max(1, tile * 0.05);
+      var inX = px + pad, inY = py + pad, inS = tile - pad * 2, rad = tile * 0.26;
+      var pal = CORAL_PALS[Math.floor(seed * CORAL_PALS.length) % CORAL_PALS.length];
+
+      // base rounded tile
       var g = c.createLinearGradient(px, py, px, py + tile);
-      g.addColorStop(0, '#ff8fb0');
-      g.addColorStop(1, '#c9426e');
-      roundRectPath(c, px + pad, py + pad, tile - pad * 2, tile - pad * 2, tile * 0.28);
+      g.addColorStop(0, pal[1]);
+      g.addColorStop(1, pal[0]);
+      roundRectPath(c, inX, inY, inS, inS, rad);
       c.fillStyle = g;
       c.fill();
-      // top highlight
-      roundRectPath(c, px + pad, py + pad, tile - pad * 2, (tile - pad * 2) * 0.5, tile * 0.28);
-      c.fillStyle = 'rgba(255, 255, 255, 0.14)';
-      c.fill();
-      // seaweed accent on some tiles
-      if (seed < 0.32) {
-        c.font = Math.floor(tile * 0.6) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-        c.fillText(WEED, px + tile / 2, py + tile / 2 + tile * 0.04);
+
+      // clip to the tile, then draw coral "lobes" (bumps) + polyp dots
+      c.save();
+      roundRectPath(c, inX, inY, inS, inS, rad);
+      c.clip();
+      var s = seed * 10000 + 1;
+      var rnd = function () { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+      for (var i = 0; i < 5; i++) {
+        var bx = px + tile * (0.24 + 0.52 * rnd());
+        var by = py + tile * (0.24 + 0.52 * rnd());
+        var br = tile * (0.14 + 0.09 * rnd());
+        c.beginPath(); c.arc(bx, by, br, 0, Math.PI * 2);
+        c.fillStyle = pal[2]; c.fill();
+        c.beginPath(); c.arc(bx, by, br * 0.34, 0, Math.PI * 2);
+        c.fillStyle = pal[0]; c.fill();       // polyp centre
       }
+      c.restore();
     }
 
     // A gold treasure coin, drawn on canvas
