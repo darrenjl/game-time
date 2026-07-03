@@ -1,0 +1,11 @@
+# Static site — no build step; publish the repo root as-is.
+[build]
+  publish = "."
+  command = ""
+
+# Always revalidate so a new deploy shows up right away (files are tiny, so the
+# 304 round-trip is cheap). Pairs with the in-game refresh button.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
