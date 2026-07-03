@@ -23,6 +23,10 @@ tendencies.
   sheets, no asset pipelines, no CDN-hosted media.
 - Audio, if used, must be generated via the Web Audio API rather than loaded from
   files.
+- **Exception — home-screen / app icons only.** PNG app icons
+  (`apple-touch-icon.png`, `icon-512.png`) are allowed as files because iPadOS
+  "Add to Home Screen" cannot reliably use inline/data-URI icons. This exception
+  is strictly for launcher/home-screen icons — never for in-game graphics.
 
 ## 3. Mobile / Tablet First
 
