@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#021024">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Octopus Treasure Hunt</title>
+  <style>
+    :root {
+      --deep: #021024;
+      --deep-2: #063a63;
+      --teal: #00e5cc;
+      --coral: #ff5d8f;
+      --gold: #ffd166;
+      --ink: #eaf6ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(0, 229, 204, 0.16), transparent 45%),
+        linear-gradient(180deg, #063a63 0%, #021024 60%, #01060f 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.15);
+      border: 2px solid rgba(0, 229, 204, 0.4);
+    }
+    .back:active { transform: scale(0.95); }
+    .title {
+      font-size: clamp(1rem, 4.6vw, 1.5rem);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--gold);
+      text-shadow: 0 0 16px rgba(255, 209, 102, 0.35);
+    }
+    .spacer { min-width: 44px; }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+    }
+    canvas { display: block; touch-action: none; border-radius: 16px; }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      text-align: center;
+      padding: 24px;
+      background: rgba(2, 16, 36, 0.78);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: clamp(1.6rem, 7vw, 2.6rem);
+      background: linear-gradient(90deg, var(--teal), var(--gold));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .overlay p { font-size: clamp(0.95rem, 4vw, 1.15rem); color: rgba(234, 246, 255, 0.8); max-width: 22ch; }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #02121f;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--teal), var(--gold));
+      box-shadow: 0 12px 30px rgba(0, 229, 204, 0.35);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+
+    /* ---- D-pad ---- */
+    .dpad {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 10px;
+      width: min(90vw, 340px);
+      margin: 6px auto max(14px, env(safe-area-inset-bottom));
+    }
+    .arrow {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 66px;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #02121f;
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.25);
+      cursor: pointer;
+      touch-action: none;
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .arrow:active { transform: translateY(5px); box-shadow: 0 3px 0 rgba(0,0,0,0.25); }
+    .up    { grid-column: 2; grid-row: 1; background: linear-gradient(135deg, #7cf5e6, var(--teal)); }
+    .left  { grid-column: 1; grid-row: 2; background: linear-gradient(135deg, #ffe08a, var(--gold)); }
+    .down  { grid-column: 2; grid-row: 2; background: linear-gradient(135deg, #ff9ebd, var(--coral)); }
+    .right { grid-column: 3; grid-row: 2; background: linear-gradient(135deg, #b39cff, #7c5cff); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="title">🐙 Treasure Hunt 🪙</div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>Octopus Treasure Hunt</h2>
+      <p>Help the octopus 🐙 swim through the coral maze to the treasure 🪙!</p>
+      <button class="bigbtn" id="startBtn">🌊 Dive In!</button>
+    </div>
+
+    <div class="overlay hidden" id="winOverlay">
+      <h2>🎉 You found it! 🪙</h2>
+      <p>Great swimming! Ready for a brand-new maze?</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <div class="dpad">
+    <button class="arrow up"    data-dir="up"    aria-label="Up">⬆️</button>
+    <button class="arrow left"  data-dir="left"  aria-label="Left">⬅️</button>
+    <button class="arrow down"  data-dir="down"  aria-label="Down">⬇️</button>
+    <button class="arrow right" data-dir="right" aria-label="Right">➡️</button>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ---------- Config ----------
+    var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
+    var GRID = CELLS * 2 + 1;      // full grid incl. walls (odd)
+    var MOVE_MS = 110;             // octopus step animation duration
+    var WALL_EMOJI = ['🪸', '🌿'];
+
+    // ---------- State ----------
+    var STATE = { START: 0, PLAYING: 1, WON: 2 };
+    var state = STATE.START;
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var maze = [];                 // maze[y][x] : 1 wall, 0 passage
+    var decor = [];                // wall emoji per tile
+    var tile = 20, originX = 0, originY = 0, dpr = 1;
+    var cssW = 0, cssH = 0;
+
+    var octo = { cx: 1, cy: 1, rx: 1, ry: 1, from: {x:1,y:1}, to: {x:1,y:1}, t: 1 };
+    var treasure = { x: GRID - 2, y: GRID - 2 };
+    var bubbles = [];
+    var lastTs = 0;
+
+    // Offscreen static layer (background + walls + treasure)
+    var layer = document.createElement('canvas');
+    var lctx = layer.getContext('2d');
+
+    // ---------- Maze generation (recursive backtracker, iterative) ----------
+    function seededRandInt(n) { return Math.floor(Math.random() * n); }
+
+    function generateMaze() {
+      maze = [];
+      for (var y = 0; y < GRID; y++) {
+        var row = [];
+        for (var x = 0; x < GRID; x++) row.push(1);
+        maze.push(row);
+      }
+      var stack = [];
+      var sx = 1, sy = 1;
+      maze[sy][sx] = 0;
+      stack.push([sx, sy]);
+      var dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+
+      while (stack.length) {
+        var top = stack[stack.length - 1];
+        var cx = top[0], cy = top[1];
+        // Shuffle directions
+        var order = dirs.slice();
+        for (var i = order.length - 1; i > 0; i--) {
+          var j = seededRandInt(i + 1);
+          var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+        }
+        var carved = false;
+        for (var d = 0; d < order.length; d++) {
+          var nx = cx + order[d][0], ny = cy + order[d][1];
+          if (nx > 0 && nx < GRID - 1 && ny > 0 && ny < GRID - 1 && maze[ny][nx] === 1) {
+            maze[ny][nx] = 0;
+            maze[cy + order[d][1] / 2][cx + order[d][0] / 2] = 0; // knock down wall between
+            stack.push([nx, ny]);
+            carved = true;
+            break;
+          }
+        }
+        if (!carved) stack.pop();
+      }
+
+      // Wall decorations
+      decor = [];
+      for (var yy = 0; yy < GRID; yy++) {
+        var drow = [];
+        for (var xx = 0; xx < GRID; xx++) {
+          drow.push(WALL_EMOJI[seededRandInt(WALL_EMOJI.length)]);
+        }
+        decor.push(drow);
+      }
+    }
+
+    // ---------- Sizing / layout ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      cssW = Math.max(120, Math.floor(rect.width - 20));
+      cssH = Math.max(120, Math.floor(rect.height - 12));
+      // Keep the board square-ish, fit within stage
+      var side = Math.min(cssW, cssH);
+      tile = Math.floor(side / GRID);
+      var boardPx = tile * GRID;
+
+      dpr = window.devicePixelRatio || 1;
+      canvas.style.width = boardPx + 'px';
+      canvas.style.height = boardPx + 'px';
+      canvas.width = Math.round(boardPx * dpr);
+      canvas.height = Math.round(boardPx * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      originX = 0; originY = 0;
+
+      renderLayer();
+    }
+
+    function tileCenter(gx, gy) {
+      return { x: originX + gx * tile + tile / 2, y: originY + gy * tile + tile / 2 };
+    }
+
+    // ---------- Static layer render ----------
+    function renderLayer() {
+      var boardPx = tile * GRID;
+      layer.width = Math.round(boardPx * dpr);
+      layer.height = Math.round(boardPx * dpr);
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lctx.clearRect(0, 0, boardPx, boardPx);
+
+      // Water
+      var g = lctx.createLinearGradient(0, 0, 0, boardPx);
+      g.addColorStop(0, '#0a4f7a');
+      g.addColorStop(1, '#052a4a');
+      lctx.fillStyle = g;
+      lctx.fillRect(0, 0, boardPx, boardPx);
+
+      // Passage tint
+      lctx.fillStyle = 'rgba(6, 40, 70, 0.55)';
+      for (var y = 0; y < GRID; y++) {
+        for (var x = 0; x < GRID; x++) {
+          if (maze[y][x] === 0) lctx.fillRect(x * tile, y * tile, tile, tile);
+        }
+      }
+
+      lctx.textAlign = 'center';
+      lctx.textBaseline = 'middle';
+      lctx.font = Math.floor(tile * 0.82) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+
+      // Walls (coral / seaweed)
+      for (var wy = 0; wy < GRID; wy++) {
+        for (var wx = 0; wx < GRID; wx++) {
+          if (maze[wy][wx] === 1) {
+            lctx.fillText(decor[wy][wx], wx * tile + tile / 2, wy * tile + tile / 2 + tile * 0.04);
+          }
+        }
+      }
+
+      // Treasure
+      var tc = tileCenter(treasure.x, treasure.y);
+      lctx.font = Math.floor(tile * 0.78) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      lctx.fillText('🪙', tc.x, tc.y + tile * 0.04);
+    }
+
+    // ---------- Game control ----------
+    function newGame() {
+      generateMaze();
+      octo.cx = 1; octo.cy = 1;
+      octo.rx = 1; octo.ry = 1;
+      octo.from = { x: 1, y: 1 };
+      octo.to = { x: 1, y: 1 };
+      octo.t = 1;
+      bubbles = [];
+      resize();
+    }
+
+    function tryMove(dir) {
+      if (state !== STATE.PLAYING) return;
+      if (octo.t < 1) return; // still animating a step
+      var dx = 0, dy = 0;
+      if (dir === 'up') dy = -1;
+      else if (dir === 'down') dy = 1;
+      else if (dir === 'left') dx = -1;
+      else if (dir === 'right') dx = 1;
+      var nx = octo.cx + dx, ny = octo.cy + dy;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) return;
+      if (maze[ny][nx] === 1) return; // wall
+      octo.from = { x: octo.cx, y: octo.cy };
+      octo.to = { x: nx, y: ny };
+      octo.cx = nx; octo.cy = ny;
+      octo.t = 0;
+      if (nx === treasure.x && ny === treasure.y) {
+        // Will reach treasure at end of animation; celebrate now.
+        win();
+      }
+    }
+
+    function win() {
+      state = STATE.WON;
+      spawnBurst();
+      setTimeout(function () {
+        document.getElementById('winOverlay').classList.remove('hidden');
+      }, 550);
+    }
+
+    // ---------- Bubbles ----------
+    function spawnBurst() {
+      var c = tileCenter(treasure.x, treasure.y);
+      for (var i = 0; i < 26; i++) {
+        bubbles.push(makeBubble(c.x, c.y, true));
+      }
+    }
+    function makeBubble(x, y, burst) {
+      var r = 4 + Math.random() * (tile * 0.28);
+      return {
+        x: x + (Math.random() - 0.5) * tile,
+        y: y + (Math.random() - 0.5) * tile,
+        r: r,
+        vy: -(20 + Math.random() * 60) * (burst ? 1.4 : 1),
+        wob: Math.random() * Math.PI * 2,
+        wobSpeed: 1.5 + Math.random() * 2,
+        amp: 6 + Math.random() * 14,
+        alpha: 0.9,
+        life: 0
+      };
+    }
+    function updateBubbles(dt) {
+      // Keep gently emitting while celebrating
+      if (state === STATE.WON && bubbles.length < 60 && Math.random() < 0.4) {
+        var c = tileCenter(treasure.x, treasure.y);
+        bubbles.push(makeBubble(c.x, c.y, false));
+      }
+      for (var i = bubbles.length - 1; i >= 0; i--) {
+        var b = bubbles[i];
+        b.life += dt;
+        b.y += b.vy * dt;
+        b.wob += b.wobSpeed * dt;
+        b.alpha -= dt * 0.35;
+        if (b.alpha <= 0 || b.y < -tile) bubbles.splice(i, 1);
+      }
+    }
+    function drawBubbles() {
+      for (var i = 0; i < bubbles.length; i++) {
+        var b = bubbles[i];
+        var x = b.x + Math.sin(b.wob) * b.amp;
+        ctx.beginPath();
+        ctx.arc(x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(200, 245, 255, ' + Math.max(0, b.alpha * 0.5) + ')';
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, ' + Math.max(0, b.alpha * 0.7) + ')';
+        ctx.stroke();
+        // highlight
+        ctx.beginPath();
+        ctx.arc(x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + Math.max(0, b.alpha * 0.8) + ')';
+        ctx.fill();
+      }
+    }
+
+    // ---------- Main loop ----------
+    function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.05, (ts - lastTs) / 1000);
+      lastTs = ts;
+
+      // Advance octopus step animation
+      if (octo.t < 1) {
+        octo.t += dt * 1000 / MOVE_MS;
+        if (octo.t > 1) octo.t = 1;
+        var e = easeOut(octo.t);
+        octo.rx = octo.from.x + (octo.to.x - octo.from.x) * e;
+        octo.ry = octo.from.y + (octo.to.y - octo.from.y) * e;
+      } else {
+        octo.rx = octo.cx; octo.ry = octo.cy;
+      }
+
+      updateBubbles(dt);
+
+      // Draw
+      var boardPx = tile * GRID;
+      ctx.clearRect(0, 0, boardPx, boardPx);
+      ctx.drawImage(layer, 0, 0, boardPx, boardPx);
+
+      // Octopus (with gentle bob)
+      var bob = Math.sin(ts / 260) * tile * 0.06;
+      var oc = tileCenter(octo.rx, octo.ry);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = Math.floor(tile * 0.8) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = tile * 0.15;
+      ctx.fillText('🐙', oc.x, oc.y + bob);
+      ctx.shadowBlur = 0;
+
+      drawBubbles();
+
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Input ----------
+    // D-pad buttons
+    var dpadBtns = document.querySelectorAll('.arrow');
+    dpadBtns.forEach(function (btn) {
+      var dir = btn.getAttribute('data-dir');
+      var handler = function (e) { e.preventDefault(); tryMove(dir); };
+      btn.addEventListener('touchstart', handler, { passive: false });
+      btn.addEventListener('mousedown', handler);
+    });
+
+    // Keyboard (desktop testing)
+    window.addEventListener('keydown', function (e) {
+      var map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+                  w: 'up', s: 'down', a: 'left', d: 'right' };
+      if (map[e.key]) { e.preventDefault(); tryMove(map[e.key]); }
+    });
+
+    // Swipe + tap on canvas
+    var touchStart = null;
+    canvas.addEventListener('touchstart', function (e) {
+      var t = e.changedTouches[0];
+      touchStart = { x: t.clientX, y: t.clientY };
+    }, { passive: true });
+    canvas.addEventListener('touchend', function (e) {
+      if (!touchStart) return;
+      var t = e.changedTouches[0];
+      handlePointerGesture(touchStart.x, touchStart.y, t.clientX, t.clientY);
+      touchStart = null;
+    }, { passive: true });
+    // Mouse (desktop) tap-to-move
+    canvas.addEventListener('mousedown', function (e) { touchStart = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('mouseup', function (e) {
+      if (!touchStart) return;
+      handlePointerGesture(touchStart.x, touchStart.y, e.clientX, e.clientY);
+      touchStart = null;
+    });
+
+    function handlePointerGesture(x0, y0, x1, y1) {
+      var dx = x1 - x0, dy = y1 - y0;
+      var dist = Math.hypot(dx, dy);
+      if (dist > 24) {
+        // Swipe: move in dominant direction
+        if (Math.abs(dx) > Math.abs(dy)) tryMove(dx > 0 ? 'right' : 'left');
+        else tryMove(dy > 0 ? 'down' : 'up');
+      } else {
+        // Tap: step toward tapped tile relative to octopus
+        var rect = canvas.getBoundingClientRect();
+        var tx = Math.floor((x1 - rect.left) / tile);
+        var ty = Math.floor((y1 - rect.top) / tile);
+        var ddx = tx - octo.cx, ddy = ty - octo.cy;
+        if (ddx === 0 && ddy === 0) return;
+        if (Math.abs(ddx) >= Math.abs(ddy)) tryMove(ddx > 0 ? 'right' : 'left');
+        else tryMove(ddy > 0 ? 'down' : 'up');
+      }
+    }
+
+    // Overlay buttons
+    document.getElementById('startBtn').addEventListener('click', function () {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+    });
+    document.getElementById('playAgainBtn').addEventListener('click', function () {
+      document.getElementById('winOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+    });
+
+    // Resize / orientation / visibility
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () {
+      // Reset timer so dt doesn't jump after tab was hidden
+      if (!document.hidden) lastTs = 0;
+    });
+    // Block pinch-zoom / double-tap zoom
+    document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // ---------- Boot ----------
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

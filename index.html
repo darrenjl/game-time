@@ -3,177 +3,205 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#12002e">
+  <meta name="theme-color" content="#021024">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Oisín &amp; Finley's Awesome Game</title>
+  <title>Oisín &amp; Finley's Arcade Studio</title>
   <style>
     :root {
-      --bg: #12002e;
-      --bg-2: #23054d;
-      --accent: #ff2e88;
-      --accent-2: #00e5ff;
-      --ink: #fff7ff;
+      --deep: #021024;
+      --deep-2: #052a4a;
+      --teal: #00e5cc;
+      --coral: #ff5d8f;
+      --gold: #ffd166;
+      --ink: #eaf6ff;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%;
-      height: 100%;
-      overflow: hidden;
+      min-height: 100%;
       overscroll-behavior: none;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
+      -webkit-text-size-adjust: 100%;
       -webkit-tap-highlight-color: transparent;
     }
 
     body {
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: clamp(16px, 4vh, 40px);
-      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      gap: clamp(20px, 5vh, 44px);
+      padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
       font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
       color: var(--ink);
       text-align: center;
       background:
-        radial-gradient(circle at 20% 15%, rgba(255, 46, 136, 0.28), transparent 45%),
-        radial-gradient(circle at 85% 80%, rgba(0, 229, 255, 0.24), transparent 45%),
-        linear-gradient(160deg, var(--bg), var(--bg-2));
+        radial-gradient(circle at 15% 12%, rgba(0, 229, 204, 0.18), transparent 42%),
+        radial-gradient(circle at 85% 22%, rgba(255, 93, 143, 0.16), transparent 40%),
+        linear-gradient(180deg, #052a4a 0%, #021024 55%, #01060f 100%);
+      overflow-x: hidden;
     }
 
+    /* Lazy rising bubbles in the background */
+    .bubbles { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bubbles span {
+      position: absolute;
+      bottom: -60px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), rgba(0,229,204,0.08));
+      box-shadow: 0 0 12px rgba(0, 229, 204, 0.25);
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(0) translateX(0); opacity: 0; }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.6; }
+      100% { transform: translateY(-110dvh) translateX(20px); opacity: 0; }
+    }
+
+    header, main, footer { position: relative; z-index: 1; width: 100%; }
+
+    header { margin-top: clamp(6px, 3vh, 24px); }
     header h1 {
-      font-size: clamp(1.6rem, 7vw, 3.2rem);
-      line-height: 1.1;
-      letter-spacing: 0.02em;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      font-size: clamp(1.8rem, 8vw, 3.4rem);
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+      background: linear-gradient(90deg, var(--teal), var(--gold), var(--coral));
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
-      text-shadow: 0 0 24px rgba(255, 46, 136, 0.35);
-      animation: pulse 2.4s ease-in-out infinite;
+      text-shadow: 0 0 30px rgba(0, 229, 204, 0.25);
+    }
+    header p {
+      margin-top: 10px;
+      font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+      color: rgba(234, 246, 255, 0.65);
+      letter-spacing: 0.04em;
     }
 
-    header .dots::after {
-      content: "";
-      animation: dots 1.6s steps(4, end) infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: translateY(0); opacity: 1; }
-      50% { transform: translateY(-4px); opacity: 0.88; }
-    }
-
-    @keyframes dots {
-      0% { content: ""; }
-      25% { content: "."; }
-      50% { content: ".."; }
-      75% { content: "..."; }
-    }
-
-    #stage {
-      position: relative;
-      width: min(92vw, 92vh, 640px);
-      aspect-ratio: 1 / 1;
-      border-radius: 24px;
-      padding: 6px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(0, 229, 255, 0.25);
-    }
-
-    canvas {
-      display: block;
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 100%;
-      height: 100%;
-      border-radius: 18px;
-      background: #0a0018;
-      touch-action: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: clamp(16px, 3vw, 28px);
+      width: min(100%, 900px);
+    }
+
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 190px;
+      padding: 26px 18px;
+      border-radius: 24px;
+      text-decoration: none;
+      color: var(--ink);
+      background: linear-gradient(160deg, rgba(0, 229, 204, 0.12), rgba(5, 42, 74, 0.85));
+      border: 2px solid rgba(0, 229, 204, 0.35);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(0, 229, 204, 0.08);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .card:active {
+      transform: scale(0.97);
+      border-color: var(--gold);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(255, 209, 102, 0.15);
+    }
+    .card .emoji { font-size: clamp(3rem, 12vw, 4.4rem); line-height: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); }
+    .card .name { font-size: clamp(1.1rem, 4.5vw, 1.4rem); font-weight: 700; }
+    .card .tag { font-size: 0.8rem; color: rgba(234, 246, 255, 0.6); letter-spacing: 0.03em; }
+
+    .card.locked {
+      pointer-events: none;
+      opacity: 0.4;
+      filter: grayscale(0.7);
+      border-style: dashed;
+      border-color: rgba(234, 246, 255, 0.25);
+      background: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(5, 42, 74, 0.5));
+    }
+    .card.locked .badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 209, 102, 0.25);
+      color: var(--gold);
     }
 
     footer {
-      font-size: clamp(0.75rem, 3vw, 1rem);
-      opacity: 0.6;
-      letter-spacing: 0.04em;
+      font-size: clamp(0.72rem, 3vw, 0.9rem);
+      color: rgba(234, 246, 255, 0.45);
+      letter-spacing: 0.05em;
     }
   </style>
 </head>
 <body>
+  <div class="bubbles" aria-hidden="true"></div>
+
   <header>
-    <h1>Oisín &amp; Finley's Awesome Game <span class="dots">Loading</span></h1>
+    <h1>🐙 Oisín &amp; Finley's Arcade Studio 🎮</h1>
+    <p>Pick a game and dive in!</p>
   </header>
 
-  <div id="stage">
-    <canvas id="game"></canvas>
-  </div>
+  <main>
+    <div class="grid">
+      <a class="card" href="./octopus-maze/index.html">
+        <span class="emoji">🐙</span>
+        <span class="name">Octopus Treasure Hunt</span>
+        <span class="tag">Guide the octopus to the treasure!</span>
+      </a>
 
-  <footer>Tap to start · mobile &amp; tablet ready</footer>
+      <div class="card locked" aria-disabled="true">
+        <span class="badge">Coming Soon!</span>
+        <span class="emoji">🦈</span>
+        <span class="name">Mystery Game</span>
+        <span class="tag">We're still building this one…</span>
+      </div>
+
+      <div class="card locked" aria-disabled="true">
+        <span class="badge">Coming Soon!</span>
+        <span class="emoji">🚀</span>
+        <span class="name">Mystery Game</span>
+        <span class="tag">We're still building this one…</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>Made for Oisín &amp; Finley 💙</footer>
 
   <script>
+    // Sprinkle background bubbles.
     (function () {
-      const canvas = document.getElementById('game');
-      const ctx = canvas.getContext('2d');
-      let w = 0, h = 0;
-
-      function resize() {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        w = rect.width;
-        h = rect.height;
-        canvas.width = Math.round(w * dpr);
-        canvas.height = Math.round(h * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const layer = document.querySelector('.bubbles');
+      const count = 14;
+      for (let i = 0; i < count; i++) {
+        const b = document.createElement('span');
+        const size = 8 + Math.random() * 34;
+        b.style.width = size + 'px';
+        b.style.height = size + 'px';
+        b.style.left = (Math.random() * 100) + 'vw';
+        b.style.animationDuration = (8 + Math.random() * 12) + 's';
+        b.style.animationDelay = (-Math.random() * 12) + 's';
+        layer.appendChild(b);
       }
-
-      function draw(t) {
-        ctx.clearRect(0, 0, w, h);
-
-        // Subtle animated glow ring behind the text.
-        const cx = w / 2;
-        const cy = h / 2;
-        const pulse = 0.5 + 0.5 * Math.sin(t / 600);
-        const radius = Math.min(w, h) * (0.28 + 0.02 * pulse);
-
-        const grad = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
-        grad.addColorStop(0, 'rgba(0, 229, 255, ' + (0.18 + 0.12 * pulse) + ')');
-        grad.addColorStop(1, 'rgba(255, 46, 136, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Placeholder message.
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        ctx.font = '600 ' + Math.round(Math.min(w, h) * 0.09) + 'px "Trebuchet MS", system-ui, sans-serif';
-        ctx.fillStyle = '#fff7ff';
-        ctx.shadowColor = 'rgba(0, 229, 255, 0.6)';
-        ctx.shadowBlur = 18;
-        ctx.fillText('🎮', cx, cy - Math.min(w, h) * 0.14);
-        ctx.fillText('Insert Game Here', cx, cy);
-        ctx.shadowBlur = 0;
-
-        ctx.font = '400 ' + Math.round(Math.min(w, h) * 0.045) + 'px "Trebuchet MS", system-ui, sans-serif';
-        ctx.fillStyle = 'rgba(255, 247, 255, 0.55)';
-        ctx.fillText('placeholder canvas', cx, cy + Math.min(w, h) * 0.13);
-
-        requestAnimationFrame(draw);
-      }
-
-      window.addEventListener('resize', resize);
-      window.addEventListener('orientationchange', resize);
-
-      // Suppress pinch-zoom / double-tap zoom and rubber-banding.
-      document.addEventListener('touchmove', function (e) {
-        if (e.touches.length > 1) e.preventDefault();
-      }, { passive: false });
-      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
-
-      resize();
-      requestAnimationFrame(draw);
     })();
   </script>
 </body>
