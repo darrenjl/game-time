@@ -636,6 +636,18 @@
     document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
+    // Keep links inside the iOS home-screen (standalone) app instead of Safari
+    if (('standalone' in navigator) && navigator.standalone) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
     // ---------- Boot ----------
     newGame();
     requestAnimationFrame(frame);

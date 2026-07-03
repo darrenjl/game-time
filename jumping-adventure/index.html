@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1026">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Jumping Adventure">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>The Jumping Adventure</title>
+  <style>
+    :root {
+      --space: #0b1026;
+      --space-2: #1a1246;
+      --star: #ffe27a;
+      --flame: #ff8a3d;
+      --ink: #eef2ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #1a1246 0%, #0b1026 55%, #05030f 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(124, 140, 255, 0.18);
+      border: 2px solid rgba(124, 140, 255, 0.5);
+    }
+    .back:active { transform: scale(0.95); }
+    .score {
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.6rem);
+      font-weight: 800;
+      color: var(--star);
+      text-shadow: 0 0 16px rgba(255, 226, 122, 0.4);
+    }
+    .refresh {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(124, 140, 255, 0.18);
+      border: 2px solid rgba(124, 140, 255, 0.5);
+    }
+    .refresh:active { transform: scale(0.95); }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      background: rgba(11, 16, 38, 0.72);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .overlay > * + * { margin-top: 16px; }     /* gap fallback for Safari < 14.5 */
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 2rem;
+      font-size: clamp(1.6rem, 7vw, 2.8rem);
+      background: linear-gradient(90deg, #7c8cff, var(--star));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(238, 242, 255, 0.85); max-width: 24ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #0b1026;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #7c8cff, var(--star));
+      box-shadow: 0 12px 30px rgba(124, 140, 255, 0.4);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">0</div>
+    <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🚀 The Jumping Adventure</h2>
+      <p>Help the space pup leap the platforms and grab the stars!</p>
+      <div class="tap-hint">👆</div>
+      <p><b>Tap anywhere to jump.</b> Tap again in the air for a rocket boost!</p>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>💥 Splat!</h2>
+      <p id="finalScore">You scored 0</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2 };
+    var state = STATE.START;
+
+    var W = 0, H = 0, dpr = 1;
+    var BODY = ['#ff6b57', '#4f8ef7', '#8b5cf6', '#2fb6c9', '#f6b93b', '#ff7eb6', '#57c785'];
+
+    var char, platforms, stars, sparks, bgStars, moon;
+    var speed, dist, points, lastTs = 0;
+
+    // Tunables (recomputed from H on resize)
+    var CW, GRAV, JUMP, SPEED0, SPEEDMAX, SPEEDACC, GAPMIN, GAPMAX, PWMIN, PWMAX, TOPMIN, TOPMAX, MAXRISE;
+
+    function computeTunables() {
+      CW = H * 0.13;
+      GRAV = H * 2.4;
+      JUMP = -H * 1.06;
+      SPEED0 = H * 0.52;
+      SPEEDMAX = H * 0.92;
+      SPEEDACC = H * 0.02;
+      GAPMIN = H * 0.16; GAPMAX = H * 0.32;
+      PWMIN = H * 0.34;  PWMAX = H * 0.62;
+      TOPMIN = H * 0.44; TOPMAX = H * 0.72;
+      MAXRISE = H * 0.15;
+    }
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    // ---------- Sizing ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      computeTunables();
+      if (char) char.x = W * 0.26;
+      buildBg();
+    }
+
+    function buildBg() {
+      bgStars = [];
+      var n = Math.round((W * H) / 12000);
+      for (var i = 0; i < n; i++) {
+        bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: rand(0.6, 2.2), tw: Math.random() * 6.28 });
+      }
+      moon = { x: W * 0.8, y: H * 0.18, r: H * 0.07 };
+    }
+
+    // ---------- Setup ----------
+    function newGame() {
+      speed = SPEED0;
+      dist = 0;
+      points = 0;
+      sparks = [];
+      stars = [];
+      char = { x: W * 0.26, y: 0, vy: 0, w: CW, h: CW, py: 0, jumps: 2, grounded: true, tilt: 0 };
+
+      // First (long) platform under the pup
+      platforms = [];
+      var firstTop = H * 0.64;
+      platforms.push({ x: -W * 0.1, w: char.x + W * 0.55, top: firstTop, body: BODY[0], cap: BODY[3] });
+      char.y = firstTop - char.h;
+      char.py = char.y;
+      // Fill the screen with more platforms
+      while (platforms[platforms.length - 1].x + platforms[platforms.length - 1].w < W + W * 0.3) spawnPlatform();
+
+      updateScore();
+    }
+
+    function spawnPlatform() {
+      var last = platforms[platforms.length - 1];
+      var gap = rand(GAPMIN, GAPMAX);
+      var w = rand(PWMIN, PWMAX);
+      var top = Math.max(TOPMIN, Math.min(TOPMAX, last.top + rand(-MAXRISE, MAXRISE)));
+      var idx = platforms.length;
+      var p = { x: last.x + last.w + gap, w: w, top: top, body: BODY[idx % BODY.length], cap: BODY[(idx + 3) % BODY.length] };
+      platforms.push(p);
+      // Sometimes float a collectible star above the platform
+      if (Math.random() < 0.7) {
+        stars.push({ x: p.x + p.w / 2, y: top - rand(H * 0.14, H * 0.26), r: H * 0.035, got: false, tw: Math.random() * 6.28 });
+      }
+    }
+
+    // ---------- Input ----------
+    function jump() {
+      if (char.jumps > 0) {
+        char.vy = JUMP;
+        char.jumps--;
+        char.grounded = false;
+        // little puff
+        spawnSparks(char.x + char.w * 0.3, char.y + char.h, '#ffd27a', 6);
+      }
+    }
+
+    function onTap(e) {
+      if (e) e.preventDefault();
+      if (state === STATE.START) { startGame(); }
+      else if (state === STATE.PLAYING) { jump(); }
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+
+    function gameOver() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      spawnSparks(char.x + char.w / 2, char.y + char.h / 2, '#ff6b57', 22);
+      document.getElementById('finalScore').textContent = 'You scored ' + Math.floor(points);
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Particles ----------
+    function spawnSparks(x, y, color, n) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(H * 0.1, H * 0.5);
+        sparks.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - H * 0.1, r: rand(2, H * 0.02), color: color, alpha: 1 });
+      }
+    }
+    function updateSparks(dt) {
+      for (var i = sparks.length - 1; i >= 0; i--) {
+        var s = sparks[i];
+        s.x += s.vx * dt; s.y += s.vy * dt; s.vy += H * 1.6 * dt;
+        s.alpha -= dt * 1.1;
+        if (s.alpha <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      // Difficulty ramp
+      speed = Math.min(SPEEDMAX, speed + SPEEDACC * dt);
+      dist += speed * dt;
+      points += dt * 8;
+
+      // Scroll world left
+      var d = speed * dt;
+      var i;
+      for (i = 0; i < platforms.length; i++) platforms[i].x -= d;
+      for (i = 0; i < stars.length; i++) stars[i].x -= d;
+
+      // Cull + spawn platforms
+      while (platforms.length && platforms[0].x + platforms[0].w < -W * 0.1) platforms.shift();
+      while (platforms[platforms.length - 1].x + platforms[platforms.length - 1].w < W + W * 0.3) spawnPlatform();
+      while (stars.length && stars[0].x < -W * 0.1) stars.shift();
+
+      // Physics
+      char.py = char.y;
+      char.vy += GRAV * dt;
+      char.y += char.vy * dt;
+      char.tilt = Math.max(-0.5, Math.min(0.6, char.vy / (H * 2)));
+
+      // Collisions with platforms
+      var landed = false;
+      for (i = 0; i < platforms.length; i++) {
+        var p = platforms[i];
+        var overlapX = (char.x + char.w > p.x) && (char.x < p.x + p.w);
+        if (!overlapX) continue;
+        // Land on top when falling
+        if (char.vy >= 0 && (char.py + char.h) <= p.top + 1 && (char.y + char.h) >= p.top) {
+          char.y = p.top - char.h;
+          char.vy = 0;
+          char.jumps = 2;
+          char.grounded = true;
+          landed = true;
+        } else if ((char.y + char.h) > p.top + char.h * 0.5 && char.y < p.top + H) {
+          // Ran into the side of a taller pillar
+          gameOver();
+          return;
+        }
+      }
+      if (!landed) char.grounded = false;
+
+      // Collect stars
+      for (i = 0; i < stars.length; i++) {
+        var st = stars[i];
+        if (st.got) continue;
+        var cxp = char.x + char.w / 2, cyp = char.y + char.h / 2;
+        if (Math.abs(cxp - st.x) < char.w * 0.6 + st.r && Math.abs(cyp - st.y) < char.h * 0.6 + st.r) {
+          st.got = true;
+          points += 5;
+          spawnSparks(st.x, st.y, '#ffe27a', 12);
+        }
+      }
+
+      // Fell off the bottom
+      if (char.y > H + char.h) { gameOver(); return; }
+
+      updateSparks(dt);
+      updateScore();
+    }
+
+    function updateScore() { scoreEl.textContent = Math.floor(points); }
+
+    // ---------- Render ----------
+    function roundTopRect(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x, y + h);
+      c.lineTo(x, y + r);
+      c.arcTo(x, y, x + r, y, r);
+      c.lineTo(x + w - r, y);
+      c.arcTo(x + w, y, x + w, y + r, r);
+      c.lineTo(x + w, y + h);
+      c.closePath();
+    }
+
+    function drawPlatform(p) {
+      var capH = Math.min(H * 0.05, p.w * 0.28);
+      // body
+      roundTopRect(ctx, p.x, p.top, p.w, H - p.top + 4, Math.min(14, p.w * 0.12));
+      ctx.fillStyle = p.body;
+      ctx.fill();
+      // wavy texture lines on the body
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = Math.max(2, H * 0.006);
+      for (var ly = p.top + capH + H * 0.05; ly < H; ly += H * 0.07) {
+        ctx.beginPath();
+        var seg = p.w / 4;
+        for (var sx = 0; sx <= 4; sx++) {
+          var xx = p.x + sx * seg;
+          var yy = ly + (sx % 2 === 0 ? 0 : H * 0.018);
+          if (sx === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
+        }
+        ctx.stroke();
+      }
+      // colourful cap
+      roundTopRect(ctx, p.x, p.top, p.w, capH, Math.min(14, p.w * 0.12));
+      ctx.fillStyle = p.cap;
+      ctx.fill();
+      // cap zigzag trim
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.beginPath();
+      var tw = p.w / 6, ty = p.top + capH;
+      ctx.moveTo(p.x, ty);
+      for (var t = 0; t < 6; t++) {
+        ctx.lineTo(p.x + t * tw + tw / 2, ty + H * 0.014);
+        ctx.lineTo(p.x + (t + 1) * tw, ty);
+      }
+      ctx.lineTo(p.x + p.w, ty + H * 0.02);
+      ctx.lineTo(p.x, ty + H * 0.02);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawStarShape(x, y, r, rot, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var ang = -Math.PI / 2 + i * Math.PI / 5;
+        var rr = (i % 2 === 0) ? r : r * 0.45;
+        ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = r;
+      ctx.fill();
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawCharacter(ts) {
+      var cxp = char.x + char.w / 2, cyp = char.y + char.h / 2;
+      ctx.save();
+      ctx.translate(cxp, cyp);
+      ctx.rotate(char.tilt);
+      // rocket flame when rising
+      if (char.vy < 0) {
+        var f = char.w * (0.4 + 0.2 * Math.sin(ts / 40));
+        ctx.beginPath();
+        ctx.moveTo(-char.w * 0.28, char.h * 0.28);
+        ctx.lineTo(-char.w * 0.05, char.h * 0.28 + f);
+        ctx.lineTo(char.w * 0.12, char.h * 0.28);
+        ctx.closePath();
+        ctx.fillStyle = '#ff8a3d';
+        ctx.shadowColor = '#ffb03d';
+        ctx.shadowBlur = char.w * 0.5;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      // pup
+      ctx.font = Math.floor(char.h) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🐕', 0, 0);
+      ctx.restore();
+    }
+
+    function render(ts) {
+      // Space background
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#1a1246'); g.addColorStop(0.6, '#0b1026'); g.addColorStop(1, '#05030f');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      // Moon / planet
+      if (moon) {
+        ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 246, 214, 0.9)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(moon.x - moon.r * 0.3, moon.y - moon.r * 0.2, moon.r * 0.18, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fill();
+      }
+
+      // Twinkling stars
+      for (var i = 0; i < bgStars.length; i++) {
+        var s = bgStars[i];
+        var a = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(ts / 500 + s.tw));
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Platforms
+      for (i = 0; i < platforms.length; i++) drawPlatform(platforms[i]);
+
+      // Collectible stars
+      for (i = 0; i < stars.length; i++) {
+        if (stars[i].got) continue;
+        var st = stars[i];
+        var bob = Math.sin(ts / 300 + st.tw) * H * 0.01;
+        drawStarShape(st.x, st.y + bob, st.r, ts / 900 + st.tw, '#ffe27a');
+      }
+
+      // Character
+      drawCharacter(ts);
+
+      // Sparks
+      for (i = 0; i < sparks.length; i++) {
+        var sp = sparks[i];
+        ctx.globalAlpha = Math.max(0, sp.alpha);
+        ctx.fillStyle = sp.color;
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ---------- Loop ----------
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt);
+      else updateSparks(dt);
+      render(ts);
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+    window.addEventListener('keydown', function (e) {
+      if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); onTap(); }
+    });
+
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+      lastTs = 0;
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // Keep links inside the iOS home-screen (standalone) app instead of Safari
+    if (('standalone' in navigator) && navigator.standalone) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    resize();
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

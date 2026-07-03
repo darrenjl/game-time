@@ -206,9 +206,15 @@
         <span class="tag">Sniff out the diamond and crystal!</span>
       </a>
 
+      <a class="card" href="./jumping-adventure/index.html">
+        <span class="emoji">🚀</span>
+        <span class="name">The Jumping Adventure</span>
+        <span class="tag">Tap to jump the space platforms!</span>
+      </a>
+
       <div class="card locked" aria-disabled="true">
         <span class="badge">Coming Soon!</span>
-        <span class="emoji">🚀</span>
+        <span class="emoji">🎨</span>
         <span class="name">Mystery Game</span>
         <span class="tag">We're still building this one…</span>
       </div>
@@ -238,6 +244,19 @@
     document.getElementById('refreshBtn').addEventListener('click', function () {
       location.reload();
     });
+
+    // Keep game links inside the iOS home-screen (standalone) app instead of
+    // opening a separate Safari tab.
+    if (('standalone' in navigator) && navigator.standalone) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
   </script>
 </body>
 </html>
