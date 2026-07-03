@@ -58,7 +58,27 @@ tendencies.
   fully restore initial state without reloading the page.
 - Pause the loop when the tab is hidden (`visibilitychange`) to save battery.
 
-## 5. Style
+## 5. Browser Compatibility
+
+Games must run on **older iPads** as well as new ones. The baseline target is
+**Safari 12 / iOS 12** (e.g. the iPad mini 2, which cannot update past iOS
+12.5.7). Several modern CSS features are silently ignored on that browser and
+break layout, so always provide a fallback declaration *before* the modern one:
+
+- **`inset: 0`** is unsupported — use `top: 0; right: 0; bottom: 0; left: 0;`.
+- **`clamp()`** (fonts/spacing) is unsupported — precede each `clamp()` with a
+  fixed fallback value on its own line (`font-size: 2rem; font-size: clamp(...)`).
+- **Flexbox `gap`** is unsupported — for flex containers, use sibling margins
+  (`.box > * + * { margin-top: N }`). Grid `gap` is fine.
+- **`dvh` units** are unsupported — precede `100dvh` with a `100vh` fallback.
+- **`backdrop-filter`** needs the `-webkit-backdrop-filter` prefix on iOS.
+- Avoid **`aspect-ratio`** and **`overscroll-behavior`** as load-bearing; treat
+  them as progressive enhancement only.
+- Keep JavaScript to widely-supported syntax (the games use ES5-style `var` /
+  `function`, `requestAnimationFrame`, Canvas 2D, touch events — all fine on
+  Safari 12).
+
+## 6. Style
 
 - Keep it simple and readable. Prefer vanilla JS; do not introduce frameworks or
   libraries.

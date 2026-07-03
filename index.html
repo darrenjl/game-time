@@ -31,10 +31,12 @@
     }
 
     body {
+      min-height: 100vh;      /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 32px;              /* fallback: flex gap unsupported on Safari < 14.5 */
       gap: clamp(20px, 5vh, 44px);
       padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
       font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
@@ -48,7 +50,7 @@
     }
 
     /* Lazy rising bubbles in the background */
-    .bubbles { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bubbles { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none; overflow: hidden; }
     .bubbles span {
       position: absolute;
       bottom: -60px;
@@ -61,13 +63,14 @@
       0%   { transform: translateY(0) translateX(0); opacity: 0; }
       10%  { opacity: 0.8; }
       90%  { opacity: 0.6; }
-      100% { transform: translateY(-110dvh) translateX(20px); opacity: 0; }
+      100% { transform: translateY(-110vh) translateX(20px); opacity: 0; }
     }
 
     header, main, footer { position: relative; z-index: 1; width: 100%; }
 
     header { margin-top: clamp(6px, 3vh, 24px); }
     header h1 {
+      font-size: 2.6rem;      /* fallback: clamp() unsupported on Safari < 13.4 */
       font-size: clamp(1.8rem, 8vw, 3.4rem);
       line-height: 1.05;
       letter-spacing: 0.01em;
@@ -79,6 +82,7 @@
     }
     header p {
       margin-top: 10px;
+      font-size: 1rem;
       font-size: clamp(0.85rem, 3.6vw, 1.1rem);
       color: rgba(234, 246, 255, 0.65);
       letter-spacing: 0.04em;
@@ -95,6 +99,7 @@
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 22px;              /* fallback: clamp() unsupported on Safari < 13.4 */
       gap: clamp(16px, 3vw, 28px);
       width: min(100%, 900px);
     }
@@ -105,7 +110,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
       min-height: 190px;
       padding: 26px 18px;
       border-radius: 24px;
@@ -123,8 +127,9 @@
       border-color: var(--gold);
       box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(255, 209, 102, 0.15);
     }
-    .card .emoji { font-size: clamp(3rem, 12vw, 4.4rem); line-height: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); }
-    .card .name { font-size: clamp(1.1rem, 4.5vw, 1.4rem); font-weight: 700; }
+    .card > * + * { margin-top: 12px; }  /* gap fallback for Safari < 14.5 */
+    .card .emoji { font-size: 3.6rem; font-size: clamp(3rem, 12vw, 4.4rem); line-height: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); }
+    .card .name { font-size: 1.25rem; font-size: clamp(1.1rem, 4.5vw, 1.4rem); font-weight: 700; }
     .card .tag { font-size: 0.8rem; color: rgba(234, 246, 255, 0.6); letter-spacing: 0.03em; }
 
     .card.locked {
@@ -150,6 +155,7 @@
     }
 
     footer {
+      font-size: 0.82rem;
       font-size: clamp(0.72rem, 3vw, 0.9rem);
       color: rgba(234, 246, 255, 0.45);
       letter-spacing: 0.05em;
