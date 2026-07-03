@@ -75,7 +75,7 @@
     }
     .rightbtns { display: flex; }
     .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
-    .refresh, .speed {
+    .refresh, .pause {
       -webkit-appearance: none;
       appearance: none;
       min-width: 44px;
@@ -89,7 +89,31 @@
       background: rgba(124, 140, 255, 0.18);
       border: 2px solid rgba(124, 140, 255, 0.5);
     }
-    .refresh:active, .speed:active { transform: scale(0.95); }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+
+    /* Speed picker inside the pause menu */
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }  /* gap fallback for Safari < 14.5 */
+    .speedpick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 68px;
+      min-height: 68px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(124, 140, 255, 0.14);
+      border: 2px solid rgba(124, 140, 255, 0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+    .speedpick button.sel { border-color: var(--star); background: rgba(255, 226, 122, 0.18); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
 
     /* ---- Stage / canvas ---- */
     .stage {
@@ -151,7 +175,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">0</div>
     <div class="rightbtns">
-      <button class="speed" id="speedBtn" aria-label="Change speed">🙂</button>
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
   </div>
@@ -164,7 +188,19 @@
       <p>Help the space pup leap the platforms and grab the stars!</p>
       <div class="tap-hint">👆</div>
       <p><b>Tap anywhere to jump.</b> Tap again in the air for a rocket boost!</p>
-      <p style="opacity:0.7;font-size:0.9em">Use the 🐢 / ⚡ button (top-right) to change speed.</p>
+      <p style="opacity:0.7;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p>Choose a speed:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
     </div>
 
     <div class="overlay hidden" id="overOverlay">
@@ -182,7 +218,7 @@
     var ctx = canvas.getContext('2d');
     var scoreEl = document.getElementById('score');
 
-    var STATE = { START: 0, PLAYING: 1, OVER: 2 };
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
     var state = STATE.START;
 
     var W = 0, H = 0, dpr = 1;
@@ -618,13 +654,11 @@
     });
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
-    // Speed selector (🐢 Chill → 🙂 Normal → 🐇 Fast → ⚡ Zoom), remembered across sessions
-    var speedBtn = document.getElementById('speedBtn');
-    function updateSpeedBtn() {
-      var lvl = SPEED_LEVELS[speedIdx];
-      speedBtn.textContent = lvl.icon;
-      speedBtn.setAttribute('aria-label', 'Speed: ' + lvl.name + ' (tap to change)');
-      speedBtn.title = 'Speed: ' + lvl.name;
+    // ----- Speed (Chill/Normal/Fast/Zoom): chosen in the pause menu, remembered -----
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = speedPick.getElementsByTagName('button');
+    function updateSpeedPick() {
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : '';
     }
     function applySpeed(idx, scaleLive) {
       var oldMult = speedMult;
@@ -632,20 +666,40 @@
       speedMult = SPEED_LEVELS[idx].m;
       try { localStorage.setItem('ja_speed', String(idx)); } catch (e) {}
       computeTunables();
-      if (scaleLive && state === STATE.PLAYING && speed) speed = Math.min(SPEEDMAX, speed * (speedMult / oldMult));
-      updateSpeedBtn();
+      if (scaleLive && speed) speed = Math.min(SPEEDMAX, speed * (speedMult / oldMult));
+      updateSpeedPick();
     }
     (function initSpeed() {
       var saved = null;
       try { saved = localStorage.getItem('ja_speed'); } catch (e) {}
       var idx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
       speedIdx = idx; speedMult = SPEED_LEVELS[idx].m;
-      updateSpeedBtn();
+      updateSpeedPick();
     })();
-    speedBtn.addEventListener('click', function (e) {
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) {
+        b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx'), true); });
+      })(speedBtns[_i]);
+    }
+
+    // ----- Pause / resume -----
+    function pauseGame() {
+      if (state !== STATE.PLAYING) return;
+      state = STATE.PAUSED;
+      updateSpeedPick();
+      document.getElementById('pauseOverlay').classList.remove('hidden');
+    }
+    function resumeGame() {
+      if (state !== STATE.PAUSED) return;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) {
       e.stopPropagation();
-      applySpeed((speedIdx + 1) % SPEED_LEVELS.length, true);
+      if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame();
     });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
 
     window.addEventListener('resize', resize);
     window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
