@@ -69,6 +69,21 @@
       border: 2px solid rgba(0, 229, 204, 0.4);
     }
     .back:active { transform: scale(0.95); }
+    .refresh {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.15);
+      border: 2px solid rgba(0, 229, 204, 0.4);
+    }
+    .refresh:active { transform: scale(0.95); }
     .title {
       font-size: 1.3rem;
       font-size: clamp(1rem, 4.6vw, 1.5rem);
@@ -166,8 +181,8 @@
 <body>
   <div class="topbar">
     <a class="back" href="../index.html">⬅️ Back</a>
-    <div class="title">🐙 Treasure Hunt 🪙</div>
-    <div class="spacer"></div>
+    <div class="title">🐙 Treasure Hunt 💰</div>
+    <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
   </div>
 
   <div class="stage">
@@ -175,12 +190,12 @@
 
     <div class="overlay" id="startOverlay">
       <h2>Octopus Treasure Hunt</h2>
-      <p>Help the octopus 🐙 swim through the coral maze to the treasure 🪙!</p>
+      <p>Help the octopus 🐙 swim through the coral maze to the treasure 💰!</p>
       <button class="bigbtn" id="startBtn">🌊 Dive In!</button>
     </div>
 
     <div class="overlay hidden" id="winOverlay">
-      <h2>🎉 You found it! 🪙</h2>
+      <h2>🎉 You found it! 💰</h2>
       <p>Great swimming! Ready for a brand-new maze?</p>
       <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
     </div>
@@ -201,7 +216,7 @@
     var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
     var GRID = CELLS * 2 + 1;      // full grid incl. walls (odd)
     var MOVE_MS = 110;             // octopus step animation duration
-    var WALL_EMOJI = ['🪸', '🌿'];
+    var WEED = '🌿';               // seaweed accent (renders on every iOS version)
 
     // ---------- State ----------
     var STATE = { START: 0, PLAYING: 1, WON: 2 };
@@ -210,7 +225,7 @@
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var maze = [];                 // maze[y][x] : 1 wall, 0 passage
-    var decor = [];                // wall emoji per tile
+    var decor = [];                // per-tile wall texture seed
     var tile = 20, originX = 0, originY = 0, dpr = 1;
     var cssW = 0, cssH = 0;
 
@@ -262,13 +277,11 @@
         if (!carved) stack.pop();
       }
 
-      // Wall decorations
+      // Per-tile texture seed (0..1) used to vary the drawn walls
       decor = [];
       for (var yy = 0; yy < GRID; yy++) {
         var drow = [];
-        for (var xx = 0; xx < GRID; xx++) {
-          drow.push(WALL_EMOJI[seededRandInt(WALL_EMOJI.length)]);
-        }
+        for (var xx = 0; xx < GRID; xx++) drow.push(Math.random());
         decor.push(drow);
       }
     }
@@ -298,6 +311,54 @@
       return { x: originX + gx * tile + tile / 2, y: originY + gy * tile + tile / 2 };
     }
 
+    // Rounded-rect path (ctx.roundRect isn't available on older Safari)
+    function roundRectPath(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    // A coral wall tile, drawn (not emoji) so it shows on every iOS version
+    function drawCoralTile(c, px, py, seed) {
+      var pad = Math.max(1, tile * 0.06);
+      var g = c.createLinearGradient(px, py, px, py + tile);
+      g.addColorStop(0, '#ff8fb0');
+      g.addColorStop(1, '#c9426e');
+      roundRectPath(c, px + pad, py + pad, tile - pad * 2, tile - pad * 2, tile * 0.28);
+      c.fillStyle = g;
+      c.fill();
+      // top highlight
+      roundRectPath(c, px + pad, py + pad, tile - pad * 2, (tile - pad * 2) * 0.5, tile * 0.28);
+      c.fillStyle = 'rgba(255, 255, 255, 0.14)';
+      c.fill();
+      // seaweed accent on some tiles
+      if (seed < 0.32) {
+        c.font = Math.floor(tile * 0.6) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        c.fillText(WEED, px + tile / 2, py + tile / 2 + tile * 0.04);
+      }
+    }
+
+    // A gold treasure coin, drawn on canvas
+    function drawCoin(c, cxp, cyp, r) {
+      c.beginPath(); c.arc(cxp, cyp, r, 0, Math.PI * 2);
+      c.fillStyle = '#ffd166'; c.fill();
+      c.lineWidth = Math.max(2, r * 0.16); c.strokeStyle = '#e0a92e'; c.stroke();
+      c.beginPath(); c.arc(cxp, cyp, r * 0.62, 0, Math.PI * 2);
+      c.lineWidth = Math.max(1.5, r * 0.1); c.stroke();
+      // star
+      c.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var ang = -Math.PI / 2 + i * Math.PI / 5;
+        var rr = (i % 2 === 0) ? r * 0.42 : r * 0.18;
+        c.lineTo(cxp + Math.cos(ang) * rr, cyp + Math.sin(ang) * rr);
+      }
+      c.closePath(); c.fillStyle = '#e0a92e'; c.fill();
+    }
+
     // ---------- Static layer render ----------
     function renderLayer() {
       var boardPx = tile * GRID;
@@ -323,21 +384,17 @@
 
       lctx.textAlign = 'center';
       lctx.textBaseline = 'middle';
-      lctx.font = Math.floor(tile * 0.82) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
 
-      // Walls (coral / seaweed)
+      // Walls (drawn coral reef with seaweed accents)
       for (var wy = 0; wy < GRID; wy++) {
         for (var wx = 0; wx < GRID; wx++) {
-          if (maze[wy][wx] === 1) {
-            lctx.fillText(decor[wy][wx], wx * tile + tile / 2, wy * tile + tile / 2 + tile * 0.04);
-          }
+          if (maze[wy][wx] === 1) drawCoralTile(lctx, wx * tile, wy * tile, decor[wy][wx]);
         }
       }
 
-      // Treasure
+      // Treasure coin
       var tc = tileCenter(treasure.x, treasure.y);
-      lctx.font = Math.floor(tile * 0.78) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-      lctx.fillText('🪙', tc.x, tc.y + tile * 0.04);
+      drawCoin(lctx, tc.x, tc.y, tile * 0.34);
     }
 
     // ---------- Game control ----------
@@ -543,6 +600,11 @@
       document.getElementById('winOverlay').classList.add('hidden');
       newGame();
       state = STATE.PLAYING;
+    });
+    // Manual refresh: reloads to fetch the latest version (home-screen apps
+    // otherwise resume the old page). Only reloads when the player taps it.
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+      location.reload();
     });
 
     // Resize / orientation / visibility

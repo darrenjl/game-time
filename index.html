@@ -68,6 +68,26 @@
 
     header, main, footer { position: relative; z-index: 1; width: 100%; }
 
+    .refresh {
+      -webkit-appearance: none;
+      appearance: none;
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      right: 14px;
+      z-index: 3;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.15);
+      border: 2px solid rgba(0, 229, 204, 0.4);
+    }
+    .refresh:active { transform: scale(0.95); }
+
     header { margin-top: clamp(6px, 3vh, 24px); }
     header h1 {
       font-size: 2.6rem;      /* fallback: clamp() unsupported on Safari < 13.4 */
@@ -165,6 +185,8 @@
 <body>
   <div class="bubbles" aria-hidden="true"></div>
 
+  <button class="refresh" id="refreshBtn" aria-label="Refresh">🔄</button>
+
   <header>
     <h1>🐙 Oisín &amp; Finley's Arcade Studio 🎮</h1>
     <p>Pick a game and dive in!</p>
@@ -211,6 +233,11 @@
         layer.appendChild(b);
       }
     })();
+
+    // Manual refresh so the home-screen app can pull in newly added games.
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+      location.reload();
+    });
   </script>
 </body>
 </html>

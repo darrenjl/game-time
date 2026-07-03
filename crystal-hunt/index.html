@@ -71,6 +71,21 @@
       border: 2px solid rgba(199, 155, 255, 0.45);
     }
     .back:active { transform: scale(0.95); }
+    .refresh {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(199, 155, 255, 0.16);
+      border: 2px solid rgba(199, 155, 255, 0.45);
+    }
+    .refresh:active { transform: scale(0.95); }
 
     .hud { display: flex; }
     .hud .gem + .gem { margin-left: 10px; }   /* gap fallback for Safari < 14.5 */
@@ -185,7 +200,7 @@
       <span class="gem" id="hudDiamond">💎<span class="tick" style="visibility:hidden">✓</span></span>
       <span class="gem" id="hudCrystal">🔮<span class="tick" style="visibility:hidden">✓</span></span>
     </div>
-    <div class="spacer"></div>
+    <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
   </div>
 
   <div class="stage">
@@ -219,7 +234,7 @@
     var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
     var GRID = CELLS * 2 + 1;      // full grid incl. walls (odd)
     var MOVE_MS = 110;             // dog step animation duration
-    var WALL_EMOJI = ['🪨', '🟫'];
+    // Walls are drawn on canvas (older iOS lacks the rock/stone emoji)
 
     // ---------- State ----------
     var STATE = { START: 0, PLAYING: 1, WON: 2 };
@@ -228,7 +243,7 @@
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var maze = [];                 // maze[y][x] : 1 wall, 0 passage
-    var decor = [];                // wall emoji per tile
+    var decor = [];                // per-tile wall texture seed
     var tile = 20, dpr = 1;
 
     var dog = { cx: 1, cy: 1, rx: 1, ry: 1, from: {x:1,y:1}, to: {x:1,y:1}, t: 1, face: 1 };
@@ -278,7 +293,7 @@
       decor = [];
       for (var yy = 0; yy < GRID; yy++) {
         var drow = [];
-        for (var xx = 0; xx < GRID; xx++) drow.push(WALL_EMOJI[ri(WALL_EMOJI.length)]);
+        for (var xx = 0; xx < GRID; xx++) drow.push(Math.random());
         decor.push(drow);
       }
     }
@@ -306,6 +321,37 @@
       return { x: gx * tile + tile / 2, y: gy * tile + tile / 2 };
     }
 
+    // Rounded-rect path (ctx.roundRect isn't available on older Safari)
+    function roundRectPath(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    // A rocky cave wall tile, drawn (not emoji) so it shows on every iOS version
+    function drawRockTile(c, px, py, seed) {
+      var pad = Math.max(1, tile * 0.06);
+      var g = c.createLinearGradient(px, py, px, py + tile);
+      g.addColorStop(0, '#7a6650');
+      g.addColorStop(1, '#42342a');
+      roundRectPath(c, px + pad, py + pad, tile - pad * 2, tile - pad * 2, tile * 0.22);
+      c.fillStyle = g;
+      c.fill();
+      // top highlight
+      roundRectPath(c, px + pad, py + pad, tile - pad * 2, (tile - pad * 2) * 0.5, tile * 0.22);
+      c.fillStyle = 'rgba(255, 240, 220, 0.1)';
+      c.fill();
+      // a couple of speckles for texture
+      c.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      var s = tile * 0.09;
+      c.beginPath(); c.arc(px + tile * (0.32 + seed * 0.1), py + tile * 0.4, s, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(px + tile * (0.66 - seed * 0.1), py + tile * 0.66, s * 0.8, 0, Math.PI * 2); c.fill();
+    }
+
     // ---------- Static layer (background + walls) ----------
     function renderLayer() {
       var boardPx = tile * GRID;
@@ -328,14 +374,10 @@
         }
       }
 
-      lctx.textAlign = 'center';
-      lctx.textBaseline = 'middle';
-      lctx.font = Math.floor(tile * 0.82) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      // Walls (drawn rocky cave tiles)
       for (var wy = 0; wy < GRID; wy++) {
         for (var wx = 0; wx < GRID; wx++) {
-          if (maze[wy][wx] === 1) {
-            lctx.fillText(decor[wy][wx], wx * tile + tile / 2, wy * tile + tile / 2 + tile * 0.04);
-          }
+          if (maze[wy][wx] === 1) drawRockTile(lctx, wx * tile, wy * tile, decor[wy][wx]);
         }
       }
     }
@@ -505,7 +547,7 @@
       var oc = tileCenter(dog.rx, dog.ry);
       ctx.save();
       ctx.translate(oc.x, oc.y + bob);
-      ctx.scale(dog.face, 1);
+      ctx.scale(-dog.face, 1);   // 🐕 emoji faces left by default, so flip to face travel direction
       ctx.font = Math.floor(tile * 0.8) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = tile * 0.15;
@@ -574,6 +616,11 @@
       document.getElementById('winOverlay').classList.add('hidden');
       newGame();
       state = STATE.PLAYING;
+    });
+    // Manual refresh: reloads to fetch the latest version (home-screen apps
+    // otherwise resume the old page). Only reloads when the player taps it.
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+      location.reload();
     });
 
     window.addEventListener('resize', resize);
