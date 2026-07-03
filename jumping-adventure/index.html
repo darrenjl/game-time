@@ -324,6 +324,9 @@
     }
 
     function onTap(e) {
+      // Let taps on UI controls (buttons/links) run their own handlers — otherwise
+      // preventDefault() here would cancel the click on Play Again / Resume / speed.
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
       if (e) e.preventDefault();
       if (state === STATE.START) { startGame(); }
       else if (state === STATE.PLAYING) { jump(); }
@@ -708,7 +711,10 @@
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
     // Keep links inside the iOS home-screen (standalone) app instead of Safari
-    if (('standalone' in navigator) && navigator.standalone) {
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    // Only rewrite links to stay in-app on OLD iOS (<13) standalone. Newer iOS keeps
+    // <a> links in-app natively; forcing location.href there opens a new tab.
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
       document.addEventListener('click', function (e) {
         var n = e.target;
         while (n && n.nodeName !== 'A') n = n.parentNode;

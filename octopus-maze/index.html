@@ -637,7 +637,10 @@
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
     // Keep links inside the iOS home-screen (standalone) app instead of Safari
-    if (('standalone' in navigator) && navigator.standalone) {
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    // Only rewrite links to stay in-app on OLD iOS (<13) standalone. Newer iOS keeps
+    // <a> links in-app natively; forcing location.href there opens a new tab.
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
       document.addEventListener('click', function (e) {
         var n = e.target;
         while (n && n.nodeName !== 'A') n = n.parentNode;
