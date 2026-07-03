@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#140a1e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gem Hunt">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Diamond &amp; Crystal Hunt</title>
+  <style>
+    :root {
+      --cave: #140a1e;
+      --cave-2: #3a2450;
+      --diamond: #8fe9ff;
+      --diamond2: #6fd0ff;
+      --crystal: #c79bff;
+      --gold: #ffd166;
+      --ink: #f3ecff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 8%, rgba(199, 155, 255, 0.18), transparent 45%),
+        radial-gradient(circle at 82% 90%, rgba(111, 208, 255, 0.14), transparent 45%),
+        linear-gradient(180deg, #3a2450 0%, #140a1e 60%, #08040f 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(199, 155, 255, 0.16);
+      border: 2px solid rgba(199, 155, 255, 0.45);
+    }
+    .back:active { transform: scale(0.95); }
+
+    .hud { display: flex; gap: 10px; }
+    .gem {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 40px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      opacity: 0.45;
+      filter: grayscale(0.6);
+      transition: opacity 0.25s ease, filter 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+    }
+    .gem .tick { font-size: 0.95rem; color: #7CFF9E; }
+    .gem.found { opacity: 1; filter: none; border-color: var(--gold); transform: scale(1.05); }
+
+    .spacer { min-width: 44px; }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+    }
+    canvas { display: block; touch-action: none; border-radius: 16px; }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      text-align: center;
+      padding: 24px;
+      background: rgba(20, 10, 30, 0.8);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: clamp(1.5rem, 6.5vw, 2.5rem);
+      background: linear-gradient(90deg, var(--diamond2), var(--crystal), var(--gold));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .overlay p { font-size: clamp(0.95rem, 4vw, 1.15rem); color: rgba(243, 236, 255, 0.82); max-width: 24ch; }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #180c25;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--diamond2), var(--crystal));
+      box-shadow: 0 12px 30px rgba(199, 155, 255, 0.35);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+
+    /* ---- D-pad ---- */
+    .dpad {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 10px;
+      width: min(90vw, 340px);
+      margin: 6px auto max(14px, env(safe-area-inset-bottom));
+    }
+    .arrow {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 66px;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #180c25;
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.3);
+      cursor: pointer;
+      touch-action: none;
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .arrow:active { transform: translateY(5px); box-shadow: 0 3px 0 rgba(0,0,0,0.3); }
+    .up    { grid-column: 2; grid-row: 1; background: linear-gradient(135deg, #b6f0ff, #6fd0ff); }
+    .left  { grid-column: 1; grid-row: 2; background: linear-gradient(135deg, #ffe08a, #ffd166); }
+    .down  { grid-column: 2; grid-row: 2; background: linear-gradient(135deg, #e6c6ff, #c79bff); }
+    .right { grid-column: 3; grid-row: 2; background: linear-gradient(135deg, #ffb3cb, #ff5d8f); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="hud">
+      <span class="gem" id="hudDiamond">💎<span class="tick" style="visibility:hidden">✓</span></span>
+      <span class="gem" id="hudCrystal">🔮<span class="tick" style="visibility:hidden">✓</span></span>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>💎 Diamond &amp; Crystal Hunt 🔮</h2>
+      <p>Help the hunter dog 🐕 sniff out the diamond 💎 <b>and</b> the crystal 🔮 hidden in the cave maze!</p>
+      <button class="bigbtn" id="startBtn">🐾 Start Digging!</button>
+    </div>
+
+    <div class="overlay hidden" id="winOverlay">
+      <h2>🎉 Both gems found! 🏆</h2>
+      <p>What a good hunter! Ready to explore a brand-new cave?</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <div class="dpad">
+    <button class="arrow up"    data-dir="up"    aria-label="Up">⬆️</button>
+    <button class="arrow left"  data-dir="left"  aria-label="Left">⬅️</button>
+    <button class="arrow down"  data-dir="down"  aria-label="Down">⬇️</button>
+    <button class="arrow right" data-dir="right" aria-label="Right">➡️</button>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ---------- Config ----------
+    var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
+    var GRID = CELLS * 2 + 1;      // full grid incl. walls (odd)
+    var MOVE_MS = 110;             // dog step animation duration
+    var WALL_EMOJI = ['🪨', '🟫'];
+
+    // ---------- State ----------
+    var STATE = { START: 0, PLAYING: 1, WON: 2 };
+    var state = STATE.START;
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var maze = [];                 // maze[y][x] : 1 wall, 0 passage
+    var decor = [];                // wall emoji per tile
+    var tile = 20, dpr = 1;
+
+    var dog = { cx: 1, cy: 1, rx: 1, ry: 1, from: {x:1,y:1}, to: {x:1,y:1}, t: 1, face: 1 };
+    var gems = [];                 // { x, y, emoji, color, got }
+    var particles = [];
+    var lastTs = 0;
+
+    var layer = document.createElement('canvas');
+    var lctx = layer.getContext('2d');
+
+    // ---------- Maze generation (recursive backtracker) ----------
+    function ri(n) { return Math.floor(Math.random() * n); }
+
+    function generateMaze() {
+      maze = [];
+      for (var y = 0; y < GRID; y++) {
+        var row = [];
+        for (var x = 0; x < GRID; x++) row.push(1);
+        maze.push(row);
+      }
+      var stack = [[1, 1]];
+      maze[1][1] = 0;
+      var dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+
+      while (stack.length) {
+        var top = stack[stack.length - 1];
+        var cx = top[0], cy = top[1];
+        var order = dirs.slice();
+        for (var i = order.length - 1; i > 0; i--) {
+          var j = ri(i + 1);
+          var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+        }
+        var carved = false;
+        for (var d = 0; d < order.length; d++) {
+          var nx = cx + order[d][0], ny = cy + order[d][1];
+          if (nx > 0 && nx < GRID - 1 && ny > 0 && ny < GRID - 1 && maze[ny][nx] === 1) {
+            maze[ny][nx] = 0;
+            maze[cy + order[d][1] / 2][cx + order[d][0] / 2] = 0;
+            stack.push([nx, ny]);
+            carved = true;
+            break;
+          }
+        }
+        if (!carved) stack.pop();
+      }
+
+      decor = [];
+      for (var yy = 0; yy < GRID; yy++) {
+        var drow = [];
+        for (var xx = 0; xx < GRID; xx++) drow.push(WALL_EMOJI[ri(WALL_EMOJI.length)]);
+        decor.push(drow);
+      }
+    }
+
+    // ---------- Sizing ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      var availW = Math.max(120, Math.floor(rect.width - 20));
+      var availH = Math.max(120, Math.floor(rect.height - 12));
+      var side = Math.min(availW, availH);
+      tile = Math.floor(side / GRID);
+      var boardPx = tile * GRID;
+
+      dpr = window.devicePixelRatio || 1;
+      canvas.style.width = boardPx + 'px';
+      canvas.style.height = boardPx + 'px';
+      canvas.width = Math.round(boardPx * dpr);
+      canvas.height = Math.round(boardPx * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      renderLayer();
+    }
+
+    function tileCenter(gx, gy) {
+      return { x: gx * tile + tile / 2, y: gy * tile + tile / 2 };
+    }
+
+    // ---------- Static layer (background + walls) ----------
+    function renderLayer() {
+      var boardPx = tile * GRID;
+      layer.width = Math.round(boardPx * dpr);
+      layer.height = Math.round(boardPx * dpr);
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lctx.clearRect(0, 0, boardPx, boardPx);
+
+      var g = lctx.createLinearGradient(0, 0, 0, boardPx);
+      g.addColorStop(0, '#241436');
+      g.addColorStop(1, '#0f0818');
+      lctx.fillStyle = g;
+      lctx.fillRect(0, 0, boardPx, boardPx);
+
+      // Passage cave floor
+      lctx.fillStyle = 'rgba(60, 40, 84, 0.5)';
+      for (var y = 0; y < GRID; y++) {
+        for (var x = 0; x < GRID; x++) {
+          if (maze[y][x] === 0) lctx.fillRect(x * tile, y * tile, tile, tile);
+        }
+      }
+
+      lctx.textAlign = 'center';
+      lctx.textBaseline = 'middle';
+      lctx.font = Math.floor(tile * 0.82) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      for (var wy = 0; wy < GRID; wy++) {
+        for (var wx = 0; wx < GRID; wx++) {
+          if (maze[wy][wx] === 1) {
+            lctx.fillText(decor[wy][wx], wx * tile + tile / 2, wy * tile + tile / 2 + tile * 0.04);
+          }
+        }
+      }
+    }
+
+    // ---------- Game control ----------
+    function newGame() {
+      generateMaze();
+      dog.cx = 1; dog.cy = 1; dog.rx = 1; dog.ry = 1;
+      dog.from = { x: 1, y: 1 }; dog.to = { x: 1, y: 1 }; dog.t = 1; dog.face = 1;
+      // Two gems in far corners (both are passages on odd coords)
+      gems = [
+        { x: GRID - 2, y: GRID - 2, emoji: '💎', color: '#6fd0ff', got: false },
+        { x: GRID - 2, y: 1,        emoji: '🔮', color: '#c79bff', got: false }
+      ];
+      particles = [];
+      updateHud();
+      resize();
+    }
+
+    function updateHud() {
+      setGemHud('hudDiamond', gems[0] && gems[0].got);
+      setGemHud('hudCrystal', gems[1] && gems[1].got);
+    }
+    function setGemHud(id, found) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('found', !!found);
+      el.querySelector('.tick').style.visibility = found ? 'visible' : 'hidden';
+    }
+
+    function tryMove(dir) {
+      if (state !== STATE.PLAYING) return;
+      if (dog.t < 1) return;
+      var dx = 0, dy = 0;
+      if (dir === 'up') dy = -1;
+      else if (dir === 'down') dy = 1;
+      else if (dir === 'left') { dx = -1; dog.face = -1; }
+      else if (dir === 'right') { dx = 1; dog.face = 1; }
+      var nx = dog.cx + dx, ny = dog.cy + dy;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) return;
+      if (maze[ny][nx] === 1) return;
+      dog.from = { x: dog.cx, y: dog.cy };
+      dog.to = { x: nx, y: ny };
+      dog.cx = nx; dog.cy = ny;
+      dog.t = 0;
+      checkGems(nx, ny);
+    }
+
+    function checkGems(x, y) {
+      for (var i = 0; i < gems.length; i++) {
+        if (!gems[i].got && gems[i].x === x && gems[i].y === y) {
+          gems[i].got = true;
+          spawnSparkles(tileCenter(x, y), gems[i].color, 22);
+          updateHud();
+        }
+      }
+      if (gems.every(function (g) { return g.got; })) win();
+    }
+
+    function win() {
+      state = STATE.WON;
+      // Extra celebration burst from the dog
+      spawnSparkles(tileCenter(dog.cx, dog.cy), '#ffd166', 30);
+      setTimeout(function () {
+        document.getElementById('winOverlay').classList.remove('hidden');
+      }, 650);
+    }
+
+    // ---------- Particles (sparkles) ----------
+    function spawnSparkles(c, color, n) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2;
+        var sp = (30 + Math.random() * 120);
+        particles.push({
+          x: c.x, y: c.y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp - 30,
+          r: 2 + Math.random() * (tile * 0.16),
+          color: color,
+          alpha: 1,
+          life: 0,
+          spin: Math.random() * Math.PI
+        });
+      }
+    }
+    function updateParticles(dt) {
+      for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        p.life += dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 120 * dt;          // gentle gravity
+        p.vx *= 0.98;
+        p.alpha -= dt * 0.9;
+        p.spin += dt * 6;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+    }
+    function drawStar(x, y, r, rot, color, alpha) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      for (var i = 0; i < 8; i++) {
+        var ang = (Math.PI / 4) * i;
+        var rr = (i % 2 === 0) ? r : r * 0.42;
+        ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = Math.max(0, alpha);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = r * 1.5;
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawParticles() {
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        drawStar(p.x, p.y, p.r, p.spin, p.color, p.alpha);
+      }
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    }
+
+    // ---------- Main loop ----------
+    function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.05, (ts - lastTs) / 1000);
+      lastTs = ts;
+
+      if (dog.t < 1) {
+        dog.t += dt * 1000 / MOVE_MS;
+        if (dog.t > 1) dog.t = 1;
+        var e = easeOut(dog.t);
+        dog.rx = dog.from.x + (dog.to.x - dog.from.x) * e;
+        dog.ry = dog.from.y + (dog.to.y - dog.from.y) * e;
+      } else {
+        dog.rx = dog.cx; dog.ry = dog.cy;
+      }
+
+      updateParticles(dt);
+
+      var boardPx = tile * GRID;
+      ctx.clearRect(0, 0, boardPx, boardPx);
+      ctx.drawImage(layer, 0, 0, boardPx, boardPx);
+
+      // Gems (uncollected) with a sparkly pulse
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (var i = 0; i < gems.length; i++) {
+        var gem = gems[i];
+        if (gem.got) continue;
+        var gc = tileCenter(gem.x, gem.y);
+        var pulse = 0.5 + 0.5 * Math.sin(ts / 300 + i);
+        ctx.font = Math.floor(tile * (0.66 + 0.06 * pulse)) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.shadowColor = gem.color;
+        ctx.shadowBlur = tile * (0.25 + 0.3 * pulse);
+        ctx.fillText(gem.emoji, gc.x, gc.y + tile * 0.04);
+      }
+      ctx.shadowBlur = 0;
+
+      // Dog with a gentle bob + facing flip
+      var bob = Math.sin(ts / 240) * tile * 0.06;
+      var oc = tileCenter(dog.rx, dog.ry);
+      ctx.save();
+      ctx.translate(oc.x, oc.y + bob);
+      ctx.scale(dog.face, 1);
+      ctx.font = Math.floor(tile * 0.8) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = tile * 0.15;
+      ctx.fillText('🐕', 0, 0);
+      ctx.restore();
+      ctx.shadowBlur = 0;
+
+      drawParticles();
+
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Input ----------
+    document.querySelectorAll('.arrow').forEach(function (btn) {
+      var dir = btn.getAttribute('data-dir');
+      var handler = function (e) { e.preventDefault(); tryMove(dir); };
+      btn.addEventListener('touchstart', handler, { passive: false });
+      btn.addEventListener('mousedown', handler);
+    });
+
+    window.addEventListener('keydown', function (e) {
+      var map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+                  w: 'up', s: 'down', a: 'left', d: 'right' };
+      if (map[e.key]) { e.preventDefault(); tryMove(map[e.key]); }
+    });
+
+    var touchStart = null;
+    canvas.addEventListener('touchstart', function (e) {
+      var t = e.changedTouches[0];
+      touchStart = { x: t.clientX, y: t.clientY };
+    }, { passive: true });
+    canvas.addEventListener('touchend', function (e) {
+      if (!touchStart) return;
+      var t = e.changedTouches[0];
+      handleGesture(touchStart.x, touchStart.y, t.clientX, t.clientY);
+      touchStart = null;
+    }, { passive: true });
+    canvas.addEventListener('mousedown', function (e) { touchStart = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('mouseup', function (e) {
+      if (!touchStart) return;
+      handleGesture(touchStart.x, touchStart.y, e.clientX, e.clientY);
+      touchStart = null;
+    });
+
+    function handleGesture(x0, y0, x1, y1) {
+      var dx = x1 - x0, dy = y1 - y0;
+      if (Math.hypot(dx, dy) > 24) {
+        if (Math.abs(dx) > Math.abs(dy)) tryMove(dx > 0 ? 'right' : 'left');
+        else tryMove(dy > 0 ? 'down' : 'up');
+      } else {
+        var rect = canvas.getBoundingClientRect();
+        var tx = Math.floor((x1 - rect.left) / tile);
+        var ty = Math.floor((y1 - rect.top) / tile);
+        var ddx = tx - dog.cx, ddy = ty - dog.cy;
+        if (ddx === 0 && ddy === 0) return;
+        if (Math.abs(ddx) >= Math.abs(ddy)) tryMove(ddx > 0 ? 'right' : 'left');
+        else tryMove(ddy > 0 ? 'down' : 'up');
+      }
+    }
+
+    document.getElementById('startBtn').addEventListener('click', function () {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+    });
+    document.getElementById('playAgainBtn').addEventListener('click', function () {
+      document.getElementById('winOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+    });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // ---------- Boot ----------
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
