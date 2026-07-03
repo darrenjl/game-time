@@ -23,6 +23,10 @@ tendencies.
   sheets, no asset pipelines, no CDN-hosted media.
 - Audio, if used, must be generated via the Web Audio API rather than loaded from
   files.
+- **Only use emoji that predate iOS 12** (Unicode Emoji ≤ 11.0, ~2018). Newer
+  emoji such as 🪨 🪸 🟫 🪙 (Emoji 12–13) render as blank boxes on the iPad mini 2.
+  If you need such an object, **draw it on canvas** instead. Older emoji like
+  🐙 🐕 ⭐ 🚀 💎 🔮 🌿 are safe. (This is why the maze walls/coin are canvas-drawn.)
 - **Exception — home-screen / app icons only.** PNG app icons
   (`apple-touch-icon.png`, `icon-512.png`) are allowed as files because iPadOS
   "Add to Home Screen" cannot reliably use inline/data-URI icons. This exception
@@ -31,8 +35,16 @@ tendencies.
 ## 3. Mobile / Tablet First
 
 - Design for touch first, mouse second. Every interaction must work with touch.
-- Implement full touch support using `touchstart`, `touchmove`, and `touchend`.
-  Call `preventDefault()` on touch handlers to suppress scrolling/gestures.
+- Implement taps and swipes via `touchstart`/`touchend` (derive swipe direction
+  from the start→end positions). Also wire `mousedown`/keyboard for desktop testing.
+- **Stop the page scrolling during play:** add a **non-passive** `touchmove`
+  listener that calls `preventDefault()` on *every* touch (not only multi-finger).
+  `touch-action`/`overscroll-behavior` are **not** honoured on iOS 12, so a
+  single-finger swipe will scroll the tablet without this.
+- **Don't let a full-screen tap handler swallow button clicks.** If a container
+  (e.g. the game stage) has a tap handler that calls `preventDefault()`, bail out
+  when the tap lands on a control: `if (e.target.closest('button, a')) return;` —
+  otherwise Play Again / Resume / menu buttons won't fire on touch.
 - The viewport must lock to the device screen:
   - `<meta name="viewport" content="width=device-width, initial-scale=1.0,
     maximum-scale=1.0, user-scalable=no, viewport-fit=cover">`
@@ -56,6 +68,9 @@ tendencies.
   - `GAME_OVER` — end screen with a way to reset.
 - Provide clean **start**, **play**, and **reset** transitions. Resetting must
   fully restore initial state without reloading the page.
+- Optionally add a `PAUSED` state (skip `update()` while paused; keep rendering).
+  A pause menu is a good home for settings like difficulty/speed — persist the
+  choice in `localStorage`.
 - Pause the loop when the tab is hidden (`visibilitychange`) to save battery.
 
 ## 5. Browser Compatibility
@@ -78,7 +93,30 @@ break layout, so always provide a fallback declaration *before* the modern one:
   `function`, `requestAnimationFrame`, Canvas 2D, touch events — all fine on
   Safari 12).
 
-## 6. Style
+## 6. Home-Screen (Standalone) Behaviour
+
+Games are added to the iPad home screen and run full-screen
+(`apple-mobile-web-app-capable`). Handle the standalone quirks:
+
+- Link each page to the shared icons (`../apple-touch-icon.png`, `../icon-512.png`)
+  and set `apple-mobile-web-app-title`.
+- **Include a manual refresh (🔄) button.** Standalone apps resume the frozen page
+  on reopen instead of reloading, so this is the only way to pull a new version.
+  (Avoid auto-reloading on focus — it resets an in-progress game.)
+- **Keep links in-app on old iOS only.** On iOS < 13 standalone, `<a>` links break
+  out to a Safari tab — intercept clicks and use `location.href`. iOS 13+ keeps
+  links in-app natively, and forcing `location.href` there opens a *new tab*, so
+  gate the workaround to iOS < 13 (parse the major version from the UA).
+
+## 7. Deployment
+
+- Hosted on **GitHub Pages**, deploying from `main` → https://darrenjl.github.io/game-time/.
+  Pushing to `main` triggers a build; the `deploy-pages` step is occasionally
+  flaky ("Deployment failed, try again later") — just re-run it.
+- `netlify.toml` is committed as a ready alternative host (does nothing unless a
+  Netlify site is connected).
+
+## 8. Style
 
 - Keep it simple and readable. Prefer vanilla JS; do not introduce frameworks or
   libraries.
