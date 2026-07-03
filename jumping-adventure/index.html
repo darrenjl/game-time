@@ -73,7 +73,9 @@
       color: var(--star);
       text-shadow: 0 0 16px rgba(255, 226, 122, 0.4);
     }
-    .refresh {
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .refresh, .speed {
       -webkit-appearance: none;
       appearance: none;
       min-width: 44px;
@@ -87,7 +89,7 @@
       background: rgba(124, 140, 255, 0.18);
       border: 2px solid rgba(124, 140, 255, 0.5);
     }
-    .refresh:active { transform: scale(0.95); }
+    .refresh:active, .speed:active { transform: scale(0.95); }
 
     /* ---- Stage / canvas ---- */
     .stage {
@@ -148,7 +150,10 @@
   <div class="topbar">
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">0</div>
-    <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    <div class="rightbtns">
+      <button class="speed" id="speedBtn" aria-label="Change speed">🙂</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
   </div>
 
   <div class="stage">
@@ -159,6 +164,7 @@
       <p>Help the space pup leap the platforms and grab the stars!</p>
       <div class="tap-hint">👆</div>
       <p><b>Tap anywhere to jump.</b> Tap again in the air for a rocket boost!</p>
+      <p style="opacity:0.7;font-size:0.9em">Use the 🐢 / ⚡ button (top-right) to change speed.</p>
     </div>
 
     <div class="overlay hidden" id="overOverlay">
@@ -182,6 +188,15 @@
     var W = 0, H = 0, dpr = 1;
     var BODY = ['#ff6b57', '#4f8ef7', '#8b5cf6', '#2fb6c9', '#f6b93b', '#ff7eb6', '#57c785'];
 
+    // Player-selectable speed
+    var SPEED_LEVELS = [
+      { m: 0.75, icon: '🐢', name: 'Chill' },
+      { m: 1.00, icon: '🙂', name: 'Normal' },
+      { m: 1.35, icon: '🐇', name: 'Fast' },
+      { m: 1.80, icon: '⚡', name: 'Zoom' }
+    ];
+    var speedIdx = 1, speedMult = 1;
+
     var char, platforms, stars, sparks, bgStars, moon;
     var speed, dist, points, lastTs = 0;
 
@@ -192,9 +207,9 @@
       CW = H * 0.16;
       GRAV = H * 2.4;
       JUMP = -H * 1.06;
-      SPEED0 = H * 0.38;
-      SPEEDMAX = H * 0.68;
-      SPEEDACC = H * 0.013;
+      SPEED0 = H * 0.38 * speedMult;
+      SPEEDMAX = H * 0.68 * speedMult;
+      SPEEDACC = H * 0.013 * speedMult;
       GAPMIN = H * 0.16; GAPMAX = H * 0.32;
       PWMIN = H * 0.34;  PWMAX = H * 0.62;
       TOPMIN = H * 0.44; TOPMAX = H * 0.72;
@@ -602,6 +617,35 @@
       lastTs = 0;
     });
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    // Speed selector (🐢 Chill → 🙂 Normal → 🐇 Fast → ⚡ Zoom), remembered across sessions
+    var speedBtn = document.getElementById('speedBtn');
+    function updateSpeedBtn() {
+      var lvl = SPEED_LEVELS[speedIdx];
+      speedBtn.textContent = lvl.icon;
+      speedBtn.setAttribute('aria-label', 'Speed: ' + lvl.name + ' (tap to change)');
+      speedBtn.title = 'Speed: ' + lvl.name;
+    }
+    function applySpeed(idx, scaleLive) {
+      var oldMult = speedMult;
+      speedIdx = idx;
+      speedMult = SPEED_LEVELS[idx].m;
+      try { localStorage.setItem('ja_speed', String(idx)); } catch (e) {}
+      computeTunables();
+      if (scaleLive && state === STATE.PLAYING && speed) speed = Math.min(SPEEDMAX, speed * (speedMult / oldMult));
+      updateSpeedBtn();
+    }
+    (function initSpeed() {
+      var saved = null;
+      try { saved = localStorage.getItem('ja_speed'); } catch (e) {}
+      var idx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      speedIdx = idx; speedMult = SPEED_LEVELS[idx].m;
+      updateSpeedBtn();
+    })();
+    speedBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      applySpeed((speedIdx + 1) % SPEED_LEVELS.length, true);
+    });
 
     window.addEventListener('resize', resize);
     window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
