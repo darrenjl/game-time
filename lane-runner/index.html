@@ -86,10 +86,10 @@
     var W = 0, H = 0, dpr = 1;
 
     var SPEED_LEVELS = [
-      { spd: 0.60, gap: 0.95, icon: '🐢', name: 'Chill' },
-      { spd: 0.85, gap: 0.80, icon: '🙂', name: 'Normal' },
-      { spd: 1.10, gap: 0.68, icon: '🐇', name: 'Fast' },
-      { spd: 1.40, gap: 0.55, icon: '⚡', name: 'Zoom' }
+      { spd: 0.45, gap: 1.15, icon: '🐢', name: 'Chill' },
+      { spd: 0.65, gap: 0.98, icon: '🙂', name: 'Normal' },
+      { spd: 0.90, gap: 0.82, icon: '🐇', name: 'Fast' },
+      { spd: 1.20, gap: 0.66, icon: '⚡', name: 'Zoom' }
     ];
     var speedIdx = 1;
 
@@ -176,8 +176,8 @@
     // ---------- Update ----------
     function update(dt) {
       gameT += dt;
-      speed = Math.min(lvl().spd * 2.4, speed + dt * 0.03);
-      var vy = H * (0.55 + speed * 0.5);
+      speed = Math.min(lvl().spd * 1.9, speed + dt * 0.02);
+      var vy = H * (0.34 + speed * 0.4);
       scroll = (scroll + vy * dt) % (H * 0.2);
       dist += vy * dt;
       points = Math.floor(dist / (H * 0.5)) + coinScore;

@@ -27,6 +27,10 @@ tendencies.
   emoji such as 🪨 🪸 🟫 🪙 (Emoji 12–13) render as blank boxes on the iPad mini 2.
   If you need such an object, **draw it on canvas** instead. Older emoji like
   🐙 🐕 ⭐ 🚀 💎 🔮 🌿 are safe. (This is why the maze walls/coin are canvas-drawn.)
+- **Draw interactive/hero characters on the Canvas, not with emoji.** Emoji can't
+  animate or transform (you can't slice, bob, or flip one) and render inconsistently
+  on iOS 12; reserve them for static UI chrome. Every in-game character — the
+  astronaut, the mole, the fox, the sliced fruit — is canvas-drawn.
 - **Exception — home-screen / app icons only.** PNG app icons
   (`apple-touch-icon.png`, `icon-512.png`) are allowed as files because iPadOS
   "Add to Home Screen" cannot reliably use inline/data-URI icons. This exception
@@ -116,7 +120,21 @@ Games are added to the iPad home screen and run full-screen
   repo root as-is, and sends revalidating cache headers so a new version shows up
   right away (pairs with the in-game 🔄 refresh button).
 
-## 8. Style
+## 8. Adding a New Game
+
+- **Clone the scaffold.** Every game is a self-contained copy of
+  `jumping-adventure/index.html`: the top bar (Back / score / ⏸️ / 🔄), the `START` /
+  `PAUSED` / `GAME_OVER` overlays, dpr-aware canvas sizing, the delta-time
+  `requestAnimationFrame` loop, the non-passive `touchmove` handler, the
+  `button, a` tap guard, the iOS-<13 standalone link fix, and the difficulty picker.
+  Copy that file to start a new game — do not begin from a blank page.
+- **Persist settings** (difficulty, best score) in `localStorage` under a short
+  prefixed key, e.g. `pm_diff` / `fs_best`.
+- **Register the game** by adding an `<a class="card">` tile (emoji, name, tag) to
+  the grid in the root `index.html`. The folder slug is only an internal URL and
+  need not match the display name.
+
+## 9. Style
 
 - Keep it simple and readable. Prefer vanilla JS; do not introduce frameworks or
   libraries.

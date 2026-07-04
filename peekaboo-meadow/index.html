@@ -410,8 +410,8 @@
     function update(dt) {
       var L = lvl();
       // gentle ramp as the score climbs
-      var ramp = Math.max(0.62, 1 - points * 0.004);
-      var holdTime = L.hold * Math.max(0.6, 1 - points * 0.002);
+      var ramp = Math.max(0.78, 1 - points * 0.0025);
+      var holdTime = L.hold * Math.max(0.75, 1 - points * 0.0012);
       var interval = L.interval * ramp;
 
       if (flash > 0) flash = Math.max(0, flash - dt);
