@@ -252,7 +252,7 @@
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      GRAV = H * 1.5;
+      GRAV = H * 1.15;
     }
 
     function newGame() {
@@ -272,7 +272,7 @@
         var isBomb = Math.random() < L.bomb;
         var r = H * 0.062;
         var x = rand(W * 0.15, W * 0.85);
-        var vy = -rand(H * 1.02, H * 1.24) * L.spd;
+        var vy = -rand(H * 1.42, H * 1.58) * (0.9 + 0.1 * L.spd);
         var vx = (x < W / 2 ? 1 : -1) * rand(0, W * 0.10) + rand(-W * 0.03, W * 0.03);
         fruits.push({
           x: x, y: H + r, vx: vx, vy: vy, r: r,
@@ -303,7 +303,13 @@
       for (var i = fruits.length - 1; i >= 0; i--) {
         var f = fruits[i];
         if (segDist(f.x, f.y, a.x, a.y, b.x, b.y) <= f.r * 0.95) {
-          if (f.bomb) { gameOver(true); return; }
+          if (f.bomb) {
+            lives--; flash = 0.5; combo = 0;
+            spawnJuiceAt(f.x, f.y, '#ffce54'); spawnJuiceAt(f.x, f.y, '#ff7a3d');
+            fruits.splice(i, 1);
+            if (lives <= 0) { gameOver(true); return; }
+            continue;
+          }
           // combo timing
           if (gameT - lastSliceT < 0.28) combo++; else combo = 1;
           lastSliceT = gameT;
@@ -391,11 +397,7 @@
         f.vy += GRAV * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.vr * dt;
         if (f.vy > 0 && f.y - f.r < H) f.seen = true;
         if (f.y - f.r > H && f.vy > 0) {
-          // fell off the bottom
-          if (!f.bomb && f.seen) {
-            lives--;
-            if (lives <= 0) { fruits.splice(i, 1); gameOver(false); return; }
-          }
+          // fell off the bottom — missing fruit is free; only bombs cost a life
           fruits.splice(i, 1);
         }
       }
