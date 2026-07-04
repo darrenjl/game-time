@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a6a9a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bubble Pop">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Bubble Pop</title>
+  <style>
+    :root { --teal: #00e5cc; --gold: #ffd166; --ink: #eaf6ff; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none; touch-action: none;
+      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      display: flex; flex-direction: column; height: 100vh; height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color: var(--ink);
+      background: linear-gradient(180deg, #22b0d8 0%, #0a6a9a 55%, #043b57 100%);
+    }
+    .topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: max(10px, env(safe-area-inset-top)) 14px 8px; }
+    .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px; border-radius: 999px; font-size: 1rem; font-weight: 700; text-decoration: none; color: #fff; background: rgba(0,229,204,0.18); border: 2px solid rgba(255,255,255,0.55); }
+    .back:active { transform: scale(0.95); }
+    .score { font-size: 1.3rem; font-size: clamp(1.1rem, 5vw, 1.6rem); font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,40,60,0.5); }
+    .rightbtns { display: flex; } .rightbtns > * + * { margin-left: 8px; }
+    .refresh, .pause { -webkit-appearance: none; appearance: none; min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: 999px; font-size: 1.15rem; line-height: 1; cursor: pointer; color: #fff; background: rgba(0,229,204,0.18); border: 2px solid rgba(255,255,255,0.55); }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; } .speedpick > * + * { margin-left: 10px; }
+    .speedpick button { -webkit-appearance: none; appearance: none; display: flex; flex-direction: column; align-items: center; min-width: 68px; min-height: 68px; padding: 8px 10px; border-radius: 16px; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #fff; background: rgba(255,255,255,0.16); border: 2px solid rgba(255,255,255,0.35); }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255,209,102,0.28); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+    .stage { flex: 1 1 auto; position: relative; min-height: 0; display: flex; align-items: stretch; justify-content: center; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(4, 40, 60, 0.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); z-index: 5; }
+    .overlay > * + * { margin-top: 16px; } .overlay.hidden { display: none; }
+    .overlay h2 { font-size: 2rem; font-size: clamp(1.6rem, 7vw, 2.8rem); color: #fff; text-shadow: 0 3px 0 rgba(0,40,60,0.4), 0 0 22px rgba(0,229,204,0.5); }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(255,255,255,0.92); max-width: 26ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-10px);} }
+    .bigbtn { min-height: 60px; padding: 16px 34px; font-size: 1.3rem; font-size: clamp(1.1rem, 5vw, 1.5rem); font-weight: 800; color: #043b57; border: none; border-radius: 999px; background: linear-gradient(135deg, var(--teal), var(--gold)); box-shadow: 0 12px 30px rgba(0,229,204,0.4); cursor: pointer; }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+    <div class="overlay" id="startOverlay">
+      <h2>💧 Bubble Pop</h2>
+      <p>Bubbles float up from the deep!</p>
+      <div class="tap-hint">👆</div>
+      <p><b>Tap the bubbles to pop them.</b> Catch the golden ones for extra points!</p>
+      <p style="opacity:0.8;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+    </div>
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p id="bestLine">Choose a speed:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+    var STATE = { START: 0, PLAYING: 1, PAUSED: 3 };
+    var state = STATE.START;
+    var W = 0, H = 0, dpr = 1;
+
+    var SPEED_LEVELS = [
+      { interval: 0.85, rise: 0.55, icon: '🐢', name: 'Chill' },
+      { interval: 0.60, rise: 0.72, icon: '🙂', name: 'Normal' },
+      { interval: 0.42, rise: 0.92, icon: '🐇', name: 'Fast' },
+      { interval: 0.30, rise: 1.15, icon: '⚡', name: 'Zoom' }
+    ];
+    var speedIdx = 1;
+
+    var COLORS = ['#4fc3ff', '#ff7eb6', '#7ee787', '#c39bff', '#ff9f6e'];
+    var bubbles = [], pops = [], points = 0, best = 0, spawnT = 0.3, lastTs = 0, gameT = 0;
+    var audioCtx = null;
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function randInt(n) { return Math.floor(Math.random() * n); }
+
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width)); H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function newGame() { bubbles = []; pops = []; points = 0; spawnT = 0.3; gameT = 0; updateScore(); }
+    function lvl() { return SPEED_LEVELS[speedIdx]; }
+
+    function spawnBubble() {
+      var gold = Math.random() < 0.10;
+      var r = gold ? H * 0.05 : rand(H * 0.045, H * 0.085);
+      bubbles.push({
+        x: rand(r, W - r), y: H + r, r: r,
+        v: H * lvl().rise * rand(0.85, 1.2),
+        wob: rand(0, 6.28), amp: rand(W * 0.01, W * 0.04),
+        gold: gold, color: gold ? '#ffd54a' : COLORS[randInt(COLORS.length)]
+      });
+    }
+
+    // ---------- Audio ----------
+    function ensureAudio() {
+      if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; } }
+      if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+    }
+    function pop(hz) {
+      if (!audioCtx) return;
+      try {
+        var t0 = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(hz, t0); o.frequency.exponentialRampToValueAtTime(hz * 1.8, t0 + 0.08);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+        o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + 0.16);
+      } catch (e) {}
+    }
+
+    // ---------- Input ----------
+    function pointFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+    function popAt(p) {
+      for (var i = bubbles.length - 1; i >= 0; i--) {
+        var b = bubbles[i];
+        if (Math.hypot(p.x - b.x, p.y - b.y) <= b.r * 1.1) {
+          var gain = b.gold ? 5 : 1;
+          points += gain;
+          if (points > best) { best = points; try { localStorage.setItem('bp_best', String(best)); } catch (e) {} }
+          spawnPop(b);
+          pop(b.gold ? 660 : 440 + Math.min(300, points * 4));
+          bubbles.splice(i, 1);
+          updateScore();
+          return;
+        }
+      }
+    }
+    function onTap(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      ensureAudio();
+      if (state === STATE.START) { startGame(); return; }
+      if (state === STATE.PLAYING) popAt(pointFromEvent(e));
+    }
+    function startGame() { document.getElementById('startOverlay').classList.add('hidden'); state = STATE.PLAYING; lastTs = 0; }
+
+    // ---------- Pops ----------
+    function spawnPop(b) {
+      for (var i = 0; i < 12; i++) {
+        var a = i / 12 * 6.28, sp = rand(H * 0.1, H * 0.4);
+        pops.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(2, b.r * 0.18), alpha: 1, color: b.color });
+      }
+      pops.push({ ring: true, x: b.x, y: b.y, r: b.r, alpha: 1, color: b.color });
+    }
+    function updatePops(dt) {
+      for (var i = pops.length - 1; i >= 0; i--) {
+        var p = pops[i];
+        if (p.ring) { p.r += H * 1.2 * dt; p.alpha -= dt * 3; }
+        else { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += H * 0.5 * dt; p.alpha -= dt * 2; }
+        if (p.alpha <= 0) pops.splice(i, 1);
+      }
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      gameT += dt;
+      spawnT -= dt;
+      if (spawnT <= 0) { spawnBubble(); spawnT = lvl().interval * rand(0.7, 1.3); }
+      for (var i = bubbles.length - 1; i >= 0; i--) {
+        var b = bubbles[i];
+        b.y -= b.v * dt;
+        b.x += Math.sin(gameT * 1.5 + b.wob) * b.amp * dt;
+        if (b.y + b.r < -H * 0.02) bubbles.splice(i, 1);   // drifted off the top (missing is free)
+      }
+      updatePops(dt);
+    }
+    function updateScore() { scoreEl.textContent = points; }
+
+    // ---------- Draw ----------
+    function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); }
+    function drawBubble(b) {
+      var g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.1, b.x, b.y, b.r);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.25, b.color);
+      g.addColorStop(1, b.gold ? '#e0a000' : 'rgba(255,255,255,0.05)');
+      ctx.fillStyle = g; circle(b.x, b.y, b.r); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, b.r * 0.06); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; circle(b.x, b.y, b.r * 0.96); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; circle(b.x - b.r * 0.32, b.y - b.r * 0.34, b.r * 0.16); ctx.fill();
+      if (b.gold) { ctx.fillStyle = '#fff6c8'; drawStar(b.x, b.y, b.r * 0.4); }
+    }
+    function drawStar(x, y, r) {
+      ctx.beginPath();
+      for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, rr = (i % 2 ? r * 0.45 : r); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fill();
+    }
+    function render() {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#22b0d8'); g.addColorStop(0.6, '#0a6a9a'); g.addColorStop(1, '#043b57');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      var i;
+      for (i = 0; i < bubbles.length; i++) drawBubble(bubbles[i]);
+      for (i = 0; i < pops.length; i++) {
+        var p = pops[i]; ctx.globalAlpha = Math.max(0, p.alpha);
+        if (p.ring) { ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(2, p.r * 0.06); circle(p.x, p.y, p.r); ctx.stroke(); }
+        else { ctx.fillStyle = p.color; circle(p.x, p.y, p.r); ctx.fill(); }
+      }
+      ctx.globalAlpha = 1;
+    }
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000); lastTs = ts;
+      if (state === STATE.PLAYING) update(dt); else updatePops(dt);
+      render(); requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = speedPick.getElementsByTagName('button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : ''; }
+    function applySpeed(idx) { speedIdx = idx; try { localStorage.setItem('bp_diff', String(idx)); } catch (e) {} updateSpeedPick(); }
+    (function initState() {
+      var saved = null; try { saved = localStorage.getItem('bp_diff'); } catch (e) {}
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      try { best = +(localStorage.getItem('bp_best') || 0) || 0; } catch (e) {}
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) { (function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); }); })(speedBtns[_i]); }
+
+    function pauseGame() {
+      if (state !== STATE.PLAYING) return; state = STATE.PAUSED; updateSpeedPick();
+      document.getElementById('bestLine').textContent = 'Best: ' + best + '  •  Choose a speed:';
+      document.getElementById('pauseOverlay').classList.remove('hidden');
+    }
+    function resumeGame() { if (state !== STATE.PAUSED) return; document.getElementById('pauseOverlay').classList.add('hidden'); state = STATE.PLAYING; lastTs = 0; }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) { e.stopPropagation(); if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame(); });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) { var n = e.target; while (n && n.nodeName !== 'A') n = n.parentNode; if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); } }, false);
+    }
+    resize(); newGame(); requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
