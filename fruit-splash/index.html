@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#ff8a3d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Fruit Splash">
+  <meta name="apple-mobile-web-app-title" content="Chomp!">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
-  <title>Fruit Splash</title>
+  <title>Chomp!</title>
   <style>
     :root {
       --orange: #ff8a3d;
@@ -178,7 +178,7 @@
     <canvas id="game"></canvas>
 
     <div class="overlay" id="startOverlay">
-      <h2>🍉 Fruit Splash</h2>
+      <h2>🍉 Chomp!</h2>
       <p>Chomp the croc is hungry for fruit!</p>
       <div class="tap-hint">👆</div>
       <p><b>Swipe across the fruit to slice it.</b> Don't slice the bomb!</p>
@@ -419,17 +419,42 @@
     // ---------- Draw helpers ----------
     function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); }
 
+    // A clearly-dangerous bomb: pulsing red halo, deep-black body, bright sparking fuse.
+    function drawBomb(r, t) {
+      var pulse = 0.5 + 0.5 * Math.sin(t * 10);
+      // red danger halo
+      ctx.strokeStyle = 'rgba(255,45,45,' + (0.45 + 0.45 * pulse) + ')';
+      ctx.lineWidth = r * 0.26;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2); ctx.stroke();
+      // body
+      var bg = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.1, 0, 0, r * 1.05);
+      bg.addColorStop(0, '#5a5a68'); bg.addColorStop(0.6, '#1d1d27'); bg.addColorStop(1, '#0b0b11');
+      ctx.fillStyle = bg; circle(0, 0, r); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = r * 0.06;
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.42)'; circle(-r * 0.34, -r * 0.36, r * 0.2); ctx.fill();
+      // cap
+      ctx.save(); ctx.translate(r * 0.4, -r * 0.78); ctx.rotate(-0.5);
+      ctx.fillStyle = '#b98a3e'; ctx.fillRect(-r * 0.18, -r * 0.16, r * 0.36, r * 0.3);
+      ctx.restore();
+      // fuse
+      ctx.strokeStyle = '#e6c891'; ctx.lineWidth = r * 0.13; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(r * 0.18, -r * 0.9); ctx.quadraticCurveTo(r * 0.8, -r * 1.3, r * 0.98, -r * 0.98); ctx.stroke();
+      // sparking star at the fuse tip
+      var sx = r * 0.98, sy = -r * 0.98, sr = r * 0.44 * (0.8 + 0.3 * pulse);
+      var grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+      grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.4, '#ffd166'); grd.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = grd; circle(sx, sy, sr); ctx.fill();
+      ctx.strokeStyle = '#fff3b0'; ctx.lineWidth = r * 0.05; ctx.lineCap = 'round';
+      for (var k = 0; k < 6; k++) { var a = k * Math.PI / 3 + t * 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * sr * 1.15, sy + Math.sin(a) * sr * 1.15); ctx.stroke(); }
+    }
+
     function drawWholeFruit(f) {
       ctx.save();
       ctx.translate(f.x, f.y);
       ctx.rotate(f.rot);
       if (f.bomb) {
-        ctx.fillStyle = '#2b2b36'; circle(0, 0, f.r); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.25)'; circle(-f.r * 0.3, -f.r * 0.3, f.r * 0.28); ctx.fill();
-        // fuse + spark
-        ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = f.r * 0.12; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(0, -f.r); ctx.quadraticCurveTo(f.r * 0.5, -f.r * 1.4, f.r * 0.7, -f.r * 1.2); ctx.stroke();
-        ctx.fillStyle = '#ffd166'; circle(f.r * 0.72, -f.r * 1.2, f.r * 0.14); ctx.fill();
+        drawBomb(f.r, gameT);
       } else {
         var fr = FRUITS[f.type];
         ctx.fillStyle = fr.rind; circle(0, 0, f.r); ctx.fill();

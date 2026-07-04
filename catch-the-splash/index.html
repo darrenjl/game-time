@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a5a7a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Fruit Rain">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Fruit Rain</title>
+  <style>
+    :root { --teal: #00e5cc; --coral: #ff5d8f; --gold: #ffd166; --ink: #eaf6ff; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none; touch-action: none;
+      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      display: flex; flex-direction: column;
+      height: 100vh; height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #0a8ab0 0%, #0a5a7a 55%, #052a4a 100%);
+    }
+    .topbar {
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px;
+      border-radius: 999px; font-size: 1rem; font-weight: 700; text-decoration: none;
+      color: #fff; background: rgba(0, 229, 204, 0.18); border: 2px solid rgba(255,255,255,0.55);
+    }
+    .back:active { transform: scale(0.95); }
+    .score { font-size: 1.3rem; font-size: clamp(1.1rem, 5vw, 1.6rem); font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,40,60,0.5); }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }
+    .refresh, .pause {
+      -webkit-appearance: none; appearance: none; min-width: 44px; min-height: 44px; padding: 8px 12px;
+      border-radius: 999px; font-size: 1.15rem; line-height: 1; cursor: pointer;
+      color: #fff; background: rgba(0, 229, 204, 0.18); border: 2px solid rgba(255,255,255,0.55);
+    }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }
+    .speedpick button {
+      -webkit-appearance: none; appearance: none; display: flex; flex-direction: column; align-items: center;
+      min-width: 68px; min-height: 68px; padding: 8px 10px; border-radius: 16px; font-size: 1.6rem; line-height: 1;
+      cursor: pointer; color: #fff; background: rgba(255,255,255,0.16); border: 2px solid rgba(255,255,255,0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.28); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+    .stage { flex: 1 1 auto; position: relative; min-height: 0; display: flex; align-items: stretch; justify-content: center; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .overlay {
+      position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      padding: 24px; background: rgba(2, 20, 36, 0.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); z-index: 5;
+    }
+    .overlay > * + * { margin-top: 16px; }
+    .overlay.hidden { display: none; }
+    .overlay h2 { font-size: 2rem; font-size: clamp(1.6rem, 7vw, 2.8rem); color: #fff; text-shadow: 0 3px 0 rgba(0,40,60,0.4), 0 0 22px rgba(255,209,102,0.5); }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(255,255,255,0.92); max-width: 26ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .bigbtn {
+      min-height: 60px; padding: 16px 34px; font-size: 1.3rem; font-size: clamp(1.1rem, 5vw, 1.5rem); font-weight: 800;
+      color: #02233a; border: none; border-radius: 999px; background: linear-gradient(135deg, var(--teal), var(--gold));
+      box-shadow: 0 12px 30px rgba(0, 229, 204, 0.4); cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🐙 Fruit Rain</h2>
+      <p>Ollie the octopus is hungry for falling fruit!</p>
+      <div class="tap-hint">👆</div>
+      <p><b>Slide your finger to move Ollie</b> and catch the fruit. Dodge the bombs!</p>
+      <p style="opacity:0.8;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p>Choose a speed:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>🐙 Oh no!</h2>
+      <p id="finalScore">You caught 0 fruit</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
+    var state = STATE.START;
+
+    var W = 0, H = 0, dpr = 1;
+
+    var SPEED_LEVELS = [
+      { interval: 1.30, spd: 0.72, bomb: 0.06, icon: '🐢', name: 'Chill' },
+      { interval: 1.00, spd: 0.90, bomb: 0.12, icon: '🙂', name: 'Normal' },
+      { interval: 0.78, spd: 1.10, bomb: 0.17, icon: '🐇', name: 'Fast' },
+      { interval: 0.58, spd: 1.32, bomb: 0.22, icon: '⚡', name: 'Zoom' }
+    ];
+    var speedIdx = 1;
+
+    var FRUITS = [
+      { name: 'watermelon', rind: '#3fae5a', flesh: '#ff5d6c' },
+      { name: 'strawberry', rind: '#e2394f', flesh: '#ff8090' },
+      { name: 'orange',     rind: '#ff9f2e', flesh: '#ffc574' },
+      { name: 'apple',      rind: '#e2402f', flesh: '#ff9483' },
+      { name: 'lemon',      rind: '#ffd23f', flesh: '#fff29a' },
+      { name: 'grape',      rind: '#8b5cf6', flesh: '#c3adff' }
+    ];
+
+    var items = [], juice = [], bubbles = [];
+    var catcher = { x: 0, tx: 0, w: 0, y: 0, squish: 0 };
+    var points = 0, lives = 3, best = 0, combo = 0, spawnT = 0.6, lastTs = 0, gameT = 0, flash = 0;
+    var GRAV;
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function randInt(n) { return Math.floor(Math.random() * n); }
+
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      GRAV = H * 0.35;
+      catcher.w = W * 0.24;
+      catcher.y = H * 0.86;
+      if (!catcher.x) { catcher.x = W / 2; catcher.tx = W / 2; }
+      buildBubbles();
+    }
+
+    function buildBubbles() {
+      bubbles = [];
+      var n = Math.round((W * H) / 30000);
+      for (var i = 0; i < n; i++) bubbles.push({ x: rand(0, W), y: rand(0, H), r: rand(2, H * 0.01), v: rand(H * 0.02, H * 0.07) });
+    }
+
+    function newGame() {
+      items = []; juice = [];
+      points = 0; lives = 3; combo = 0; spawnT = 0.5; gameT = 0; flash = 0;
+      catcher.x = W / 2; catcher.tx = W / 2; catcher.squish = 0;
+      updateScore();
+    }
+
+    function lvl() { return SPEED_LEVELS[speedIdx]; }
+
+    function spawnItem() {
+      var L = lvl();
+      var isBomb = Math.random() < L.bomb;
+      var r = H * 0.05;
+      items.push({
+        x: rand(W * 0.1, W * 0.9), y: -r, r: r,
+        vy: H * (0.28 + Math.random() * 0.1) * L.spd, vx: rand(-W * 0.02, W * 0.02),
+        bomb: isBomb, type: isBomb ? -1 : randInt(FRUITS.length), rot: rand(0, 6.28), vr: rand(-1.5, 1.5)
+      });
+    }
+
+    // ---------- Input ----------
+    function pointFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+    function moveTo(p) { catcher.tx = Math.max(catcher.w / 2, Math.min(W - catcher.w / 2, p.x)); }
+
+    function onStart(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      if (state === STATE.START) { startGame(); return; }
+      if (state === STATE.PLAYING) moveTo(pointFromEvent(e));
+    }
+    function onMove(e) {
+      if (state !== STATE.PLAYING) return;
+      if (e) e.preventDefault();
+      moveTo(pointFromEvent(e));
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING; lastTs = 0;
+    }
+
+    function gameOver() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      if (points > best) { best = points; try { localStorage.setItem('cs_best', String(best)); } catch (e) {} }
+      var msg = 'You caught ' + points + ' fruit';
+      if (best > 0) msg += '  •  Best ' + best;
+      document.getElementById('finalScore').textContent = msg;
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Particles ----------
+    function spawnJuice(x, y, col, n) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(H * 0.06, H * 0.32);
+        juice.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - H * 0.08, r: rand(2, H * 0.013), alpha: 1, color: col });
+      }
+    }
+    function updateJuice(dt) {
+      for (var i = juice.length - 1; i >= 0; i--) {
+        var j = juice[i]; j.vy += H * 1.2 * dt; j.x += j.vx * dt; j.y += j.vy * dt; j.alpha -= dt * 1.2;
+        if (j.alpha <= 0) juice.splice(i, 1);
+      }
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      gameT += dt;
+      if (flash > 0) flash = Math.max(0, flash - dt);
+      catcher.x += (catcher.tx - catcher.x) * Math.min(1, dt * 14);
+      if (catcher.squish > 0) catcher.squish = Math.max(0, catcher.squish - dt * 3);
+
+      spawnT -= dt;
+      if (spawnT <= 0) { spawnItem(); spawnT = lvl().interval * rand(0.75, 1.25); }
+
+      var catchY = catcher.y - H * 0.02;
+      for (var i = items.length - 1; i >= 0; i--) {
+        var it = items[i];
+        it.vy += GRAV * dt; it.y += it.vy * dt; it.x += it.vx * dt; it.rot += it.vr * dt;
+        if (it.x < it.r) { it.x = it.r; it.vx = Math.abs(it.vx); }
+        if (it.x > W - it.r) { it.x = W - it.r; it.vx = -Math.abs(it.vx); }
+        // caught?
+        if (it.y >= catchY && it.y <= catchY + H * 0.09 && Math.abs(it.x - catcher.x) < catcher.w / 2 + it.r * 0.3) {
+          if (it.bomb) {
+            lives--; flash = 0.35; combo = 0; catcher.squish = 1;
+            spawnJuice(it.x, it.y, '#ffce54', 18);
+            items.splice(i, 1);
+            if (lives <= 0) { gameOver(); return; }
+          } else {
+            combo = (gameT - (catcher._lastCatch || -1) < 1.2) ? combo + 1 : 1;
+            catcher._lastCatch = gameT;
+            points += combo; catcher.squish = 0.7;
+            spawnJuice(it.x, catchY, FRUITS[it.type].flesh, 12);
+            items.splice(i, 1);
+            updateScore();
+          }
+          continue;
+        }
+        // missed (fell past bottom) — no penalty for fruit, resets combo
+        if (it.y - it.r > H) {
+          if (!it.bomb) combo = 0;
+          items.splice(i, 1);
+        }
+      }
+
+      for (var b = 0; b < bubbles.length; b++) { bubbles[b].y -= bubbles[b].v * dt; if (bubbles[b].y < -6) { bubbles[b].y = H + 6; bubbles[b].x = rand(0, W); } }
+      updateJuice(dt);
+    }
+
+    function updateScore() { scoreEl.textContent = points; }
+
+    // ---------- Draw ----------
+    function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); }
+
+    // A clearly-dangerous bomb: pulsing red halo, deep-black body, bright sparking fuse.
+    function drawBomb(r, t) {
+      var pulse = 0.5 + 0.5 * Math.sin(t * 10);
+      ctx.strokeStyle = 'rgba(255,45,45,' + (0.45 + 0.45 * pulse) + ')';
+      ctx.lineWidth = r * 0.26;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2); ctx.stroke();
+      var bg = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.1, 0, 0, r * 1.05);
+      bg.addColorStop(0, '#5a5a68'); bg.addColorStop(0.6, '#1d1d27'); bg.addColorStop(1, '#0b0b11');
+      ctx.fillStyle = bg; circle(0, 0, r); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = r * 0.06;
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.42)'; circle(-r * 0.34, -r * 0.36, r * 0.2); ctx.fill();
+      ctx.save(); ctx.translate(r * 0.4, -r * 0.78); ctx.rotate(-0.5);
+      ctx.fillStyle = '#b98a3e'; ctx.fillRect(-r * 0.18, -r * 0.16, r * 0.36, r * 0.3);
+      ctx.restore();
+      ctx.strokeStyle = '#e6c891'; ctx.lineWidth = r * 0.13; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(r * 0.18, -r * 0.9); ctx.quadraticCurveTo(r * 0.8, -r * 1.3, r * 0.98, -r * 0.98); ctx.stroke();
+      var sx = r * 0.98, sy = -r * 0.98, sr = r * 0.44 * (0.8 + 0.3 * pulse);
+      var grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+      grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.4, '#ffd166'); grd.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = grd; circle(sx, sy, sr); ctx.fill();
+      ctx.strokeStyle = '#fff3b0'; ctx.lineWidth = r * 0.05; ctx.lineCap = 'round';
+      for (var k = 0; k < 6; k++) { var a = k * Math.PI / 3 + t * 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * sr * 1.15, sy + Math.sin(a) * sr * 1.15); ctx.stroke(); }
+    }
+
+    function drawItem(it) {
+      ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+      if (it.bomb) {
+        drawBomb(it.r, gameT);
+      } else {
+        var fr = FRUITS[it.type];
+        ctx.fillStyle = fr.rind; circle(0, 0, it.r); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.28)'; circle(-it.r * 0.3, -it.r * 0.32, it.r * 0.26); ctx.fill();
+        if (fr.name === 'watermelon') { ctx.fillStyle = '#2f8f52'; for (var k = 0; k < 6; k++) { ctx.save(); ctx.rotate(k / 6 * 6.28); ctx.fillRect(-it.r * 0.05, -it.r, it.r * 0.1, it.r * 2); ctx.restore(); } }
+        if (fr.name === 'strawberry' || fr.name === 'apple' || fr.name === 'watermelon') { ctx.fillStyle = '#4caf6d'; circle(0, -it.r * 0.95, it.r * 0.2); ctx.fill(); }
+      }
+      ctx.restore();
+    }
+
+    function drawOctopus() {
+      var cx = catcher.x, cy = catcher.y, w = catcher.w;
+      var sq = 1 - catcher.squish * 0.18;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(1 + catcher.squish * 0.1, sq);
+      // tentacles
+      ctx.fillStyle = '#7a3fd6';
+      for (var t = -2; t <= 2; t++) {
+        var tx = t * w * 0.19;
+        ctx.beginPath();
+        ctx.moveTo(tx - w * 0.07, w * 0.05);
+        ctx.quadraticCurveTo(tx, w * 0.34 + Math.sin(gameT * 4 + t) * w * 0.04, tx + w * 0.07, w * 0.05);
+        ctx.closePath(); ctx.fill();
+      }
+      // head/bowl
+      ctx.fillStyle = '#9a5cff';
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, w * 0.06);
+      ctx.quadraticCurveTo(-w / 2, -w * 0.34, 0, -w * 0.34);
+      ctx.quadraticCurveTo(w / 2, -w * 0.34, w / 2, w * 0.06);
+      ctx.closePath(); ctx.fill();
+      // bowl rim (catch mouth)
+      ctx.fillStyle = '#b98bff';
+      ctx.beginPath(); ctx.ellipse ? ctx.ellipse(0, -w * 0.3, w / 2, w * 0.1, 0, 0, Math.PI * 2) : ctx.arc(0, -w * 0.3, w * 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6a34c0';
+      ctx.beginPath(); ctx.ellipse ? ctx.ellipse(0, -w * 0.3, w * 0.42, w * 0.07, 0, 0, Math.PI * 2) : ctx.arc(0, -w * 0.3, w * 0.34, 0, Math.PI * 2); ctx.fill();
+      // eyes
+      ctx.fillStyle = '#fff'; circle(-w * 0.16, -w * 0.05, w * 0.09); ctx.fill(); circle(w * 0.16, -w * 0.05, w * 0.09); ctx.fill();
+      ctx.fillStyle = '#241433'; circle(-w * 0.14, -w * 0.04, w * 0.045); ctx.fill(); circle(w * 0.18, -w * 0.04, w * 0.045); ctx.fill();
+      // smile
+      ctx.strokeStyle = '#5a2ca0'; ctx.lineWidth = w * 0.03; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, w * 0.01, w * 0.12, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawHeart(x, y, r, filled) {
+      ctx.save(); ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.7);
+      ctx.bezierCurveTo(r * 1.3, -r * 0.6, r * 0.5, -r * 1.3, 0, -r * 0.4);
+      ctx.bezierCurveTo(-r * 0.5, -r * 1.3, -r * 1.3, -r * 0.6, 0, r * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = filled ? '#ff5d8f' : 'rgba(255,255,255,0.3)'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
+      ctx.restore();
+    }
+
+    function render() {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#0a8ab0'); g.addColorStop(0.6, '#0a5a7a'); g.addColorStop(1, '#052a4a');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(180,240,255,0.25)';
+      for (var b = 0; b < bubbles.length; b++) { circle(bubbles[b].x, bubbles[b].y, bubbles[b].r); ctx.fill(); }
+
+      var i;
+      for (i = 0; i < items.length; i++) drawItem(items[i]);
+      drawOctopus();
+      for (i = 0; i < juice.length; i++) { ctx.globalAlpha = Math.max(0, juice[i].alpha); ctx.fillStyle = juice[i].color; circle(juice[i].x, juice[i].y, juice[i].r); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      for (i = 0; i < 3; i++) drawHeart(W * 0.06 + i * H * 0.055, H * 0.05, H * 0.019, i < lives);
+      if (flash > 0) { ctx.fillStyle = 'rgba(255,80,80,' + (flash * 0.7) + ')'; ctx.fillRect(0, 0, W, H); }
+    }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt); else updateJuice(dt);
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onStart, { passive: false });
+    stage.addEventListener('touchmove', onMove, { passive: false });
+    stage.addEventListener('mousedown', onStart);
+    stage.addEventListener('mousemove', onMove);
+
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      newGame(); state = STATE.PLAYING; lastTs = 0;
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = speedPick.getElementsByTagName('button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : ''; }
+    function applySpeed(idx) { speedIdx = idx; try { localStorage.setItem('cs_diff', String(idx)); } catch (e) {} updateSpeedPick(); }
+    (function initState() {
+      var saved = null; try { saved = localStorage.getItem('cs_diff'); } catch (e) {}
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      try { best = +(localStorage.getItem('cs_best') || 0) || 0; } catch (e) {}
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); }); })(speedBtns[_i]);
+    }
+
+    function pauseGame() { if (state !== STATE.PLAYING) return; state = STATE.PAUSED; updateSpeedPick(); document.getElementById('pauseOverlay').classList.remove('hidden'); }
+    function resumeGame() { if (state !== STATE.PAUSED) return; document.getElementById('pauseOverlay').classList.add('hidden'); state = STATE.PLAYING; lastTs = 0; }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) { e.stopPropagation(); if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame(); });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target; while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); }
+      }, false);
+    }
+
+    resize();
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

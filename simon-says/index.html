@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#141033">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Copy Cat">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Copy Cat</title>
+  <style>
+    :root { --gold: #ffd166; --ink: #eef0ff; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none; touch-action: none;
+      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      display: flex; flex-direction: column;
+      height: 100vh; height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #241a5c 0%, #141033 55%, #08061c 100%);
+    }
+    .topbar {
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px;
+      border-radius: 999px; font-size: 1rem; font-weight: 700; text-decoration: none;
+      color: var(--ink); background: rgba(124,140,255,0.18); border: 2px solid rgba(124,140,255,0.5);
+    }
+    .back:active { transform: scale(0.95); }
+    .score { font-size: 1.2rem; font-size: clamp(1rem, 4.5vw, 1.5rem); font-weight: 800; color: var(--gold); text-shadow: 0 0 16px rgba(255,209,102,0.4); }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }
+    .refresh, .pause {
+      -webkit-appearance: none; appearance: none; min-width: 44px; min-height: 44px; padding: 8px 12px;
+      border-radius: 999px; font-size: 1.15rem; line-height: 1; cursor: pointer;
+      color: var(--ink); background: rgba(124,140,255,0.18); border: 2px solid rgba(124,140,255,0.5);
+    }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }
+    .speedpick button {
+      -webkit-appearance: none; appearance: none; display: flex; flex-direction: column; align-items: center;
+      min-width: 68px; min-height: 68px; padding: 8px 10px; border-radius: 16px; font-size: 1.6rem; line-height: 1;
+      cursor: pointer; color: var(--ink); background: rgba(124,140,255,0.14); border: 2px solid rgba(124,140,255,0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255,209,102,0.18); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+    .stage { flex: 1 1 auto; position: relative; min-height: 0; display: flex; align-items: stretch; justify-content: center; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .overlay {
+      position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      padding: 24px; background: rgba(8, 6, 28, 0.72); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); z-index: 5;
+    }
+    .overlay > * + * { margin-top: 16px; }
+    .overlay.hidden { display: none; }
+    .overlay h2 { font-size: 2rem; font-size: clamp(1.6rem, 7vw, 2.8rem); background: linear-gradient(90deg, #7c8cff, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(238,240,255,0.85); max-width: 26ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .bigbtn {
+      min-height: 60px; padding: 16px 34px; font-size: 1.3rem; font-size: clamp(1.1rem, 5vw, 1.5rem); font-weight: 800;
+      color: #141033; border: none; border-radius: 999px; background: linear-gradient(135deg, #7c8cff, var(--gold));
+      box-shadow: 0 12px 30px rgba(124,140,255,0.4); cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">Round 0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🎵 Copy Cat</h2>
+      <p>Watch the colours light up, then tap them back in the same order!</p>
+      <div class="tap-hint">👆</div>
+      <p><b>Each round adds one more.</b> How long can Oisín &amp; Finley remember?</p>
+      <p style="opacity:0.7;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p>Choose a speed:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>🎶 Good try!</h2>
+      <p id="finalScore">You reached round 0</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
+    var state = STATE.START;
+    // sub-phase during PLAYING
+    var PHASE = { SHOW: 0, INPUT: 1, WAIT: 2 };
+    var phase = PHASE.WAIT;
+
+    var W = 0, H = 0, dpr = 1;
+
+    // Playback speed: on-time (lit) and gap between flashes, in seconds
+    var SPEED_LEVELS = [
+      { on: 0.62, gap: 0.34, icon: '🐢', name: 'Chill' },
+      { on: 0.48, gap: 0.24, icon: '🙂', name: 'Normal' },
+      { on: 0.36, gap: 0.17, icon: '🐇', name: 'Fast' },
+      { on: 0.26, gap: 0.12, icon: '⚡', name: 'Zoom' }
+    ];
+    var speedIdx = 1;
+
+    // Four pads: colour + tone (Hz)
+    var PADS = [
+      { base: '#12b36a', lit: '#5cffb0', hz: 329.63 },   // green  (E4)
+      { base: '#e23b53', lit: '#ff8fa0', hz: 261.63 },   // red    (C4)
+      { base: '#2a7be0', lit: '#8fc2ff', hz: 392.00 },   // blue   (G4)
+      { base: '#f0b429', lit: '#ffe08a', hz: 523.25 }    // yellow (C5)
+    ];
+    var rects = [];      // pad rectangles, index-aligned with PADS
+    var glow = [0, 0, 0, 0];   // 0..1 lit amount per pad
+
+    var seq = [], inputPos = 0, round = 0, best = 0;
+    var showIdx = 0, showT = 0, showOn = false, lastTs = 0;
+    var audioCtx = null;
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function randInt(n) { return Math.floor(Math.random() * n); }
+
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layoutPads();
+    }
+
+    function layoutPads() {
+      var side = Math.min(W, H) * 0.86;
+      var ox = (W - side) / 2, oy = (H - side) / 2;
+      var gap = side * 0.04;
+      var cw = (side - gap) / 2;
+      rects = [
+        { x: ox, y: oy, w: cw, h: cw },                         // green  top-left
+        { x: ox + cw + gap, y: oy, w: cw, h: cw },              // red    top-right
+        { x: ox, y: oy + cw + gap, w: cw, h: cw },              // blue   bottom-left
+        { x: ox + cw + gap, y: oy + cw + gap, w: cw, h: cw }    // yellow bottom-right
+      ];
+    }
+
+    // ---------- Audio (Web Audio API, generated) ----------
+    function ensureAudio() {
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+    }
+    function tone(hz, dur) {
+      if (!audioCtx) return;
+      try {
+        var t0 = audioCtx.currentTime;
+        var osc = audioCtx.createOscillator();
+        var gainNode = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = hz;
+        gainNode.gain.setValueAtTime(0.0001, t0);
+        gainNode.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+        osc.start(t0); osc.stop(t0 + dur + 0.02);
+      } catch (e) {}
+    }
+    function buzz() { tone(110, 0.4); }
+
+    // ---------- Setup ----------
+    function newGame() {
+      seq = []; inputPos = 0; round = 0; glow = [0, 0, 0, 0];
+      try { best = +(localStorage.getItem('ss_best') || 0) || 0; } catch (e) {}
+      updateScore();
+    }
+
+    function nextRound() {
+      seq.push(randInt(4));
+      round = seq.length;
+      updateScore();
+      startShow();
+    }
+
+    function startShow() {
+      phase = PHASE.SHOW;
+      showIdx = 0; showT = 0; showOn = false;
+    }
+
+    function lvl() { return SPEED_LEVELS[speedIdx]; }
+
+    // light a pad + play its tone
+    function flash(i) { glow[i] = 1; tone(PADS[i].hz, lvl().on * 0.9); }
+
+    // ---------- Input ----------
+    function pointFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+    function padAt(p) {
+      for (var i = 0; i < rects.length; i++) {
+        var r = rects[i];
+        if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) return i;
+      }
+      return -1;
+    }
+
+    function onTap(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      ensureAudio();
+      if (state === STATE.START) { startGame(); return; }
+      if (state !== STATE.PLAYING || phase !== PHASE.INPUT) return;
+      var i = padAt(pointFromEvent(e));
+      if (i < 0) return;
+      glow[i] = 1; tone(PADS[i].hz, 0.28);
+      if (seq[inputPos] === i) {
+        inputPos++;
+        if (inputPos >= seq.length) {
+          // round complete
+          phase = PHASE.WAIT; showT = 0;
+        }
+      } else {
+        buzz();
+        gameOver();
+      }
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+      // small delay then first round
+      phase = PHASE.WAIT; showT = -0.4; inputPos = 0; seq = [];
+    }
+
+    function gameOver() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      var reached = Math.max(0, round - 1);   // rounds fully completed
+      if (reached > best) { best = reached; try { localStorage.setItem('ss_best', String(best)); } catch (e) {} }
+      var msg = 'You reached round ' + round;
+      if (best > 0) msg += '  •  Best ' + best;
+      document.getElementById('finalScore').textContent = msg;
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      for (var i = 0; i < 4; i++) if (glow[i] > 0) glow[i] = Math.max(0, glow[i] - dt / 0.32);
+
+      if (phase === PHASE.WAIT) {
+        showT += dt;
+        if (showT >= 0.55) {
+          if (seq.length === 0) { nextRound(); }        // first round
+          else if (inputPos >= seq.length) {            // player finished a round correctly
+            inputPos = 0; nextRound();
+          } else {                                        // (shouldn't happen) restart show
+            startShow();
+          }
+        }
+        return;
+      }
+
+      if (phase === PHASE.SHOW) {
+        var L = lvl();
+        showT += dt;
+        if (!showOn) {
+          if (showT >= L.gap) { showOn = true; showT = 0; flash(seq[showIdx]); }
+        } else {
+          if (showT >= L.on) {
+            showOn = false; showT = 0; showIdx++;
+            if (showIdx >= seq.length) { phase = PHASE.INPUT; inputPos = 0; }
+          }
+        }
+      }
+    }
+
+    function updateScore() { scoreEl.textContent = 'Round ' + round; }
+
+    // ---------- Draw ----------
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function mix(c1, c2, t) {
+      function h(c) { return [parseInt(c.substr(1, 2), 16), parseInt(c.substr(3, 2), 16), parseInt(c.substr(5, 2), 16)]; }
+      var a = h(c1), b = h(c2);
+      return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' + Math.round(a[1] + (b[1] - a[1]) * t) + ',' + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
+    }
+
+    function render() {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#241a5c'); g.addColorStop(0.6, '#141033'); g.addColorStop(1, '#08061c');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      for (var i = 0; i < rects.length; i++) {
+        var r = rects[i], p = PADS[i];
+        var col = mix(p.base, p.lit, glow[i]);
+        var rad = Math.min(r.w, r.h) * 0.14;
+        if (glow[i] > 0.02) { ctx.shadowColor = p.lit; ctx.shadowBlur = Math.min(r.w, r.h) * 0.4 * glow[i]; }
+        roundRect(r.x, r.y, r.w, r.h, rad);
+        ctx.fillStyle = col; ctx.fill();
+        ctx.shadowBlur = 0;
+        // glossy top highlight
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.10 + 0.25 * glow[i]) + ')';
+        roundRect(r.x + r.w * 0.1, r.y + r.h * 0.08, r.w * 0.8, r.h * 0.28, rad * 0.8); ctx.fill();
+      }
+
+      // centre badge
+      var cx = W / 2, cy = H / 2, cr = Math.min(W, H) * 0.1;
+      ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.fillStyle = '#0d0a26'; ctx.fill();
+      ctx.lineWidth = Math.max(2, cr * 0.08); ctx.strokeStyle = 'rgba(124,140,255,0.6)'; ctx.stroke();
+      ctx.fillStyle = phase === PHASE.INPUT ? '#5cffb0' : '#ffd166';
+      ctx.font = 'bold ' + Math.round(cr * 0.7) + 'px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(state === STATE.PLAYING ? String(round) : '🎵', cx, cy + cr * 0.04);
+    }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt);
+      else { for (var i = 0; i < 4; i++) if (glow[i] > 0) glow[i] = Math.max(0, glow[i] - dt / 0.32); }
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      newGame(); state = STATE.PLAYING; lastTs = 0;
+      phase = PHASE.WAIT; showT = -0.4; inputPos = 0; seq = [];
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = speedPick.getElementsByTagName('button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : ''; }
+    function applySpeed(idx) { speedIdx = idx; try { localStorage.setItem('ss_diff', String(idx)); } catch (e) {} updateSpeedPick(); }
+    (function initState() {
+      var saved = null; try { saved = localStorage.getItem('ss_diff'); } catch (e) {}
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); }); })(speedBtns[_i]);
+    }
+
+    function pauseGame() { if (state !== STATE.PLAYING) return; state = STATE.PAUSED; updateSpeedPick(); document.getElementById('pauseOverlay').classList.remove('hidden'); }
+    function resumeGame() {
+      if (state !== STATE.PAUSED) return;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      state = STATE.PLAYING; lastTs = 0;
+      // if we were mid-showing, replay the current sequence to be fair
+      if (phase === PHASE.SHOW) startShow();
+    }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) { e.stopPropagation(); if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame(); });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target; while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); }
+      }, false);
+    }
+
+    resize();
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
