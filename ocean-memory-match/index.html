@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#052a4a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ocean Memory Match">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Ocean Memory Match</title>
+  <style>
+    :root {
+      --teal: #00e5cc;
+      --coral: #ff5d8f;
+      --gold: #ffd166;
+      --ink: #eaf6ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #0a5a7a 0%, #052a4a 55%, #01131f 100%);
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.16);
+      border: 2px solid rgba(0, 229, 204, 0.5);
+    }
+    .back:active { transform: scale(0.95); }
+    .score {
+      font-size: 1.2rem;
+      font-size: clamp(1rem, 4.5vw, 1.5rem);
+      font-weight: 800;
+      color: var(--teal);
+      text-shadow: 0 0 16px rgba(0, 229, 204, 0.4);
+    }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }
+    .refresh, .pause {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.16);
+      border: 2px solid rgba(0, 229, 204, 0.5);
+    }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }
+    .speedpick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 72px;
+      min-height: 68px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 229, 204, 0.14);
+      border: 2px solid rgba(0, 229, 204, 0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.68rem; font-weight: 700; opacity: 0.85; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.18); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      background: rgba(2, 16, 36, 0.72);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .overlay > * + * { margin-top: 16px; }
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 2rem;
+      font-size: clamp(1.6rem, 7vw, 2.8rem);
+      background: linear-gradient(90deg, var(--teal), var(--gold));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(234, 246, 255, 0.85); max-width: 26ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #02233a;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--teal), var(--gold));
+      box-shadow: 0 12px 30px rgba(0, 229, 204, 0.4);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">Moves: 0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🐠 Ocean Memory Match</h2>
+      <p>Flip two cards to find matching sea friends!</p>
+      <div class="tap-hint">👆</div>
+      <p><b>Tap a card to flip it.</b> Match every pair to win.</p>
+      <p style="opacity:0.7;font-size:0.9em">Tap ⏸️ (top-right) to pause and pick a size.</p>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p>Choose a size:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Easy 2×3</span></button>
+        <button data-idx="1">🙂<span>Normal 4×4</span></button>
+        <button data-idx="2">⚡<span>Hard 4×5</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>🐚 All matched!</h2>
+      <p id="finalScore">Great job!</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
+    var state = STATE.START;
+
+    var W = 0, H = 0, dpr = 1;
+
+    // Difficulty = board size (cols, rows). Card count must be even.
+    var SIZES = [
+      { cols: 2, rows: 3, icon: '🐢', name: 'Easy' },
+      { cols: 4, rows: 4, icon: '🙂', name: 'Normal' },
+      { cols: 4, rows: 5, icon: '⚡', name: 'Hard' }
+    ];
+    var sizeIdx = 1;
+
+    var cards = [];      // {i, cx, cy, w, h, creature, matched, faceUp, f, ft}
+    var bubbles = [];
+    var selected = [];
+    var moves = 0, matchedPairs = 0, totalPairs = 0, mismatchT = 0, lock = false;
+    var lastTs = 0, best = 0;
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layoutCards();
+      buildBubbles();
+    }
+
+    function buildBubbles() {
+      bubbles = [];
+      var n = Math.round((W * H) / 26000);
+      for (var i = 0; i < n; i++) {
+        bubbles.push({ x: rand(0, W), y: rand(0, H), r: rand(2, H * 0.012), v: rand(H * 0.02, H * 0.08), tw: rand(0, 6.28) });
+      }
+    }
+
+    // ---------- Board setup ----------
+    function shuffle(a) {
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    function newGame() {
+      var sz = SIZES[sizeIdx];
+      totalPairs = (sz.cols * sz.rows) / 2;
+      matchedPairs = 0; moves = 0; selected = []; mismatchT = 0; lock = false;
+      // build a deck of paired creature ids
+      var deck = [];
+      for (var p = 0; p < totalPairs; p++) { deck.push(p % CREATURES.length); deck.push(p % CREATURES.length); }
+      shuffle(deck);
+      cards = [];
+      for (var i = 0; i < deck.length; i++) {
+        cards.push({ i: i, creature: deck[i], matched: false, faceUp: false, f: 0, ft: 0 });
+      }
+      layoutCards();
+      try { best = +(localStorage.getItem('omm_best_' + (sz.cols * sz.rows)) || 0) || 0; } catch (e) {}
+      updateScore();
+    }
+
+    function layoutCards() {
+      if (!cards.length) return;
+      var sz = SIZES[sizeIdx];
+      var cols = sz.cols, rows = sz.rows;
+      var padX = W * 0.05, padTop = H * 0.05, padBot = H * 0.04;
+      var gap = Math.min(W, H) * 0.02;
+      var availW = W - padX * 2 - gap * (cols - 1);
+      var availH = H - padTop - padBot - gap * (rows - 1);
+      var cw = availW / cols, chh = availH / rows;
+      // keep cards roughly card-shaped (taller than wide), capped by cell
+      var cardW = cw, cardH = chh;
+      var boardW = cardW * cols + gap * (cols - 1);
+      var boardH = cardH * rows + gap * (rows - 1);
+      var ox = (W - boardW) / 2, oy = padTop + (H - padTop - padBot - boardH) / 2;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var idx = r * cols + c;
+          if (idx >= cards.length) continue;
+          var card = cards[idx];
+          card.w = cardW; card.h = cardH;
+          card.cx = ox + c * (cardW + gap) + cardW / 2;
+          card.cy = oy + r * (cardH + gap) + cardH / 2;
+        }
+      }
+    }
+
+    // ---------- Input ----------
+    function pointFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+
+    function tapAt(p) {
+      if (lock) return;
+      for (var i = 0; i < cards.length; i++) {
+        var c = cards[i];
+        if (c.matched || c.faceUp) continue;
+        if (p.x >= c.cx - c.w / 2 && p.x <= c.cx + c.w / 2 && p.y >= c.cy - c.h / 2 && p.y <= c.cy + c.h / 2) {
+          flipUp(c);
+          return;
+        }
+      }
+    }
+
+    function flipUp(c) {
+      c.faceUp = true; c.ft = 1;
+      selected.push(c);
+      if (selected.length === 2) {
+        moves++;
+        updateScore();
+        lock = true;
+        if (selected[0].creature === selected[1].creature) {
+          mismatchT = 0.35;   // brief pause, then lock as matched
+        } else {
+          mismatchT = 0.9;    // show, then flip both back
+        }
+      }
+    }
+
+    function resolveSelection() {
+      if (selected[0].creature === selected[1].creature) {
+        selected[0].matched = true; selected[1].matched = true;
+        matchedPairs++;
+        spawnSparkles(selected[0]); spawnSparkles(selected[1]);
+        if (matchedPairs >= totalPairs) win();
+      } else {
+        selected[0].faceUp = false; selected[0].ft = 0;
+        selected[1].faceUp = false; selected[1].ft = 0;
+      }
+      selected = [];
+      lock = false;
+    }
+
+    function onTap(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      if (state === STATE.START) { startGame(); return; }
+      if (state === STATE.PLAYING) { tapAt(pointFromEvent(e)); }
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+
+    function win() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      var sz = SIZES[sizeIdx];
+      var key = 'omm_best_' + (sz.cols * sz.rows);
+      var isBest = (best === 0 || moves < best);
+      if (isBest) { best = moves; try { localStorage.setItem(key, String(best)); } catch (e) {} }
+      var msg = 'You matched all ' + totalPairs + ' pairs in ' + moves + ' moves!';
+      if (best > 0) msg += (isBest ? '  •  New best!' : '  •  Best ' + best);
+      document.getElementById('finalScore').textContent = msg;
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Sparkles ----------
+    var sparks = [];
+    function spawnSparkles(c) {
+      for (var i = 0; i < 12; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(H * 0.05, H * 0.28);
+        sparks.push({ x: c.cx, y: c.cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(2, H * 0.012), alpha: 1, color: i % 2 ? '#ffd166' : '#00e5cc' });
+      }
+    }
+    function updateSparks(dt) {
+      for (var i = sparks.length - 1; i >= 0; i--) {
+        var s = sparks[i];
+        s.x += s.vx * dt; s.y += s.vy * dt; s.alpha -= dt * 1.6;
+        if (s.alpha <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      if (mismatchT > 0) {
+        mismatchT -= dt;
+        if (mismatchT <= 0) resolveSelection();
+      }
+      for (var i = 0; i < cards.length; i++) {
+        var c = cards[i];
+        if (c.f < c.ft) c.f = Math.min(c.ft, c.f + dt / 0.22);
+        else if (c.f > c.ft) c.f = Math.max(c.ft, c.f - dt / 0.22);
+      }
+      for (var b = 0; b < bubbles.length; b++) {
+        bubbles[b].y -= bubbles[b].v * dt;
+        bubbles[b].x += Math.sin(lastTs / 700 + bubbles[b].tw) * 0.2;
+        if (bubbles[b].y < -10) { bubbles[b].y = H + 10; bubbles[b].x = rand(0, W); }
+      }
+      updateSparks(dt);
+    }
+
+    function updateScore() { scoreEl.textContent = 'Moves: ' + moves; }
+
+    // ---------- Draw helpers ----------
+    function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); }
+    function ellipse(x, y, rx, ry) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(rx, ry); ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.restore(); ctx.closePath();
+    }
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    // ---------- Sea creatures (canvas-drawn, unit scale ~s) ----------
+    function eyes(x, y, r) {
+      ctx.fillStyle = '#fff'; circle(x - r, y, r * 0.9); ctx.fill(); circle(x + r, y, r * 0.9); ctx.fill();
+      ctx.fillStyle = '#16323f'; circle(x - r + r * 0.15, y, r * 0.45); ctx.fill(); circle(x + r + r * 0.15, y, r * 0.45); ctx.fill();
+    }
+    var CREATURES = [
+      function fish(x, y, s) {
+        ctx.fillStyle = '#ff8a3d';
+        ellipse(x, y, s * 0.42, s * 0.3); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + s * 0.34, y); ctx.lineTo(x + s * 0.5, y - s * 0.2); ctx.lineTo(x + s * 0.5, y + s * 0.2); ctx.closePath(); ctx.fill();
+        eyes(x - s * 0.14, y - s * 0.05, s * 0.07);
+      },
+      function puffer(x, y, s) {
+        ctx.fillStyle = '#ffd94a';
+        var n = 12;
+        ctx.beginPath();
+        for (var i = 0; i <= n; i++) { var a = i / n * Math.PI * 2; var rr = (i % 2 ? s * 0.44 : s * 0.34); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f0b429'; circle(x, y, s * 0.3); ctx.fill();
+        eyes(x, y - s * 0.05, s * 0.07);
+      },
+      function crab(x, y, s) {
+        ctx.strokeStyle = '#e23b53'; ctx.lineWidth = s * 0.09; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x - s * 0.3, y + s * 0.1); ctx.lineTo(x - s * 0.44, y - s * 0.14);
+        ctx.moveTo(x + s * 0.3, y + s * 0.1); ctx.lineTo(x + s * 0.44, y - s * 0.14); ctx.stroke();
+        ctx.fillStyle = '#ff5d5d';
+        ellipse(x, y, s * 0.38, s * 0.28); ctx.fill();
+        circle(x - s * 0.46, y - s * 0.18, s * 0.09); ctx.fill(); circle(x + s * 0.46, y - s * 0.18, s * 0.09); ctx.fill();
+        eyes(x, y - s * 0.06, s * 0.07);
+      },
+      function turtle(x, y, s) {
+        ctx.fillStyle = '#7bd88f';
+        circle(x + s * 0.42, y, s * 0.1); ctx.fill();
+        ctx.fillStyle = '#4caf6d';
+        ellipse(x, y, s * 0.4, s * 0.32); ctx.fill();
+        ctx.fillStyle = '#2f8f52';
+        for (var i = -1; i <= 1; i++) { circle(x + i * s * 0.18, y - s * 0.02, s * 0.09); ctx.fill(); }
+        eyes(x + s * 0.42, y - s * 0.03, s * 0.05);
+      },
+      function octo(x, y, s) {
+        ctx.fillStyle = '#b06cff';
+        ellipse(x, y - s * 0.08, s * 0.34, s * 0.32); ctx.fill();
+        ctx.strokeStyle = '#b06cff'; ctx.lineWidth = s * 0.1; ctx.lineCap = 'round';
+        for (var i = -2; i <= 2; i++) {
+          ctx.beginPath(); ctx.moveTo(x + i * s * 0.13, y + s * 0.16); ctx.lineTo(x + i * s * 0.16, y + s * 0.4); ctx.stroke();
+        }
+        eyes(x, y - s * 0.12, s * 0.07);
+      },
+      function whale(x, y, s) {
+        ctx.fillStyle = '#4f8ef7';
+        ellipse(x, y, s * 0.44, s * 0.3); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - s * 0.4, y); ctx.lineTo(x - s * 0.5, y - s * 0.18); ctx.lineTo(x - s * 0.5, y + s * 0.18); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#bfe3ff'; ellipse(x + s * 0.02, y + s * 0.12, s * 0.3, s * 0.12); ctx.fill();
+        eyes(x + s * 0.16, y - s * 0.06, s * 0.06);
+      },
+      function star(x, y, s) {
+        ctx.fillStyle = '#ff7eb6';
+        ctx.beginPath();
+        for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5; var rr = (i % 2 ? s * 0.2 : s * 0.46); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+        ctx.closePath(); ctx.fill();
+        eyes(x, y + s * 0.02, s * 0.06);
+      },
+      function seahorse(x, y, s) {
+        ctx.strokeStyle = '#00c2a8'; ctx.lineWidth = s * 0.24; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x - s * 0.05, y - s * 0.32);
+        ctx.quadraticCurveTo(x + s * 0.28, y - s * 0.1, x + s * 0.02, y + s * 0.14);
+        ctx.quadraticCurveTo(x - s * 0.22, y + s * 0.3, x + s * 0.05, y + s * 0.4); ctx.stroke();
+        ctx.fillStyle = '#00c2a8'; circle(x - s * 0.08, y - s * 0.34, s * 0.14); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - s * 0.2, y - s * 0.4); ctx.lineTo(x - s * 0.06, y - s * 0.44); ctx.lineTo(x - s * 0.12, y - s * 0.3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#16323f'; circle(x - s * 0.04, y - s * 0.36, s * 0.04); ctx.fill();
+      },
+      function jelly(x, y, s) {
+        ctx.fillStyle = '#ff6ad5';
+        ctx.beginPath(); ctx.arc(x, y - s * 0.05, s * 0.36, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#ff6ad5'; ctx.lineWidth = s * 0.07; ctx.lineCap = 'round';
+        for (var i = -2; i <= 2; i++) {
+          ctx.beginPath(); ctx.moveTo(x + i * s * 0.14, y - s * 0.05);
+          ctx.quadraticCurveTo(x + i * s * 0.14 + s * 0.06, y + s * 0.18, x + i * s * 0.14, y + s * 0.38); ctx.stroke();
+        }
+        eyes(x, y - s * 0.12, s * 0.06);
+      },
+      function dolphin(x, y, s) {
+        ctx.fillStyle = '#8fa6c9';
+        ctx.beginPath();
+        ctx.moveTo(x - s * 0.42, y + s * 0.05);
+        ctx.quadraticCurveTo(x - s * 0.1, y - s * 0.4, x + s * 0.44, y - s * 0.18);
+        ctx.quadraticCurveTo(x + s * 0.1, y + s * 0.02, x + s * 0.02, y + s * 0.34);
+        ctx.quadraticCurveTo(x - s * 0.18, y + s * 0.16, x - s * 0.42, y + s * 0.05);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#16323f'; circle(x + s * 0.24, y - s * 0.12, s * 0.05); ctx.fill();
+      }
+    ];
+
+    // ---------- Card rendering ----------
+    function drawCard(c) {
+      var scaleX = Math.abs(Math.cos(c.f * Math.PI));   // flip squeeze
+      var showFace = c.f > 0.5;
+      var w = c.w, h = c.h, x = c.cx, y = c.cy;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(Math.max(0.02, scaleX), 1);
+      var r = Math.min(w, h) * 0.16;
+      if (showFace) {
+        // face: light card with a sea creature
+        roundRect(-w / 2, -h / 2, w, h, r);
+        ctx.fillStyle = c.matched ? '#dff7ff' : '#f4fdff';
+        ctx.fill();
+        ctx.lineWidth = Math.max(2, w * 0.03);
+        ctx.strokeStyle = c.matched ? '#00e5cc' : '#bfeef0';
+        ctx.stroke();
+        var s = Math.min(w, h) * 0.92;
+        CREATURES[c.creature](0, 0, s);
+        if (c.matched) {
+          ctx.fillStyle = 'rgba(0, 229, 204, 0.18)';
+          roundRect(-w / 2, -h / 2, w, h, r); ctx.fill();
+        }
+      } else {
+        // back: teal card with bubble motif
+        roundRect(-w / 2, -h / 2, w, h, r);
+        var g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+        g.addColorStop(0, '#00e5cc'); g.addColorStop(1, '#029e97');
+        ctx.fillStyle = g; ctx.fill();
+        ctx.lineWidth = Math.max(2, w * 0.03); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        circle(0, -h * 0.02, Math.min(w, h) * 0.2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        circle(-Math.min(w, h) * 0.07, -h * 0.09, Math.min(w, h) * 0.05); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function render(ts) {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#0a5a7a'); g.addColorStop(0.6, '#052a4a'); g.addColorStop(1, '#01131f');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      // sun rays from the surface
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath(); ctx.moveTo(W * 0.2, 0); ctx.lineTo(W * 0.42, H); ctx.lineTo(W * 0.12, H); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(W * 0.7, 0); ctx.lineTo(W * 0.9, H); ctx.lineTo(W * 0.6, H); ctx.closePath(); ctx.fill();
+
+      // bubbles
+      ctx.fillStyle = 'rgba(180, 240, 255, 0.3)';
+      for (var b = 0; b < bubbles.length; b++) { circle(bubbles[b].x, bubbles[b].y, bubbles[b].r); ctx.fill(); }
+
+      // cards
+      for (var i = 0; i < cards.length; i++) drawCard(cards[i]);
+
+      // sparkles
+      for (i = 0; i < sparks.length; i++) {
+        ctx.globalAlpha = Math.max(0, sparks[i].alpha);
+        ctx.fillStyle = sparks[i].color;
+        circle(sparks[i].x, sparks[i].y, sparks[i].r); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt);
+      else { updateSparks(dt); for (var b = 0; b < bubbles.length; b++) { bubbles[b].y -= bubbles[b].v * dt; if (bubbles[b].y < -10) bubbles[b].y = H + 10; } }
+      render(ts);
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+      lastTs = 0;
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = speedPick.getElementsByTagName('button');
+    function updateSpeedPick() {
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === sizeIdx) ? 'sel' : '';
+    }
+    function applySize(idx) {
+      sizeIdx = idx;
+      try { localStorage.setItem('omm_diff', String(idx)); } catch (e) {}
+      updateSpeedPick();
+      // changing size starts a fresh board
+      newGame();
+    }
+    (function initState() {
+      var saved = null;
+      try { saved = localStorage.getItem('omm_diff'); } catch (e) {}
+      sizeIdx = (saved !== null && SIZES[+saved]) ? +saved : 1;
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) {
+        b.addEventListener('click', function (e) { e.stopPropagation(); applySize(+b.getAttribute('data-idx')); });
+      })(speedBtns[_i]);
+    }
+
+    function pauseGame() {
+      if (state !== STATE.PLAYING) return;
+      state = STATE.PAUSED;
+      updateSpeedPick();
+      document.getElementById('pauseOverlay').classList.remove('hidden');
+    }
+    function resumeGame() {
+      if (state !== STATE.PAUSED) return;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame();
+    });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    resize();
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
