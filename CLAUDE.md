@@ -110,11 +110,11 @@ Games are added to the iPad home screen and run full-screen
 
 ## 7. Deployment
 
-- Hosted on **GitHub Pages**, deploying from `main` → https://darrenjl.github.io/game-time/.
-  Pushing to `main` triggers a build; the `deploy-pages` step is occasionally
-  flaky ("Deployment failed, try again later") — just re-run it.
-- `netlify.toml` is committed as a ready alternative host (does nothing unless a
-  Netlify site is connected).
+- Hosted on **Netlify**, deploying from `main`. Pushing to `main` triggers an
+  automatic deploy.
+- `netlify.toml` (repo root) configures the deploy: no build step, publishes the
+  repo root as-is, and sends revalidating cache headers so a new version shows up
+  right away (pairs with the in-game 🔄 refresh button).
 
 ## 8. Style
 
