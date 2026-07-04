@@ -93,7 +93,13 @@
       <p>Ollie the octopus is hungry for falling fruit!</p>
       <div class="tap-hint">👆</div>
       <p><b>Slide your finger to move Ollie</b> and catch the fruit. Dodge the bombs!</p>
-      <p style="opacity:0.8;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+      <p>Pick a speed (or change it with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
@@ -129,7 +135,7 @@
     var W = 0, H = 0, dpr = 1;
 
     var SPEED_LEVELS = [
-      { interval: 1.40, spd: 0.62, bomb: 0.05, icon: '🐢', name: 'Chill' },
+      { interval: 1.85, spd: 0.44, bomb: 0.03, icon: '🐢', name: 'Chill' },
       { interval: 1.20, spd: 0.80, bomb: 0.10, icon: '🙂', name: 'Normal' },
       { interval: 0.85, spd: 1.05, bomb: 0.16, icon: '🐇', name: 'Fast' },
       { interval: 0.62, spd: 1.28, bomb: 0.22, icon: '⚡', name: 'Zoom' }
@@ -419,12 +425,12 @@
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
     var speedPick = document.getElementById('speedPick');
-    var speedBtns = speedPick.getElementsByTagName('button');
-    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : ''; }
+    var speedBtns = document.querySelectorAll('.speedpick button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === speedIdx) ? 'sel' : ''; }
     function applySpeed(idx) { speedIdx = idx; try { localStorage.setItem('cs_diff', String(idx)); } catch (e) {} updateSpeedPick(); }
     (function initState() {
       var saved = null; try { saved = localStorage.getItem('cs_diff'); } catch (e) {}
-      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 0;
       try { best = +(localStorage.getItem('cs_best') || 0) || 0; } catch (e) {}
       updateSpeedPick();
     })();

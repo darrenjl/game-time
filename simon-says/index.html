@@ -93,7 +93,13 @@
       <p>Watch the colours light up, then tap them back in the same order!</p>
       <div class="tap-hint">👆</div>
       <p><b>Each round adds one more.</b> How long can Oisín &amp; Finley remember?</p>
-      <p style="opacity:0.7;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+      <p>Pick a speed (or change it with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
@@ -133,7 +139,7 @@
 
     // Playback speed: on-time (lit) and gap between flashes, in seconds
     var SPEED_LEVELS = [
-      { on: 0.70, gap: 0.38, icon: '🐢', name: 'Chill' },
+      { on: 0.92, gap: 0.50, icon: '🐢', name: 'Chill' },
       { on: 0.56, gap: 0.30, icon: '🙂', name: 'Normal' },
       { on: 0.42, gap: 0.20, icon: '🐇', name: 'Fast' },
       { on: 0.30, gap: 0.14, icon: '⚡', name: 'Zoom' }
@@ -384,12 +390,12 @@
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
     var speedPick = document.getElementById('speedPick');
-    var speedBtns = speedPick.getElementsByTagName('button');
-    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : ''; }
+    var speedBtns = document.querySelectorAll('.speedpick button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === speedIdx) ? 'sel' : ''; }
     function applySpeed(idx) { speedIdx = idx; try { localStorage.setItem('ss_diff', String(idx)); } catch (e) {} updateSpeedPick(); }
     (function initState() {
       var saved = null; try { saved = localStorage.getItem('ss_diff'); } catch (e) {}
-      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 0;
       updateSpeedPick();
     })();
     for (var _i = 0; _i < speedBtns.length; _i++) {

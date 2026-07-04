@@ -186,7 +186,13 @@
       <p>Ozzie the mole, Finn the frog and friends peek out of the burrows!</p>
       <div class="tap-hint">👆</div>
       <p><b>Tap a friend to give them a high-five.</b> Don't tap the grumpy bee!</p>
-      <p style="opacity:0.8;font-size:0.9em">Tap ⏸️ (top-right) to pause and change speed.</p>
+      <p>Pick a speed (or change it with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
@@ -223,7 +229,7 @@
 
     // Player-selectable speed (pop pace + bee frequency)
     var SPEED_LEVELS = [
-      { hold: 1.60, interval: 1.30, bee: 0.05, maxUp: 1, icon: '🐢', name: 'Chill' },
+      { hold: 2.20, interval: 1.90, bee: 0.02, maxUp: 1, icon: '🐢', name: 'Chill' },
       { hold: 1.15, interval: 0.95, bee: 0.12, maxUp: 2, icon: '🙂', name: 'Normal' },
       { hold: 0.85, interval: 0.72, bee: 0.18, maxUp: 2, icon: '🐇', name: 'Fast' },
       { hold: 0.60, interval: 0.52, bee: 0.26, maxUp: 3, icon: '⚡', name: 'Zoom' }
@@ -763,9 +769,9 @@
 
     // ----- Difficulty (Chill/Normal/Fast/Zoom): chosen in the pause menu, remembered -----
     var speedPick = document.getElementById('speedPick');
-    var speedBtns = speedPick.getElementsByTagName('button');
+    var speedBtns = document.querySelectorAll('.speedpick button');
     function updateSpeedPick() {
-      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === speedIdx) ? 'sel' : '';
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === speedIdx) ? 'sel' : '';
     }
     function applySpeed(idx) {
       speedIdx = idx;
@@ -775,7 +781,7 @@
     (function initState() {
       var saved = null;
       try { saved = localStorage.getItem('pm_diff'); } catch (e) {}
-      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 1;
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 0;
       try { best = +(localStorage.getItem('pm_best') || 0) || 0; } catch (e) {}
       updateSpeedPick();
     })();

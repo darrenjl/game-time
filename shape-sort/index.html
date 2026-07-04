@@ -55,7 +55,12 @@
       <p>Every gem belongs in a bucket of the same colour!</p>
       <div class="tap-hint">👆</div>
       <p><b>Drag the gem to the matching bucket.</b></p>
-      <p style="opacity:0.8;font-size:0.9em">Tap ⏸️ (top-right) to pause and pick how many colours.</p>
+      <p>Pick how many colours (or change with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>3 colours</span></button>
+        <button data-idx="1">🙂<span>4 colours</span></button>
+        <button data-idx="2">⚡<span>5 colours</span></button>
+      </div>
     </div>
     <div class="overlay hidden" id="pauseOverlay">
       <h2>Paused</h2>
@@ -254,8 +259,8 @@
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
     var speedPick = document.getElementById('speedPick');
-    var speedBtns = speedPick.getElementsByTagName('button');
-    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === sizeIdx) ? 'sel' : ''; }
+    var speedBtns = document.querySelectorAll('.speedpick button');
+    function updateSpeedPick() { for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === sizeIdx) ? 'sel' : ''; }
     function applySize(idx) { sizeIdx = idx; try { localStorage.setItem('ss2_diff', String(idx)); } catch (e) {} updateSpeedPick(); newGame(); }
     (function initState() {
       var saved = null; try { saved = localStorage.getItem('ss2_diff'); } catch (e) {}

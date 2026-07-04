@@ -183,7 +183,12 @@
       <p>Flip two cards to find matching sea friends!</p>
       <div class="tap-hint">👆</div>
       <p><b>Tap a card to flip it.</b> Match every pair to win.</p>
-      <p style="opacity:0.7;font-size:0.9em">Tap ⏸️ (top-right) to pause and pick a size.</p>
+      <p>Pick a size (or change it with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>Easy 2×3</span></button>
+        <button data-idx="1">🙂<span>Normal 4×4</span></button>
+        <button data-idx="2">⚡<span>Hard 4×5</span></button>
+      </div>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
@@ -613,9 +618,9 @@
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
     var speedPick = document.getElementById('speedPick');
-    var speedBtns = speedPick.getElementsByTagName('button');
+    var speedBtns = document.querySelectorAll('.speedpick button');
     function updateSpeedPick() {
-      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (i === sizeIdx) ? 'sel' : '';
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === sizeIdx) ? 'sel' : '';
     }
     function applySize(idx) {
       sizeIdx = idx;
