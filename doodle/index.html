@@ -72,6 +72,8 @@
     var paletteY = 0, PB = 0;
     var drawing = false, lastX = 0, lastY = 0;
     var history = [];          // undo snapshots (buffer copies)
+    var needsRender = false;   // dirty flag: render once per frame, not per touch event
+    var paperGrad = null;      // cached paper gradient (rebuilt on resize)
 
     function resize() {
       var rect = canvas.parentNode.getBoundingClientRect();
@@ -89,9 +91,11 @@
       if (old) bctx.drawImage(old, 0, 0, old.width, old.height, 0, 0, W, H);
       PB = Math.max(64, Math.min(H * 0.13, W * 0.13));
       paletteY = H - PB;
+      paperGrad = ctx.createLinearGradient(0, 0, 0, paletteY);
+      paperGrad.addColorStop(0, '#fffdf6'); paperGrad.addColorStop(1, '#f2ede0');
       layoutSlots();
       history = [];   // snapshots are tied to the old buffer size
-      render();
+      needsRender = true;
     }
 
     function layoutSlots() {
@@ -112,7 +116,7 @@
     function pushHistory() {
       var c = document.createElement('canvas'); c.width = buffer.width; c.height = buffer.height;
       c.getContext('2d').drawImage(buffer, 0, 0);
-      history.push(c); if (history.length > 15) history.shift();
+      history.push(c); if (history.length > 8) history.shift();   // bound memory on low-RAM devices (iPad mini 2)
     }
     function undo() {
       if (!history.length) return;
@@ -120,7 +124,7 @@
       bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0);
       bctx.clearRect(0, 0, buffer.width, buffer.height);
       bctx.drawImage(c, 0, 0); bctx.restore();
-      render();
+      needsRender = true;
     }
 
     // ---------- Input ----------
@@ -137,17 +141,17 @@
     function onDown(e) {
       if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
       if (e) e.preventDefault();
-      if (!started) { started = true; document.getElementById('startOverlay').classList.add('hidden'); render(); return; }
+      if (!started) { started = true; document.getElementById('startOverlay').classList.add('hidden'); needsRender = true; return; }
       var p = pointFromEvent(e);
       var s = hitPalette(p);
       if (s) {
         if (s.kind === 'color') { selected = s.idx; eraser = false; }
         else if (s.kind === 'eraser') { eraser = true; }
         else { brushIdx = s.idx; }
-        render();
+        needsRender = true;
         return;
       }
-      if (p.y < paletteY) { pushHistory(); drawing = true; lastX = p.x; lastY = p.y; dab(p.x, p.y); render(); }
+      if (p.y < paletteY) { pushHistory(); drawing = true; lastX = p.x; lastY = p.y; dab(p.x, p.y); needsRender = true; }
     }
     function dab(x, y) {
       // a single dot so a tap leaves a mark
@@ -165,20 +169,18 @@
       bctx.lineWidth = eraser ? brushW() * 2.4 : brushW();
       bctx.beginPath(); bctx.moveTo(lastX, lastY); bctx.lineTo(p.x, y); bctx.stroke();
       lastX = p.x; lastY = y;
-      render();
+      needsRender = true;
     }
     function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; }
 
-    function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); render(); }
+    function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); needsRender = true; }
 
     // ---------- Draw ----------
     function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
     function render() {
-      // paper
-      var g = ctx.createLinearGradient(0, 0, 0, paletteY);
-      g.addColorStop(0, '#fffdf6'); g.addColorStop(1, '#f2ede0');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, paletteY);
+      // paper (gradient cached in resize so we don't re-allocate every frame)
+      ctx.fillStyle = paperGrad; ctx.fillRect(0, 0, W, paletteY);
       // artwork
       ctx.drawImage(buffer, 0, 0, buffer.width, buffer.height, 0, 0, W, H);
       // palette strip
@@ -221,7 +223,16 @@
     if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
       document.addEventListener('click', function (e) { var n = e.target; while (n && n.nodeName !== 'A') n = n.parentNode; if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); } }, false);
     }
+    // Render on a rAF loop driven by a dirty flag, so a fast finger drag can't
+    // pile up synchronous full-canvas redraws and freeze weak devices (iPad mini 2).
+    function frame() {
+      if (needsRender) { needsRender = false; render(); }
+      requestAnimationFrame(frame);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) needsRender = true; });
+
     resize();
+    requestAnimationFrame(frame);
   })();
   </script>
 </body>

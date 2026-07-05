@@ -337,9 +337,27 @@
       return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' + Math.round(a[1] + (b[1] - a[1]) * t) + ',' + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
     }
 
-    function render() {
+    function render(ts) {
       if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#241a5c'); g.addColorStop(0.6, '#141033'); g.addColorStop(1, '#08061c'); render._g = g; render._h = H; }
       ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
+
+      // "Watch" vs "your turn" cue — a glowing frame around the pad block.
+      var yourTurn = (state === STATE.PLAYING && phase === PHASE.INPUT);
+      if (state === STATE.PLAYING && rects.length) {
+        var pL = rects[0].x, pT = rects[0].y, pR = rects[3].x + rects[3].w, pB = rects[3].y + rects[3].h;
+        var side = Math.min(W, H) * 0.86, m = side * 0.035;
+        var cueCol = yourTurn ? '#5cffb0' : '#ffd166';
+        var pulse = yourTurn ? 0.85 : (0.5 + 0.5 * Math.sin(ts / 260));
+        ctx.save();
+        ctx.strokeStyle = cueCol;
+        ctx.lineWidth = Math.max(3, side * 0.016);
+        ctx.shadowColor = cueCol;
+        ctx.shadowBlur = side * 0.06 * pulse;
+        ctx.globalAlpha = 0.55 + 0.45 * pulse;
+        roundRect(pL - m, pT - m, (pR - pL) + 2 * m, (pB - pT) + 2 * m, side * 0.07);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       for (var i = 0; i < rects.length; i++) {
         var r = rects[i], p = PADS[i];
@@ -363,6 +381,23 @@
       ctx.font = 'bold ' + Math.round(cr * 0.7) + 'px "Trebuchet MS", sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(state === STATE.PLAYING ? String(round) : '🎵', cx, cy + cr * 0.04);
+
+      // Status pill at the top: watch vs your turn.
+      if (state === STATE.PLAYING) {
+        var label = yourTurn ? '🖐️  Your turn!' : '👀  Watch…';
+        var pillCol = yourTurn ? '#5cffb0' : '#ffd166';
+        var fs = Math.max(14, Math.round(H * 0.034));
+        ctx.font = 'bold ' + fs + 'px "Trebuchet MS", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        var tw = ctx.measureText(label).width;
+        var pw = tw + fs * 1.6, ph = fs * 1.7;
+        var py = Math.max(ph * 0.6 + 4, rects.length ? rects[0].y * 0.5 : H * 0.05);
+        roundRect(cx - pw / 2, py - ph / 2, pw, ph, ph * 0.5);
+        ctx.fillStyle = 'rgba(8, 6, 28, 0.82)'; ctx.fill();
+        ctx.lineWidth = Math.max(2, fs * 0.12); ctx.strokeStyle = pillCol; ctx.stroke();
+        ctx.fillStyle = pillCol;
+        ctx.fillText(label, cx, py + fs * 0.05);
+      }
     }
 
     function frame(ts) {
@@ -371,7 +406,7 @@
       lastTs = ts;
       if (state === STATE.PLAYING) update(dt);
       else { for (var i = 0; i < 4; i++) if (glow[i] > 0) glow[i] = Math.max(0, glow[i] - dt / 0.32); }
-      render();
+      render(ts);
       requestAnimationFrame(frame);
     }
 

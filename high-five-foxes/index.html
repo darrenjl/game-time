@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#6bb45f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="High-Five Foxes">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>High-Five Foxes</title>
+  <style>
+    :root {
+      --sky: #7ec8ff;
+      --grass: #6bb45f;
+      --pink: #ff7eb6;
+      --gold: #ffd166;
+      --ink: #3a2416;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #9ad8ff 0%, #7ec8ff 45%, #6bb45f 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: #fff;
+      background: rgba(58, 36, 22, 0.32);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
+    .back:active { transform: scale(0.95); }
+    .score {
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.6rem);
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(58, 36, 22, 0.45);
+    }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .refresh, .pause {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(58, 36, 22, 0.32);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+
+    /* Difficulty picker inside the pause menu */
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }  /* gap fallback for Safari < 14.5 */
+    .speedpick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 68px;
+      min-height: 68px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.28); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      background: rgba(40, 70, 40, 0.55);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .overlay > * + * { margin-top: 16px; }     /* gap fallback for Safari < 14.5 */
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 2rem;
+      font-size: clamp(1.6rem, 7vw, 2.8rem);
+      color: #fff;
+      text-shadow: 0 3px 0 rgba(58, 36, 22, 0.35), 0 0 22px rgba(255, 209, 102, 0.5);
+    }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(255, 255, 255, 0.92); max-width: 26ch; }
+    .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #3a2416;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--gold), #ffb03d);
+      box-shadow: 0 12px 30px rgba(255, 176, 61, 0.45);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🦊 High-Five Foxes</h2>
+      <p>Ozzie, Finn and their fox friends pop out of the dens!</p>
+      <div class="tap-hint">🖐️</div>
+      <p><b>Tap a fox to give it a high-five.</b> Don't tap the sneaky rats!</p>
+      <p>Pick a speed (or change it with ⏸️):</p>
+      <div class="speedpick" id="speedPickStart">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p>Choose a speed:</p>
+      <div class="speedpick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+        <button data-idx="3">⚡<span>Zoom</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>🐀 Too many rats!</h2>
+      <p id="finalScore">You gave 0 high-fives</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
+    var state = STATE.START;
+
+    var W = 0, H = 0, dpr = 1;
+
+    // Player-selectable speed (pop pace + rat frequency)
+    var SPEED_LEVELS = [
+      { hold: 2.20, interval: 1.90, rat: 0.02, maxUp: 1, icon: '🐢', name: 'Chill' },
+      { hold: 1.15, interval: 0.95, rat: 0.12, maxUp: 2, icon: '🙂', name: 'Normal' },
+      { hold: 0.85, interval: 0.72, rat: 0.18, maxUp: 2, icon: '🐇', name: 'Fast' },
+      { hold: 0.60, interval: 0.52, rat: 0.26, maxUp: 3, icon: '⚡', name: 'Zoom' }
+    ];
+    var speedIdx = 1;
+
+    var RISE_TIME = 0.20, DUCK_TIME = 0.18;
+    // A couple of fox fur tints so the friends aren't identical.
+    var FOX_COATS = ['#e8722c', '#f0913f', '#d95f2a'];
+
+    var burrows = [];   // {cx, cy, rx, ry, critter}
+    var sparks = [];
+    var clouds = [];
+    var points = 0, lives = 3, best = 0, spawnT = 0.6, lastTs = 0;
+    var flash = 0;      // red screen flash timer when a rat is tapped
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function randInt(n) { return Math.floor(Math.random() * n); }
+
+    // ---------- Sizing / layout ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layout();
+      buildClouds();
+    }
+
+    function layout() {
+      // Preserve any critters currently up when re-laying out.
+      var old = burrows;
+      burrows = [];
+      var cols = 3, rows = 3;
+      var ax = W * 0.07, aw = W * 0.86;
+      var ay = H * 0.30, ah = H * 0.66;
+      var cw = aw / cols, ch = ah / rows;
+      var rx = Math.min(cw * 0.36, ch * 0.42);
+      var ry = rx * 0.52;
+      var k = 0;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var cx = ax + c * cw + cw / 2;
+          var cy = ay + r * ch + ch * 0.60;
+          var critter = old[k] ? old[k].critter : null;
+          burrows.push({ cx: cx, cy: cy, rx: rx, ry: ry, critter: critter });
+          k++;
+        }
+      }
+    }
+
+    function buildClouds() {
+      clouds = [];
+      var n = 3;
+      for (var i = 0; i < n; i++) {
+        clouds.push({ x: rand(0, W), y: rand(H * 0.05, H * 0.22), s: rand(H * 0.05, H * 0.09), v: rand(W * 0.006, W * 0.02) });
+      }
+    }
+
+    // ---------- Setup ----------
+    function newGame() {
+      points = 0; lives = 3; sparks = []; spawnT = 0.6; flash = 0;
+      for (var i = 0; i < burrows.length; i++) burrows[i].critter = null;
+      updateScore();
+    }
+
+    function lvl() { return SPEED_LEVELS[speedIdx]; }
+
+    function activeCount() {
+      var n = 0;
+      for (var i = 0; i < burrows.length; i++) if (burrows[i].critter) n++;
+      return n;
+    }
+
+    function spawnCritter() {
+      // pick a random empty burrow
+      var empty = [];
+      for (var i = 0; i < burrows.length; i++) if (!burrows[i].critter) empty.push(i);
+      if (!empty.length) return;
+      var b = burrows[empty[randInt(empty.length)]];
+      var L = lvl();
+      var isRat = Math.random() < L.rat;
+      b.critter = {
+        type: isRat ? 'rat' : 'fox',
+        rat: isRat,
+        coat: FOX_COATS[randInt(FOX_COATS.length)],
+        phase: 'rise',
+        t: 0,
+        prog: 0,
+        hit: 0,
+        wob: rand(0, 6.28)
+      };
+    }
+
+    // ---------- Input ----------
+    function pointFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+
+    // Feet (drawing baseline) for a burrow's critter at its current pop progress.
+    function critterFeetY(b) {
+      var s = b.rx * 1.9;
+      var feetHidden = b.cy + b.ry + s;      // fully below the hole (invisible)
+      var feetFull = b.cy + b.ry * 0.6;      // popped up, sitting in the hole
+      return feetHidden - (feetHidden - feetFull) * b.critter.prog;
+    }
+    function critterRect(b) {
+      // Generous bounding box around the visible critter (used for tapping).
+      var s = b.rx * 1.9;
+      var feetY = critterFeetY(b);
+      return { x0: b.cx - s * 0.6, x1: b.cx + s * 0.6, y0: feetY - s * 1.15, y1: b.cy + b.ry * 0.55 };
+    }
+
+    function tapAt(p) {
+      // hit-test the top-most (last spawned wins) visible critter under the finger
+      var hitB = null;
+      for (var i = 0; i < burrows.length; i++) {
+        var b = burrows[i];
+        if (!b.critter || b.critter.prog < 0.35 || b.critter.hit) continue;
+        var r = critterRect(b);
+        if (p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1) { hitB = b; break; }
+      }
+      if (!hitB) return;
+      var c = hitB.critter;
+      if (c.rat) {
+        lives--;
+        flash = 0.35;
+        spawnSparks(hitB.cx, hitB.cy - hitB.ry, '#ff5d5d', 16);
+        c.hit = 1; c.phase = 'duck';
+        if (lives <= 0) { gameOver(); return; }
+      } else {
+        points++;
+        c.hit = 1; c.phase = 'duck';
+        spawnSparks(hitB.cx, hitB.cy - hitB.ry, '#ffd166', 14);
+        spawnSparks(hitB.cx, hitB.cy - hitB.ry, '#ff7eb6', 8);
+        updateScore();
+      }
+    }
+
+    function onTap(e) {
+      // Let taps on UI controls run their own handlers.
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      if (state === STATE.START) { startGame(); return; }
+      if (state === STATE.PLAYING) { tapAt(pointFromEvent(e)); }
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+
+    function gameOver() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      if (points > best) { best = points; try { localStorage.setItem('hf_best', String(best)); } catch (e) {} }
+      var msg = 'You gave ' + points + ' high-five' + (points === 1 ? '' : 's');
+      if (best > 0) msg += '  •  Best ' + best;
+      document.getElementById('finalScore').textContent = msg;
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Particles ----------
+    function spawnSparks(x, y, color, n) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(H * 0.08, H * 0.4);
+        sparks.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - H * 0.12, r: rand(2, H * 0.016), color: color, alpha: 1 });
+      }
+    }
+    function updateSparks(dt) {
+      for (var i = sparks.length - 1; i >= 0; i--) {
+        var s = sparks[i];
+        s.x += s.vx * dt; s.y += s.vy * dt; s.vy += H * 1.6 * dt;
+        s.alpha -= dt * 1.4;
+        if (s.alpha <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    // ---------- Update ----------
+    function update(dt) {
+      var L = lvl();
+      // gentle ramp as the score climbs
+      var ramp = Math.max(0.78, 1 - points * 0.0025);
+      var holdTime = L.hold * Math.max(0.75, 1 - points * 0.0012);
+      var interval = L.interval * ramp;
+
+      if (flash > 0) flash = Math.max(0, flash - dt);
+
+      // spawns
+      spawnT -= dt;
+      if (spawnT <= 0) {
+        if (activeCount() < L.maxUp) spawnCritter();
+        spawnT = interval * rand(0.7, 1.25);
+      }
+
+      // advance each critter's peek lifecycle
+      for (var i = 0; i < burrows.length; i++) {
+        var c = burrows[i].critter;
+        if (!c) continue;
+        c.t += dt;
+        if (c.phase === 'rise') {
+          c.prog += dt / RISE_TIME;
+          if (c.prog >= 1) { c.prog = 1; c.phase = 'hold'; c.t = 0; }
+        } else if (c.phase === 'hold') {
+          if (c.t >= holdTime) { c.phase = 'duck'; }
+        } else if (c.phase === 'duck') {
+          c.prog -= dt / DUCK_TIME;
+          if (c.prog <= 0) burrows[i].critter = null;
+        }
+      }
+
+      updateSparks(dt);
+    }
+
+    function updateScore() { scoreEl.textContent = points; }
+
+    // ---------- Draw helpers ----------
+    function ellipse(x, y, rx, ry) {
+      ctx.beginPath();
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(rx, ry);
+      ctx.arc(0, 0, 1, 0, Math.PI * 2);
+      ctx.restore();
+      ctx.closePath();
+    }
+    function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); }
+
+    // ---------- Critter art (all canvas-drawn) ----------
+    function drawFox(cx, feetY, s, coat) {
+      var bx = cx, by = feetY - s * 0.5;
+      // body
+      ctx.fillStyle = coat || '#e8722c';
+      ellipse(bx, by, s * 0.44, s * 0.5); ctx.fill();
+      // white chest / belly
+      ctx.fillStyle = '#fbf3e6';
+      ellipse(bx, by + s * 0.16, s * 0.26, s * 0.3); ctx.fill();
+      // ears (behind head)
+      ctx.fillStyle = coat || '#e8722c';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.34, by - s * 0.34);
+      ctx.lineTo(bx - s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx - s * 0.06, by - s * 0.28);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + s * 0.34, by - s * 0.34);
+      ctx.lineTo(bx + s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx + s * 0.06, by - s * 0.28);
+      ctx.closePath(); ctx.fill();
+      // dark ear tips
+      ctx.fillStyle = '#3a2416';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.2, by - s * 0.44);
+      ctx.lineTo(bx - s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx - s * 0.11, by - s * 0.4);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + s * 0.2, by - s * 0.44);
+      ctx.lineTo(bx + s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx + s * 0.11, by - s * 0.4);
+      ctx.closePath(); ctx.fill();
+      // white cheeks / muzzle
+      ctx.fillStyle = '#fbf3e6';
+      ellipse(bx - s * 0.13, by + s * 0.08, s * 0.16, s * 0.2); ctx.fill();
+      ellipse(bx + s * 0.13, by + s * 0.08, s * 0.16, s * 0.2); ctx.fill();
+      // eyes
+      ctx.fillStyle = '#2a1a10';
+      circle(bx - s * 0.15, by - s * 0.1, s * 0.06); ctx.fill();
+      circle(bx + s * 0.15, by - s * 0.1, s * 0.06); ctx.fill();
+      ctx.fillStyle = '#fff';
+      circle(bx - s * 0.13, by - s * 0.12, s * 0.02); ctx.fill();
+      circle(bx + s * 0.17, by - s * 0.12, s * 0.02); ctx.fill();
+      // nose
+      ctx.fillStyle = '#2a1a10';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.06, by + s * 0.1);
+      ctx.lineTo(bx + s * 0.06, by + s * 0.1);
+      ctx.lineTo(bx, by + s * 0.19);
+      ctx.closePath(); ctx.fill();
+    }
+
+    function drawRat(cx, feetY, s) {
+      var bx = cx, by = feetY - s * 0.46;
+      // round ears (behind)
+      ctx.fillStyle = '#9aa0a6';
+      circle(bx - s * 0.3, by - s * 0.26, s * 0.17); ctx.fill();
+      circle(bx + s * 0.3, by - s * 0.26, s * 0.17); ctx.fill();
+      ctx.fillStyle = '#ffbcd0';
+      circle(bx - s * 0.3, by - s * 0.26, s * 0.09); ctx.fill();
+      circle(bx + s * 0.3, by - s * 0.26, s * 0.09); ctx.fill();
+      // body/head
+      ctx.fillStyle = '#a7adb4';
+      ellipse(bx, by, s * 0.42, s * 0.46); ctx.fill();
+      // lighter muzzle
+      ctx.fillStyle = '#c3c8ce';
+      ellipse(bx, by + s * 0.14, s * 0.24, s * 0.24); ctx.fill();
+      // whiskers
+      ctx.strokeStyle = 'rgba(60,60,70,0.7)';
+      ctx.lineWidth = Math.max(1.5, s * 0.02); ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.06, by + s * 0.16); ctx.lineTo(bx - s * 0.34, by + s * 0.1);
+      ctx.moveTo(bx - s * 0.06, by + s * 0.19); ctx.lineTo(bx - s * 0.34, by + s * 0.22);
+      ctx.moveTo(bx + s * 0.06, by + s * 0.16); ctx.lineTo(bx + s * 0.34, by + s * 0.1);
+      ctx.moveTo(bx + s * 0.06, by + s * 0.19); ctx.lineTo(bx + s * 0.34, by + s * 0.22);
+      ctx.stroke();
+      // beady eyes
+      ctx.fillStyle = '#1c1c22';
+      circle(bx - s * 0.14, by - s * 0.06, s * 0.055); ctx.fill();
+      circle(bx + s * 0.14, by - s * 0.06, s * 0.055); ctx.fill();
+      // sneaky brows
+      ctx.strokeStyle = '#5a5f66';
+      ctx.lineWidth = Math.max(2, s * 0.04); ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.22, by - s * 0.2); ctx.lineTo(bx - s * 0.06, by - s * 0.13);
+      ctx.moveTo(bx + s * 0.22, by - s * 0.2); ctx.lineTo(bx + s * 0.06, by - s * 0.13);
+      ctx.stroke();
+      // pink nose
+      ctx.fillStyle = '#ff7eb6';
+      circle(bx, by + s * 0.16, s * 0.05); ctx.fill();
+    }
+
+    function drawCritter(b, ts) {
+      var c = b.critter, s = b.rx * 1.9;
+      var feetY = critterFeetY(b);
+      var clipBottom = b.cy + b.ry * 0.72;        // hide anything below the hole's front lip
+      var pop = c.hit ? 1 + 0.10 * Math.sin(c.prog * Math.PI) : 1;
+      var wob = Math.sin(ts / 220 + c.wob) * s * 0.015;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(b.cx - s, clipBottom - s * 3, s * 2, s * 3);
+      ctx.clip();
+      ctx.translate(b.cx + wob, feetY);
+      ctx.scale(pop, pop);
+      ctx.translate(-b.cx, -feetY);
+      if (c.type === 'fox') drawFox(b.cx, feetY, s, c.coat);
+      else drawRat(b.cx, feetY, s);
+      ctx.restore();
+    }
+
+    // ---------- Burrow art ----------
+    function drawBurrowBack(b) {
+      // dirt mound ring
+      ctx.fillStyle = '#8a5a3b';
+      ellipse(b.cx, b.cy, b.rx * 1.28, b.ry * 1.5); ctx.fill();
+      ctx.fillStyle = '#6f4630';
+      ellipse(b.cx, b.cy, b.rx * 1.12, b.ry * 1.28); ctx.fill();
+      // hole opening
+      var g = ctx.createRadialGradient(b.cx, b.cy, b.rx * 0.2, b.cx, b.cy, b.rx);
+      g.addColorStop(0, '#20140c'); g.addColorStop(1, '#3a2416');
+      ctx.fillStyle = g;
+      ellipse(b.cx, b.cy, b.rx, b.ry); ctx.fill();
+    }
+    function drawBurrowFront(b) {
+      // front lip of the dirt ring, drawn over the critter's base
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(b.cx - b.rx * 1.4, b.cy, b.rx * 2.8, b.ry * 2 + 6);
+      ctx.clip();
+      ctx.fillStyle = '#6f4630';
+      ellipse(b.cx, b.cy, b.rx * 1.12, b.ry * 1.28); ctx.fill();
+      ctx.fillStyle = '#8a5a3b';
+      ellipse(b.cx, b.cy + b.ry * 0.1, b.rx * 1.28, b.ry * 1.5); ctx.fill();
+      ctx.restore();
+      // grass tufts on the front rim
+      ctx.strokeStyle = '#3f9e57';
+      ctx.lineWidth = Math.max(2, b.rx * 0.06); ctx.lineCap = 'round';
+      for (var i = -2; i <= 2; i++) {
+        var gx = b.cx + i * b.rx * 0.42;
+        var gy = b.cy + b.ry * 1.15;
+        ctx.beginPath();
+        ctx.moveTo(gx, gy);
+        ctx.lineTo(gx + b.rx * 0.06, gy - b.ry * 0.5);
+        ctx.stroke();
+      }
+    }
+
+    function drawFlower(x, y, r, color) {
+      ctx.fillStyle = color;
+      for (var i = 0; i < 5; i++) {
+        var a = i * Math.PI * 2 / 5 - Math.PI / 2;
+        circle(x + Math.cos(a) * r, y + Math.sin(a) * r, r * 0.62); ctx.fill();
+      }
+      ctx.fillStyle = '#ffd166';
+      circle(x, y, r * 0.6); ctx.fill();
+    }
+
+    // ---------- Render ----------
+    function render(ts) {
+      // sky
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#9ad8ff'); g.addColorStop(0.5, '#7ec8ff'); g.addColorStop(0.62, '#a9def0'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g;
+      ctx.fillRect(0, 0, W, H);
+
+      // sun
+      ctx.fillStyle = 'rgba(255, 236, 150, 0.9)';
+      circle(W * 0.85, H * 0.13, H * 0.07); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 240, 170, 0.35)';
+      circle(W * 0.85, H * 0.13, H * 0.11); ctx.fill();
+
+      // clouds (drift)
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      for (var i = 0; i < clouds.length; i++) {
+        var cl = clouds[i];
+        if (state === STATE.PLAYING) { cl.x += cl.v * 0.016; if (cl.x - cl.s * 2 > W) cl.x = -cl.s * 2; }
+        circle(cl.x, cl.y, cl.s); ctx.fill();
+        circle(cl.x + cl.s * 0.9, cl.y + cl.s * 0.15, cl.s * 0.8); ctx.fill();
+        circle(cl.x - cl.s * 0.9, cl.y + cl.s * 0.15, cl.s * 0.75); ctx.fill();
+      }
+
+      // grass ground
+      var gy = H * 0.36;
+      var gg = ctx.createLinearGradient(0, gy, 0, H);
+      gg.addColorStop(0, '#7ecb6c'); gg.addColorStop(1, '#4c9a4f');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.moveTo(0, gy + H * 0.04);
+      ctx.quadraticCurveTo(W * 0.25, gy - H * 0.02, W * 0.5, gy + H * 0.02);
+      ctx.quadraticCurveTo(W * 0.75, gy + H * 0.06, W, gy);
+      ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+
+      // decorative flowers between the burrows
+      drawFlower(W * 0.5, gy + H * 0.03, H * 0.014, '#ff7eb6');
+      drawFlower(W * 0.16, gy + H * 0.05, H * 0.013, '#fff');
+      drawFlower(W * 0.86, gy + H * 0.06, H * 0.013, '#c58cff');
+
+      // burrows (back), critters, then fronts — sorted so lower rows overlap higher ones
+      var i2;
+      for (i2 = 0; i2 < burrows.length; i2++) drawBurrowBack(burrows[i2]);
+      for (i2 = 0; i2 < burrows.length; i2++) if (burrows[i2].critter) drawCritter(burrows[i2], ts);
+      for (i2 = 0; i2 < burrows.length; i2++) drawBurrowFront(burrows[i2]);
+
+      // sparks
+      for (i2 = 0; i2 < sparks.length; i2++) {
+        var sp = sparks[i2];
+        ctx.globalAlpha = Math.max(0, sp.alpha);
+        ctx.fillStyle = sp.color;
+        circle(sp.x, sp.y, sp.r); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // lives (hearts, top-left of the canvas)
+      for (i2 = 0; i2 < 3; i2++) drawHeart(W * 0.06 + i2 * H * 0.06, H * 0.06, H * 0.02, i2 < lives);
+
+      // rat-nip red flash
+      if (flash > 0) {
+        ctx.fillStyle = 'rgba(255, 60, 60, ' + (flash * 0.7) + ')';
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    function drawHeart(x, y, r, filled) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.7);
+      ctx.bezierCurveTo(r * 1.3, -r * 0.6, r * 0.5, -r * 1.3, 0, -r * 0.4);
+      ctx.bezierCurveTo(-r * 0.5, -r * 1.3, -r * 1.3, -r * 0.6, 0, r * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = filled ? '#ff5d8f' : 'rgba(255,255,255,0.3)';
+      ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---------- Loop ----------
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt);
+      else updateSparks(dt);
+      render(ts);
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+      lastTs = 0;
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    // ----- Difficulty (Chill/Normal/Fast/Zoom): chosen in the pause menu, remembered -----
+    var speedPick = document.getElementById('speedPick');
+    var speedBtns = document.querySelectorAll('.speedpick button');
+    function updateSpeedPick() {
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === speedIdx) ? 'sel' : '';
+    }
+    function applySpeed(idx) {
+      speedIdx = idx;
+      try { localStorage.setItem('hf_diff', String(idx)); } catch (e) {}
+      updateSpeedPick();
+    }
+    (function initState() {
+      var saved = null;
+      try { saved = localStorage.getItem('hf_diff'); } catch (e) {}
+      speedIdx = (saved !== null && SPEED_LEVELS[+saved]) ? +saved : 0;
+      try { best = +(localStorage.getItem('hf_best') || 0) || 0; } catch (e) {}
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) {
+        b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); });
+      })(speedBtns[_i]);
+    }
+
+    // ----- Pause / resume -----
+    function pauseGame() {
+      if (state !== STATE.PLAYING) return;
+      state = STATE.PAUSED;
+      updateSpeedPick();
+      document.getElementById('pauseOverlay').classList.remove('hidden');
+    }
+    function resumeGame() {
+      if (state !== STATE.PAUSED) return;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame();
+    });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    // Block page scroll/rubber-band during play (single- or multi-finger).
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // Keep links inside the iOS home-screen (standalone) app on OLD iOS (<13) only.
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    resize();
+    newGame();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
