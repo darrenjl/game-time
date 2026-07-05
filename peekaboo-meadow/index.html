@@ -835,5 +835,13 @@
     requestAnimationFrame(frame);
   })();
   </script>
+  <script>
+    // Register the offline service worker (progressive enhancement; no-op where unsupported).
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
