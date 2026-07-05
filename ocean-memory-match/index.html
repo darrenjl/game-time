@@ -568,9 +568,8 @@
     }
 
     function render(ts) {
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#0a5a7a'); g.addColorStop(0.6, '#052a4a'); g.addColorStop(1, '#01131f');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a5a7a'); g.addColorStop(0.6, '#052a4a'); g.addColorStop(1, '#01131f'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
 
       // sun rays from the surface
       ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -632,7 +631,7 @@
     (function initState() {
       var saved = null;
       try { saved = localStorage.getItem('omm_diff'); } catch (e) {}
-      sizeIdx = (saved !== null && SIZES[+saved]) ? +saved : 1;
+      sizeIdx = (saved !== null && SIZES[+saved]) ? +saved : 0;
       updateSpeedPick();
     })();
     for (var _i = 0; _i < speedBtns.length; _i++) {

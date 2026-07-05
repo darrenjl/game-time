@@ -282,7 +282,7 @@
       state = STATE.OVER;
       var reached = Math.max(0, round - 1);   // rounds fully completed
       if (reached > best) { best = reached; try { localStorage.setItem('ss_best', String(best)); } catch (e) {} }
-      var msg = 'You reached round ' + round;
+      var msg = 'You reached round ' + reached;
       if (best > 0) msg += '  •  Best ' + best;
       document.getElementById('finalScore').textContent = msg;
       document.getElementById('overOverlay').classList.remove('hidden');
@@ -338,9 +338,8 @@
     }
 
     function render() {
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#241a5c'); g.addColorStop(0.6, '#141033'); g.addColorStop(1, '#08061c');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#241a5c'); g.addColorStop(0.6, '#141033'); g.addColorStop(1, '#08061c'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
 
       for (var i = 0; i < rects.length; i++) {
         var r = rects[i], p = PADS[i];

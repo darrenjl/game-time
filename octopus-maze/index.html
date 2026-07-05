@@ -323,9 +323,9 @@
 
     // Coral colour palettes [deep, base, bright] chosen per tile from the seed
     var CORAL_PALS = [
-      ['#c9426e', '#ff7fa3', '#ffb3cc'],  // pink
-      ['#d1633a', '#ff9e6b', '#ffc9a6'],  // orange
-      ['#a84e9c', '#e07fc8', '#f4b3e4']   // purple
+      ['#7a3358', '#a34d78', '#c56d97'],  // muted rose
+      ['#6d3a6b', '#8f5490', '#b074b0'],  // muted purple
+      ['#7a4a4f', '#a3696e', '#c58c90']   // muted mauve
     ];
 
     // A bumpy coral wall tile, drawn (not emoji) so it shows on every iOS version
@@ -348,7 +348,7 @@
       c.clip();
       var s = seed * 10000 + 1;
       var rnd = function () { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 3; i++) {
         var bx = px + tile * (0.24 + 0.52 * rnd());
         var by = py + tile * (0.24 + 0.52 * rnd());
         var br = tile * (0.14 + 0.09 * rnd());
@@ -392,8 +392,8 @@
       lctx.fillStyle = g;
       lctx.fillRect(0, 0, boardPx, boardPx);
 
-      // Passage tint
-      lctx.fillStyle = 'rgba(6, 40, 70, 0.55)';
+      // Passage tint — lighten the walkable channels so they pop against the coral
+      lctx.fillStyle = 'rgba(95, 200, 235, 0.30)';
       for (var y = 0; y < GRID; y++) {
         for (var x = 0; x < GRID; x++) {
           if (maze[y][x] === 0) lctx.fillRect(x * tile, y * tile, tile, tile);
@@ -542,9 +542,9 @@
       var oc = tileCenter(octo.rx, octo.ry);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = Math.floor(tile * 0.8) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-      ctx.shadowBlur = tile * 0.15;
+      ctx.font = Math.floor(tile * 1.02) + 'px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = tile * 0.22;
       ctx.fillText('🐙', oc.x, oc.y + bob);
       ctx.shadowBlur = 0;
 

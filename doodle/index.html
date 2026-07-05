@@ -37,6 +37,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="title">🎨 Doodle</div>
     <div class="rightbtns">
+      <button class="clear" id="undoBtn" aria-label="Undo">↩️</button>
       <button class="clear" id="clearBtn" aria-label="Clear drawing">🗑️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh">🔄</button>
     </div>
@@ -47,7 +48,7 @@
       <h2>🎨 Doodle</h2>
       <p>A blank page for Oisín &amp; Finley!</p>
       <div class="tap-hint">👆</div>
-      <p><b>Drag your finger to draw.</b> Tap a colour at the bottom, or 🗑️ to start again.</p>
+      <p><b>Drag your finger to draw.</b> Pick a colour and brush size below. ↩️ undo, 🗑️ clear.</p>
     </div>
   </div>
 
@@ -63,11 +64,14 @@
     var bctx = buffer.getContext('2d');
 
     var COLORS = ['#ff5d5d', '#ff9f2e', '#ffd23f', '#5fd07f', '#4fa8ff', '#b79bff', '#ff7eb6', '#2a2a33'];
-    var slots = [];            // palette hit areas (colours + eraser)
+    var BRUSH = [0.55, 1.0, 1.9];   // small / medium / large brush multipliers
+    var brushIdx = 1;
+    var slots = [];            // palette hit areas (colours + eraser + sizes)
     var selected = 0;          // index into COLORS, or 'eraser'
     var eraser = false;
     var paletteY = 0, PB = 0;
     var drawing = false, lastX = 0, lastY = 0;
+    var history = [];          // undo snapshots (buffer copies)
 
     function resize() {
       var rect = canvas.parentNode.getBoundingClientRect();
@@ -86,20 +90,38 @@
       PB = Math.max(64, Math.min(H * 0.13, W * 0.13));
       paletteY = H - PB;
       layoutSlots();
+      history = [];   // snapshots are tied to the old buffer size
+      render();
     }
 
     function layoutSlots() {
       slots = [];
-      var n = COLORS.length + 1;  // + eraser
-      var pad = W * 0.02, gap = W * 0.015;
+      var n = COLORS.length + 1 + BRUSH.length;  // colours + eraser + sizes
+      var pad = W * 0.02, gap = W * 0.012;
       var sw = (W - pad * 2 - gap * (n - 1)) / n;
       var sh = Math.min(PB * 0.72, sw);
       var sy = paletteY + (PB - sh) / 2;
-      for (var i = 0; i < COLORS.length; i++) slots.push({ kind: 'color', idx: i, x: pad + i * (sw + gap), y: sy, w: sw, h: sh });
-      slots.push({ kind: 'eraser', x: pad + COLORS.length * (sw + gap), y: sy, w: sw, h: sh });
+      var k = 0, x, i;
+      for (i = 0; i < COLORS.length; i++) { x = pad + k * (sw + gap); slots.push({ kind: 'color', idx: i, x: x, y: sy, w: sw, h: sh }); k++; }
+      x = pad + k * (sw + gap); slots.push({ kind: 'eraser', x: x, y: sy, w: sw, h: sh }); k++;
+      for (i = 0; i < BRUSH.length; i++) { x = pad + k * (sw + gap); slots.push({ kind: 'size', idx: i, x: x, y: sy, w: sw, h: sh }); k++; }
     }
 
-    function brushW() { return Math.max(3, H * 0.014); }
+    function brushW() { return Math.max(3, H * 0.014) * BRUSH[brushIdx]; }
+
+    function pushHistory() {
+      var c = document.createElement('canvas'); c.width = buffer.width; c.height = buffer.height;
+      c.getContext('2d').drawImage(buffer, 0, 0);
+      history.push(c); if (history.length > 15) history.shift();
+    }
+    function undo() {
+      if (!history.length) return;
+      var c = history.pop();
+      bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.clearRect(0, 0, buffer.width, buffer.height);
+      bctx.drawImage(c, 0, 0); bctx.restore();
+      render();
+    }
 
     // ---------- Input ----------
     function pointFromEvent(e) {
@@ -115,11 +137,17 @@
     function onDown(e) {
       if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
       if (e) e.preventDefault();
-      if (!started) { started = true; document.getElementById('startOverlay').classList.add('hidden'); return; }
+      if (!started) { started = true; document.getElementById('startOverlay').classList.add('hidden'); render(); return; }
       var p = pointFromEvent(e);
       var s = hitPalette(p);
-      if (s) { if (s.kind === 'color') { selected = s.idx; eraser = false; } else { eraser = true; } return; }
-      if (p.y < paletteY) { drawing = true; lastX = p.x; lastY = p.y; dab(p.x, p.y); }
+      if (s) {
+        if (s.kind === 'color') { selected = s.idx; eraser = false; }
+        else if (s.kind === 'eraser') { eraser = true; }
+        else { brushIdx = s.idx; }
+        render();
+        return;
+      }
+      if (p.y < paletteY) { pushHistory(); drawing = true; lastX = p.x; lastY = p.y; dab(p.x, p.y); render(); }
     }
     function dab(x, y) {
       // a single dot so a tap leaves a mark
@@ -137,10 +165,11 @@
       bctx.lineWidth = eraser ? brushW() * 2.4 : brushW();
       bctx.beginPath(); bctx.moveTo(lastX, lastY); bctx.lineTo(p.x, y); bctx.stroke();
       lastX = p.x; lastY = y;
+      render();
     }
     function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; }
 
-    function clearArt() { bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); }
+    function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); render(); }
 
     // ---------- Draw ----------
     function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -156,16 +185,19 @@
       ctx.fillStyle = '#1a1f2e'; ctx.fillRect(0, paletteY, W, PB);
       for (var i = 0; i < slots.length; i++) {
         var s = slots[i];
-        var isSel = (s.kind === 'color' && !eraser && s.idx === selected) || (s.kind === 'eraser' && eraser);
+        var isSel = (s.kind === 'color' && !eraser && s.idx === selected) || (s.kind === 'eraser' && eraser) || (s.kind === 'size' && s.idx === brushIdx);
         if (s.kind === 'color') { ctx.fillStyle = COLORS[s.idx]; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill(); }
-        else {
+        else if (s.kind === 'eraser') {
           ctx.fillStyle = '#fff'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill();
           ctx.fillStyle = '#ff9fc0'; roundRect(ctx, s.x + s.w * 0.16, s.y + s.h * 0.5, s.w * 0.68, s.h * 0.38, s.w * 0.1); ctx.fill();
+        } else {
+          ctx.fillStyle = '#33384a'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill();
+          ctx.fillStyle = '#fff'; var dr = s.w * (0.13 + 0.11 * s.idx);
+          ctx.beginPath(); ctx.arc(s.x + s.w / 2, s.y + s.h / 2, dr, 0, Math.PI * 2); ctx.fill();
         }
         if (isSel) { ctx.strokeStyle = '#ffd166'; ctx.lineWidth = Math.max(3, s.w * 0.09); roundRect(ctx, s.x - 3, s.y - 3, s.w + 6, s.h + 6, s.w * 0.24); ctx.stroke(); }
         else { ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.stroke(); }
       }
-      requestAnimationFrame(render);
     }
 
     // ---------- Wire up ----------
@@ -177,6 +209,7 @@
     stage.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
 
+    document.getElementById('undoBtn').addEventListener('click', function (e) { e.stopPropagation(); undo(); });
     document.getElementById('clearBtn').addEventListener('click', function (e) { e.stopPropagation(); clearArt(); });
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
@@ -188,7 +221,7 @@
     if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
       document.addEventListener('click', function (e) { var n = e.target; while (n && n.nodeName !== 'A') n = n.parentNode; if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); } }, false);
     }
-    resize(); requestAnimationFrame(render);
+    resize();
   })();
   </script>
 </body>

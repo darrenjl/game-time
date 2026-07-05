@@ -666,9 +666,8 @@
     // ---------- Render ----------
     function render(ts) {
       // sky
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#7ec8ff'); g.addColorStop(0.5, '#4fb0f7'); g.addColorStop(0.62, '#8fd0ff');
-      ctx.fillStyle = g;
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7ec8ff'); g.addColorStop(0.5, '#4fb0f7'); g.addColorStop(0.62, '#8fd0ff'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g;
       ctx.fillRect(0, 0, W, H);
 
       // sun

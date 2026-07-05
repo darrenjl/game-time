@@ -228,8 +228,8 @@
     }
 
     function render() {
-      var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#3a2f6e'); g.addColorStop(0.6, '#2b2350'); g.addColorStop(1, '#17123a');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#3a2f6e'); g.addColorStop(0.6, '#2b2350'); g.addColorStop(1, '#17123a'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
       // bins (highlight the one matching the current gem while dragging)
       for (var i = 0; i < bins.length; i++) drawBin(bins[i], dragging && item && bins[i].colorIdx === item.colorIdx);
       // gem
@@ -264,7 +264,7 @@
     function applySize(idx) { sizeIdx = idx; try { localStorage.setItem('ss2_diff', String(idx)); } catch (e) {} updateSpeedPick(); newGame(); }
     (function initState() {
       var saved = null; try { saved = localStorage.getItem('ss2_diff'); } catch (e) {}
-      sizeIdx = (saved !== null && SIZES[+saved]) ? +saved : 1;
+      sizeIdx = (saved !== null && SIZES[+saved]) ? +saved : 0;
       try { best = +(localStorage.getItem('ss2_best') || 0) || 0; } catch (e) {}
       updateSpeedPick();
     })();

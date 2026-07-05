@@ -588,17 +588,19 @@
 
     function render(ts) {
       // Space background
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#1a1246'); g.addColorStop(0.6, '#0b1026'); g.addColorStop(1, '#05030f');
-      ctx.fillStyle = g;
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1a1246'); g.addColorStop(0.6, '#0b1026'); g.addColorStop(1, '#05030f'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g;
       ctx.fillRect(0, 0, W, H);
 
       // Moon / planet
       if (moon) {
-        ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 246, 214, 0.9)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(moon.x - moon.r * 0.3, moon.y - moon.r * 0.2, moon.r * 0.18, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fill();
+        var mg = ctx.createRadialGradient(moon.x - moon.r * 0.35, moon.y - moon.r * 0.35, moon.r * 0.2, moon.x, moon.y, moon.r);
+        mg.addColorStop(0, '#fffdf0'); mg.addColorStop(1, '#dccf9e');
+        ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r, 0, Math.PI * 2); ctx.fillStyle = mg; ctx.fill();
+        ctx.fillStyle = 'rgba(120,110,80,0.22)';
+        ctx.beginPath(); ctx.arc(moon.x - moon.r * 0.28, moon.y - moon.r * 0.12, moon.r * 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moon.x + moon.r * 0.3, moon.y + moon.r * 0.22, moon.r * 0.14, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moon.x + moon.r * 0.12, moon.y - moon.r * 0.34, moon.r * 0.1, 0, Math.PI * 2); ctx.fill();
       }
 
       // Twinkling stars
