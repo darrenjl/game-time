@@ -209,6 +209,7 @@
     <div class="overlay" id="startOverlay">
       <h2>💎 Diamond &amp; Crystal Hunt 🔮</h2>
       <p>Help the hunter dog 🐕 sniff out the diamond 💎 <b>and</b> the crystal 🔮 hidden in the cave maze!</p>
+      <p>Careful — <b>5 bumps into the walls ❤️ and you start over!</b></p>
       <button class="bigbtn" id="startBtn">🐾 Start Digging!</button>
     </div>
 
@@ -216,6 +217,12 @@
       <h2>🎉 Both gems found! 🏆</h2>
       <p>What a good hunter! Ready to explore a brand-new cave?</p>
       <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+
+    <div class="overlay hidden" id="loseOverlay">
+      <h2>💥 Too many bumps!</h2>
+      <p>The dog bonked the walls 5 times. Let's try a fresh cave!</p>
+      <button class="bigbtn" id="loseAgainBtn">🔁 Try Again</button>
     </div>
   </div>
 
@@ -237,8 +244,13 @@
     // Walls are drawn on canvas (older iOS lacks the rock/stone emoji)
 
     // ---------- State ----------
-    var STATE = { START: 0, PLAYING: 1, WON: 2 };
+    var STATE = { START: 0, PLAYING: 1, WON: 2, LOST: 3 };
     var state = STATE.START;
+
+    var MAX_LIVES = 5;             // 5 wall bumps and you start over
+    var lives = MAX_LIVES;
+    var flashT = 0, shakeT = 0;    // wall-bump feedback timers
+    var audioCtx = null;
 
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
@@ -393,6 +405,8 @@
         { x: GRID - 2, y: 1,        emoji: '🔮', color: '#c79bff', got: false }
       ];
       particles = [];
+      lives = MAX_LIVES; flashT = 0; shakeT = 0;
+      document.getElementById('loseOverlay').classList.add('hidden');
       updateHud();
       resize();
     }
@@ -417,8 +431,8 @@
       else if (dir === 'left') { dx = -1; dog.face = -1; }
       else if (dir === 'right') { dx = 1; dog.face = 1; }
       var nx = dog.cx + dx, ny = dog.cy + dy;
-      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) return;
-      if (maze[ny][nx] === 1) return;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) { crash(); return; }
+      if (maze[ny][nx] === 1) { crash(); return; }
       dog.from = { x: dog.cx, y: dog.cy };
       dog.to = { x: nx, y: ny };
       dog.cx = nx; dog.cy = ny;
@@ -444,6 +458,43 @@
       setTimeout(function () {
         document.getElementById('winOverlay').classList.remove('hidden');
       }, 650);
+    }
+
+    // ---------- Wall bumps / lives ----------
+    function crash() {
+      if (state !== STATE.PLAYING) return;
+      lives--;
+      flashT = 0.35; shakeT = 0.3;
+      ensureAudio(); thud();
+      spawnSparkles(tileCenter(dog.cx, dog.cy), '#ff6b6b', 8);
+      if (lives <= 0) lose();
+    }
+
+    function lose() {
+      state = STATE.LOST;
+      setTimeout(function () {
+        document.getElementById('loseOverlay').classList.remove('hidden');
+      }, 450);
+    }
+
+    function ensureAudio() {
+      if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; } }
+      if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+    }
+    function thud() {
+      if (!audioCtx) return;
+      try {
+        var t0 = audioCtx.currentTime;
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(160, t0);
+        o.frequency.exponentialRampToValueAtTime(70, t0 + 0.15);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t0); o.stop(t0 + 0.22);
+      } catch (e) {}
     }
 
     // ---------- Particles (sparkles) ----------
@@ -503,6 +554,27 @@
       ctx.shadowBlur = 0;
     }
 
+    // ---------- Lives HUD (hearts, drawn on the board) ----------
+    function drawHeart(x, y, r, filled) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.7);
+      ctx.bezierCurveTo(r * 1.3, -r * 0.6, r * 0.5, -r * 1.3, 0, -r * 0.4);
+      ctx.bezierCurveTo(-r * 0.5, -r * 1.3, -r * 1.3, -r * 0.6, 0, r * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = filled ? '#ff5d8f' : 'rgba(255,255,255,0.28)';
+      ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
+      ctx.restore();
+    }
+    function drawLives() {
+      var r = tile * 0.26, x0 = tile * 0.62, y0 = tile * 0.56, gap = tile * 0.72;
+      roundRectPath(ctx, tile * 0.22, tile * 0.16, gap * (MAX_LIVES - 1) + r * 2 + tile * 0.4, tile * 0.78, tile * 0.18);
+      ctx.fillStyle = 'rgba(10, 6, 18, 0.55)'; ctx.fill();
+      for (var i = 0; i < MAX_LIVES; i++) drawHeart(x0 + i * gap, y0, r, i < lives);
+    }
+
     // ---------- Main loop ----------
     function easeOut(t) { return 1 - (1 - t) * (1 - t); }
 
@@ -522,9 +594,14 @@
       }
 
       updateParticles(dt);
+      if (flashT > 0) flashT = Math.max(0, flashT - dt);
+      if (shakeT > 0) shakeT = Math.max(0, shakeT - dt);
 
       var boardPx = tile * GRID;
       ctx.clearRect(0, 0, boardPx, boardPx);
+      var sh = shakeT > 0 ? Math.sin(shakeT * 90) * tile * 0.16 * (shakeT / 0.3) : 0;
+      ctx.save();
+      ctx.translate(sh, 0);
       ctx.drawImage(layer, 0, 0, boardPx, boardPx);
 
       // Gems (uncollected) with a sparkly pulse
@@ -556,6 +633,11 @@
       ctx.shadowBlur = 0;
 
       drawParticles();
+      ctx.restore();
+
+      // Wall-bump red flash + lives HUD (drawn un-shaken, on top of the board)
+      if (flashT > 0) { ctx.fillStyle = 'rgba(255, 70, 70, ' + (flashT * 0.9) + ')'; ctx.fillRect(0, 0, boardPx, boardPx); }
+      drawLives();
 
       requestAnimationFrame(frame);
     }
@@ -614,6 +696,11 @@
     });
     document.getElementById('playAgainBtn').addEventListener('click', function () {
       document.getElementById('winOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+    });
+    document.getElementById('loseAgainBtn').addEventListener('click', function () {
+      document.getElementById('loseOverlay').classList.add('hidden');
       newGame();
       state = STATE.PLAYING;
     });
