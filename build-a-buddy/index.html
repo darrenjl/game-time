@@ -138,6 +138,29 @@
     .opt.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.2); transform: scale(1.05); }
     .opt.swatch { min-width: 48px; }
     .opt:active { transform: scale(0.94); }
+    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + * { margin-left: 10px; }
+    .speedpick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 72px;
+      min-height: 72px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      font-size: 1.8rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(255, 143, 208, 0.14);
+      border: 2px solid rgba(255, 143, 208, 0.35);
+    }
+    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+    .speedpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.2); transform: scale(1.05); }
+    .speedpick button:active { transform: scale(0.95); }
+    .picklabel { font-size: 0.95rem; font-weight: 700; opacity: 0.85; }
     .playrow { display: flex; justify-content: center; margin-top: 8px; }
     .bigbtn {
       min-height: 58px;
@@ -199,6 +222,12 @@
 
     <div class="overlay hidden" id="pauseOverlay">
       <h2>Paused</h2>
+      <p class="picklabel">How fast?</p>
+      <div class="speedpick">
+        <button class="speedbtn" data-idx="0">🐢<span>Chill</span></button>
+        <button class="speedbtn" data-idx="1">🙂<span>Normal</span></button>
+        <button class="speedbtn" data-idx="2">🐇<span>Fast</span></button>
+      </div>
       <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
     </div>
 
@@ -217,6 +246,11 @@
     <div class="row" id="colorRow"><span class="rowlabel">Pick a colour</span></div>
     <div class="row" id="hatRow"><span class="rowlabel">Add a hat</span></div>
     <div class="row" id="treatRow"><span class="rowlabel">What will you catch?</span></div>
+    <div class="row" id="speedRow"><span class="rowlabel">How fast?</span>
+      <button class="opt speedbtn" data-idx="0">🐢</button>
+      <button class="opt speedbtn" data-idx="1">🙂</button>
+      <button class="opt speedbtn" data-idx="2">🐇</button>
+    </div>
     <div class="playrow"><button class="bigbtn" id="playBtn">▶️ Let's Play!</button></div>
   </div>
 
@@ -230,23 +264,36 @@
     //  draw functions below. The catch game itself never needs to change.
     // ============================================================================
     var BODIES = [
-      { id: 'blob',  name: 'Blobby', icon: '🙂' },
-      { id: 'cat',   name: 'Cat',    icon: '🐱' },
-      { id: 'bear',  name: 'Bear',   icon: '🐻' },
-      { id: 'bunny', name: 'Bunny',  icon: '🐰' }
+      { id: 'blob',    name: 'Blobby',  icon: '🙂' },
+      { id: 'cat',     name: 'Cat',     icon: '🐱' },
+      { id: 'bear',    name: 'Bear',    icon: '🐻' },
+      { id: 'bunny',   name: 'Bunny',   icon: '🐰' },
+      { id: 'dog',     name: 'Dog',     icon: '🐶' },
+      { id: 'mouse',   name: 'Mouse',   icon: '🐭' },
+      { id: 'panda',   name: 'Panda',   icon: '🐼' },
+      { id: 'unicorn', name: 'Unicorn', icon: '🦄' }
     ];
-    var COLORS = ['#ff8fd0', '#7cc6ff', '#9be27a', '#ffd166', '#c69bff', '#ff8a5c'];
+    var COLORS = ['#ff8fd0', '#7cc6ff', '#9be27a', '#ffd166', '#c69bff', '#ff8a5c',
+                  '#ff5d5d', '#4fd6c0', '#f2f5f8', '#b07a4e', '#98a0ad', '#4f7cff'];
     var HATS = [
-      { id: 'none',  name: 'None',  icon: '🚫' },
-      { id: 'crown', name: 'Crown', icon: '👑' },
-      { id: 'party', name: 'Party', icon: '🎉' },
-      { id: 'bow',   name: 'Bow',   icon: '🎀' }
+      { id: 'none',   name: 'None',    icon: '🚫' },
+      { id: 'crown',  name: 'Crown',   icon: '👑' },
+      { id: 'party',  name: 'Party',   icon: '🎉' },
+      { id: 'bow',    name: 'Bow',     icon: '🎀' },
+      { id: 'cap',    name: 'Cap',     icon: '🧢' },
+      { id: 'tophat', name: 'Top Hat', icon: '🎩' },
+      { id: 'flower', name: 'Flower',  icon: '🌸' },
+      { id: 'grad',   name: 'Grad',    icon: '🎓' }
     ];
     var TREATS = [
-      { id: 'star',  name: 'Stars',  icon: '⭐', color: '#ffe27a' },
-      { id: 'heart', name: 'Hearts', icon: '❤️', color: '#ff5d8f' },
-      { id: 'apple', name: 'Apples', icon: '🍎', color: '#ff5b4a' },
-      { id: 'fish',  name: 'Fish',   icon: '🐟', color: '#ff9b42' }
+      { id: 'star',       name: 'Stars',   icon: '⭐', color: '#ffe27a' },
+      { id: 'heart',      name: 'Hearts',  icon: '❤️', color: '#ff5d8f' },
+      { id: 'apple',      name: 'Apples',  icon: '🍎', color: '#ff5b4a' },
+      { id: 'fish',       name: 'Fish',    icon: '🐟', color: '#ff9b42' },
+      { id: 'banana',     name: 'Bananas', icon: '🍌', color: '#ffcf3a' },
+      { id: 'cookie',     name: 'Cookies', icon: '🍪', color: '#c98a52' },
+      { id: 'strawberry', name: 'Berries', icon: '🍓', color: '#ff4f6d' },
+      { id: 'gem',        name: 'Gems',    icon: '💎', color: '#6fe3ff' }
     ];
     // Current buddy (restored from localStorage)
     var cfg = { body: 0, color: 0, hat: 0, treat: 0 };
@@ -261,6 +308,14 @@
 
     var W = 0, H = 0, dpr = 1;
     var MAX_MISS = 5;
+
+    // Player-selectable fall speed (build panel + pause menu)
+    var SPEED_LEVELS = [
+      { m: 0.6,  icon: '🐢', name: 'Chill' },
+      { m: 1.0,  icon: '🙂', name: 'Normal' },
+      { m: 1.45, icon: '🐇', name: 'Fast' }
+    ];
+    var speedIdx = 1, speedMult = 1;
 
     var buddy, treats, sparks, orbits;
     var score, misses, fallSpd, spawnT, lastTs = 0;
@@ -289,7 +344,7 @@
       var s = playSize();
       buddy = { x: W / 2, y: H - s * 0.5, s: s, hurt: 0 };
       treats = []; sparks = [];
-      score = 0; misses = 0; fallSpd = H * 0.32; spawnT = 0;
+      score = 0; misses = 0; fallSpd = H * 0.32 * speedMult; spawnT = 0;
       state = STATE.PLAYING;
       lastTs = 0;
       scoreEl.textContent = '0';
@@ -344,7 +399,7 @@
       if (buddy.hurt > 0) buddy.hurt -= dt;
       if (typeof buddy.tx === 'number') buddy.x += (buddy.tx - buddy.x) * Math.min(1, dt * 16);
 
-      fallSpd = Math.min(H * 0.72, fallSpd + H * 0.012 * dt);
+      fallSpd = Math.min(H * 0.72 * speedMult, fallSpd + H * 0.012 * speedMult * dt);
       spawnT -= dt;
       if (spawnT <= 0) {
         spawnT = rand(0.55, 1.05);
@@ -421,6 +476,32 @@
         c.fillStyle = shade(col, 0.35);
         c.beginPath(); c.ellipse(-hr * 0.45, -hr * 1.2, hr * 0.09, hr * 0.42, -0.15, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.ellipse(hr * 0.45, -hr * 1.2, hr * 0.09, hr * 0.42, 0.15, 0, Math.PI * 2); c.fill();
+      } else if (body === 'dog') {
+        // floppy ears hanging at the sides
+        c.fillStyle = shade(col, -0.14);
+        c.beginPath(); c.ellipse(-hr * 0.9, -hr * 0.1, hr * 0.26, hr * 0.55, 0.25, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(hr * 0.9, -hr * 0.1, hr * 0.26, hr * 0.55, -0.25, 0, Math.PI * 2); c.fill();
+      } else if (body === 'mouse') {
+        // big round ears
+        c.beginPath(); c.arc(-hr * 0.78, -hr * 0.82, hr * 0.42, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(hr * 0.78, -hr * 0.82, hr * 0.42, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,150,190,0.65)';
+        c.beginPath(); c.arc(-hr * 0.78, -hr * 0.82, hr * 0.22, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(hr * 0.78, -hr * 0.82, hr * 0.22, 0, Math.PI * 2); c.fill();
+      } else if (body === 'panda') {
+        // dark round ears (patches drawn later, behind the eyes)
+        c.fillStyle = '#3a3340';
+        c.beginPath(); c.arc(-hr * 0.7, -hr * 0.82, hr * 0.3, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(hr * 0.7, -hr * 0.82, hr * 0.3, 0, Math.PI * 2); c.fill();
+      } else if (body === 'unicorn') {
+        // pointy ears + a golden horn
+        c.beginPath(); c.moveTo(-hr * 0.6, -hr * 0.55); c.lineTo(-hr * 0.5, -hr * 1.05); c.lineTo(-hr * 0.2, -hr * 0.7); c.closePath(); c.fill();
+        c.beginPath(); c.moveTo(hr * 0.6, -hr * 0.55); c.lineTo(hr * 0.5, -hr * 1.05); c.lineTo(hr * 0.2, -hr * 0.7); c.closePath(); c.fill();
+        c.fillStyle = '#ffd166';
+        c.beginPath(); c.moveTo(-hr * 0.14, -hr * 0.7); c.lineTo(0, -hr * 1.55); c.lineTo(hr * 0.14, -hr * 0.7); c.closePath(); c.fill();
+        c.strokeStyle = shade('#ffd166', -0.25); c.lineWidth = hr * 0.05;
+        c.beginPath(); c.moveTo(-hr * 0.09, -hr * 1.0); c.lineTo(hr * 0.09, -hr * 0.92); c.stroke();
+        c.beginPath(); c.moveTo(-hr * 0.06, -hr * 0.82); c.lineTo(hr * 0.06, -hr * 0.76); c.stroke();
       }
 
       // main round body
@@ -434,6 +515,15 @@
       c.fillStyle = 'rgba(255,120,170,0.45)';
       c.beginPath(); c.arc(-hr * 0.42, hr * 0.12, hr * 0.14, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(hr * 0.42, hr * 0.12, hr * 0.14, 0, Math.PI * 2); c.fill();
+      // panda eye patches (sit behind the eyes)
+      if (body === 'panda') {
+        c.fillStyle = '#3a3340';
+        c.beginPath(); c.ellipse(-hr * 0.28, -hr * 0.1, hr * 0.2, hr * 0.26, 0.35, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(hr * 0.28, -hr * 0.1, hr * 0.2, hr * 0.26, -0.35, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.arc(-hr * 0.28, -hr * 0.12, hr * 0.14, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(hr * 0.28, -hr * 0.12, hr * 0.14, 0, Math.PI * 2); c.fill();
+      }
       // eyes
       c.fillStyle = '#22143a';
       c.beginPath(); c.arc(-hr * 0.28, -hr * 0.12, hr * 0.11, 0, Math.PI * 2); c.fill();
@@ -444,10 +534,16 @@
       // smile (open + happy when catching)
       c.strokeStyle = '#22143a'; c.lineWidth = Math.max(2, hr * 0.05); c.lineCap = 'round';
       c.beginPath(); c.arc(0, hr * 0.02, hr * 0.28, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
-      // cat whiskers / nose
+      // nose (varies by body)
       if (body === 'cat') {
-        c.beginPath(); c.moveTo(-hr * 0.05, hr * 0.02); c.lineTo(hr * 0.05, hr * 0.02); c.lineTo(0, hr * 0.1); c.closePath();
-        c.fillStyle = '#22143a'; c.fill();
+        c.fillStyle = '#22143a';
+        c.beginPath(); c.moveTo(-hr * 0.05, hr * 0.02); c.lineTo(hr * 0.05, hr * 0.02); c.lineTo(0, hr * 0.1); c.closePath(); c.fill();
+      } else if (body === 'dog' || body === 'bear' || body === 'panda') {
+        c.fillStyle = '#22143a';
+        c.beginPath(); c.ellipse(0, -hr * 0.01, hr * 0.11, hr * 0.08, 0, 0, Math.PI * 2); c.fill();
+      } else if (body === 'mouse') {
+        c.fillStyle = '#ff6f9c';
+        c.beginPath(); c.arc(0, 0, hr * 0.08, 0, Math.PI * 2); c.fill();
       }
 
       // hat on top
@@ -484,14 +580,49 @@
         c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx - hr * 0.5, cy - hr * 0.3); c.lineTo(cx - hr * 0.5, cy + hr * 0.1); c.closePath(); c.fill();
         c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + hr * 0.5, cy - hr * 0.3); c.lineTo(cx + hr * 0.5, cy + hr * 0.1); c.closePath(); c.fill();
         c.fillStyle = '#c81e63'; c.beginPath(); c.arc(cx, cy - hr * 0.05, hr * 0.12, 0, Math.PI * 2); c.fill();
+      } else if (type === 'cap') {
+        // baseball cap
+        c.fillStyle = '#4f8ef7';
+        c.beginPath(); c.arc(cx, cy, hr * 0.55, Math.PI, 0); c.closePath(); c.fill();
+        c.beginPath(); c.ellipse(cx + hr * 0.55, cy, hr * 0.5, hr * 0.14, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.4)';
+        c.beginPath(); c.arc(cx, cy - hr * 0.5, hr * 0.07, 0, Math.PI * 2); c.fill();
+      } else if (type === 'tophat') {
+        c.fillStyle = '#2a2340';
+        c.beginPath(); c.ellipse(cx, cy, hr * 0.6, hr * 0.14, 0, 0, Math.PI * 2); c.fill();
+        c.fillRect(cx - hr * 0.38, cy - hr * 0.78, hr * 0.76, hr * 0.78);
+        c.fillStyle = '#ff5d8f';
+        c.fillRect(cx - hr * 0.38, cy - hr * 0.2, hr * 0.76, hr * 0.14);
+      } else if (type === 'flower') {
+        // a bloom tucked by the ear
+        var fx = cx - hr * 0.55, fy = cy + hr * 0.2, pr = hr * 0.17;
+        c.fillStyle = '#ff8fd0';
+        for (var p = 0; p < 5; p++) {
+          var pa = p * Math.PI * 2 / 5 - Math.PI / 2;
+          c.beginPath(); c.arc(fx + Math.cos(pa) * pr, fy + Math.sin(pa) * pr, pr * 0.78, 0, Math.PI * 2); c.fill();
+        }
+        c.fillStyle = '#ffd166';
+        c.beginPath(); c.arc(fx, fy, pr * 0.72, 0, Math.PI * 2); c.fill();
+      } else if (type === 'grad') {
+        // mortarboard
+        c.fillStyle = '#2a2340';
+        c.beginPath(); c.arc(cx, cy + hr * 0.05, hr * 0.32, Math.PI, 0); c.closePath(); c.fill();
+        c.save(); c.translate(cx, cy - hr * 0.08); c.rotate(Math.PI / 4);
+        c.fillRect(-hr * 0.42, -hr * 0.42, hr * 0.84, hr * 0.84);
+        c.restore();
+        c.fillStyle = '#ffd166';
+        c.beginPath(); c.arc(cx, cy - hr * 0.08, hr * 0.06, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#ffd166'; c.lineWidth = hr * 0.05; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(cx, cy - hr * 0.08); c.lineTo(cx + hr * 0.42, cy + hr * 0.28); c.stroke();
+        c.beginPath(); c.arc(cx + hr * 0.42, cy + hr * 0.34, hr * 0.06, 0, Math.PI * 2); c.fill();
       }
     }
 
     // ---------- Treat drawing (one case per TREATS entry) ----------
     function drawTreat(type, x, y, r, rot) {
-      var c = ctx, col = TREATS[type].color;
+      var c = ctx, id = TREATS[type].id, col = TREATS[type].color;
       c.save(); c.translate(x, y); c.rotate(rot || 0);
-      if (type === 1 || TREATS[type].id === 'heart') {
+      if (id === 'heart') {
         c.fillStyle = col;
         c.beginPath();
         c.moveTo(0, r * 0.35);
@@ -500,7 +631,7 @@
         c.bezierCurveTo(0, r * 0.95, r, r * 0.7, r, r * 0.25);
         c.bezierCurveTo(r, -r * 0.35, 0, -r * 0.35, 0, r * 0.35);
         c.closePath(); c.fill();
-      } else if (TREATS[type].id === 'apple') {
+      } else if (id === 'apple') {
         c.fillStyle = col;
         c.beginPath(); c.arc(-r * 0.35, 0, r * 0.6, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.arc(r * 0.35, 0, r * 0.6, 0, Math.PI * 2); c.fill();
@@ -508,12 +639,46 @@
         c.beginPath(); c.moveTo(0, -r * 0.4); c.lineTo(0, -r * 0.8); c.stroke();
         c.fillStyle = '#57c785';
         c.beginPath(); c.ellipse(r * 0.25, -r * 0.7, r * 0.28, r * 0.14, -0.6, 0, Math.PI * 2); c.fill();
-      } else if (TREATS[type].id === 'fish') {
+      } else if (id === 'fish') {
         c.fillStyle = col;
         c.beginPath(); c.ellipse(0, 0, r * 0.85, r * 0.55, 0, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.moveTo(r * 0.6, 0); c.lineTo(r * 1.1, -r * 0.4); c.lineTo(r * 1.1, r * 0.4); c.closePath(); c.fill();
         c.fillStyle = '#ffffff'; c.beginPath(); c.arc(-r * 0.4, -r * 0.12, r * 0.16, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#22143a'; c.beginPath(); c.arc(-r * 0.42, -r * 0.12, r * 0.08, 0, Math.PI * 2); c.fill();
+      } else if (id === 'banana') {
+        c.strokeStyle = col; c.lineWidth = r * 0.55; c.lineCap = 'round';
+        c.beginPath(); c.arc(0, -r * 0.25, r * 0.85, 0.2 * Math.PI, 0.8 * Math.PI); c.stroke();
+        c.fillStyle = shade(col, -0.4);
+        var bx = Math.cos(0.2 * Math.PI) * r * 0.85, byy = -r * 0.25 + Math.sin(0.2 * Math.PI) * r * 0.85;
+        c.beginPath(); c.arc(bx, byy, r * 0.14, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(-bx, byy, r * 0.14, 0, Math.PI * 2); c.fill();
+      } else if (id === 'cookie') {
+        c.fillStyle = col;
+        c.beginPath(); c.arc(0, 0, r * 0.9, 0, Math.PI * 2); c.fill();
+        c.fillStyle = shade(col, -0.38);
+        var chips = [[-0.3, -0.2], [0.35, -0.05], [0.05, 0.35], [-0.35, 0.35], [0.4, 0.4], [-0.05, -0.42]];
+        for (var ci = 0; ci < chips.length; ci++) { c.beginPath(); c.arc(chips[ci][0] * r, chips[ci][1] * r, r * 0.12, 0, Math.PI * 2); c.fill(); }
+      } else if (id === 'strawberry') {
+        c.fillStyle = col;
+        c.beginPath();
+        c.moveTo(0, r);
+        c.bezierCurveTo(-r * 0.95, r * 0.4, -r * 0.7, -r * 0.5, 0, -r * 0.45);
+        c.bezierCurveTo(r * 0.7, -r * 0.5, r * 0.95, r * 0.4, 0, r);
+        c.closePath(); c.fill();
+        c.fillStyle = '#ffe27a';
+        var seeds = [[-0.32, 0.05], [0.32, 0.05], [0, 0.35], [-0.2, 0.55], [0.2, 0.55], [0, -0.1]];
+        for (var si = 0; si < seeds.length; si++) { c.beginPath(); c.ellipse(seeds[si][0] * r, seeds[si][1] * r, r * 0.06, r * 0.1, 0, 0, Math.PI * 2); c.fill(); }
+        c.fillStyle = '#57c785';
+        c.beginPath(); c.moveTo(-r * 0.42, -r * 0.5); c.lineTo(0, -r * 0.8); c.lineTo(r * 0.42, -r * 0.5); c.lineTo(0, -r * 0.3); c.closePath(); c.fill();
+      } else if (id === 'gem') {
+        c.fillStyle = col;
+        c.beginPath(); c.moveTo(0, -r * 0.7); c.lineTo(r * 0.75, -r * 0.15); c.lineTo(0, r * 0.85); c.lineTo(-r * 0.75, -r * 0.15); c.closePath(); c.fill();
+        c.fillStyle = shade(col, 0.4);
+        c.beginPath(); c.moveTo(0, -r * 0.7); c.lineTo(r * 0.75, -r * 0.15); c.lineTo(0, -r * 0.15); c.closePath(); c.fill();
+        c.fillStyle = shade(col, -0.22);
+        c.beginPath(); c.moveTo(-r * 0.75, -r * 0.15); c.lineTo(0, r * 0.85); c.lineTo(0, -r * 0.15); c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = r * 0.04;
+        c.beginPath(); c.moveTo(-r * 0.75, -r * 0.15); c.lineTo(r * 0.75, -r * 0.15); c.stroke();
       } else {
         // star (default)
         c.beginPath();
@@ -643,6 +808,22 @@
     buildRow('colorRow', COLORS, cfg.color, function (i) { cfg.color = i; save('bb_color', i); }, true);
     buildRow('hatRow', HATS, cfg.hat, function (i) { cfg.hat = i; save('bb_hat', i); });
     buildRow('treatRow', TREATS, cfg.treat, function (i) { cfg.treat = i; save('bb_treat', i); });
+
+    // Speed picker — build panel + pause menu buttons kept in sync
+    function applySpeed(idx) {
+      speedIdx = idx; speedMult = SPEED_LEVELS[idx].m;
+      save('bb_speed', idx);
+      var btns = document.querySelectorAll('.speedbtn');
+      for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('sel', +btns[i].getAttribute('data-idx') === idx);
+    }
+    (function () {
+      var v = null; try { v = localStorage.getItem('bb_speed'); } catch (e) {}
+      applySpeed((v !== null && SPEED_LEVELS[+v]) ? +v : 1);
+      var btns = document.querySelectorAll('.speedbtn');
+      for (var i = 0; i < btns.length; i++) {
+        (function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); }); })(btns[i]);
+      }
+    })();
 
     // ---------- Wire up ----------
     var stage = document.querySelector('.stage');
