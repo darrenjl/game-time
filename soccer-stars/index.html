@@ -12,8 +12,6 @@
   <title>Soccer Stars</title>
   <style>
     :root {
-      --pitch: #1b8a3e;
-      --pitch-2: #0f6e30;
       --you: #2a6cff;
       --opp: #ff4d4d;
       --gold: #ffd166;
@@ -76,7 +74,7 @@
       white-space: nowrap;
     }
     .rightbtns { display: flex; }
-    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .rightbtns > * + * { margin-left: 8px; }
     .refresh, .pause {
       -webkit-appearance: none;
       appearance: none;
@@ -112,13 +110,14 @@
       align-items: stretch;
       padding: 10px 14px max(12px, env(safe-area-inset-bottom));
     }
-    .controls > * + * { margin-left: 14px; }   /* gap fallback for Safari < 14.5 */
+    .controls.hidden { display: none; }
+    .controls > * + * { margin-left: 14px; }
     .ctrlbtn {
       -webkit-appearance: none;
       appearance: none;
       flex: 1 1 0;
       max-width: 260px;
-      min-height: 68px;
+      min-height: 70px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -131,22 +130,19 @@
       color: #06280f;
       border: none;
       cursor: pointer;
-      opacity: 0.55;
-      transition: opacity 0.12s ease, transform 0.08s ease;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+      transition: transform 0.08s ease;
     }
     .ctrlbtn > * + * { margin-left: 10px; }
-    .ctrlbtn:active { transform: scale(0.96); }
+    .ctrlbtn:active { transform: scale(0.95); }
     .ctrlbtn.shoot { background: linear-gradient(135deg, #ffe27a, #ff9d3d); }
     .ctrlbtn.pass  { background: linear-gradient(135deg, #9ff0ff, #2a9cff); color: #051a33; }
-    .controls.ready .ctrlbtn { opacity: 1; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35); }
-    .controls.ready .ctrlbtn.shoot { animation: pulse 0.9s ease-in-out infinite; }
-    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
     .ctrlbtn.hidden { display: none; }
 
     /* ---- Overlays ---- */
     .overlay {
       position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      top: 0; right: 0; bottom: 0; left: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -159,7 +155,7 @@
       z-index: 5;
       overflow-y: auto;
     }
-    .overlay > * + * { margin-top: 14px; }     /* gap fallback for Safari < 14.5 */
+    .overlay > * + * { margin-top: 14px; }
     .overlay.hidden { display: none; }
     .overlay h2 {
       font-size: 2rem;
@@ -167,9 +163,8 @@
       color: var(--gold);
       text-shadow: 0 3px 0 rgba(0,0,0,0.25);
     }
-    .overlay p { font-size: 1.05rem; font-size: clamp(0.98rem, 4vw, 1.25rem); color: rgba(242, 255, 244, 0.92); max-width: 26ch; }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.98rem, 4vw, 1.25rem); color: rgba(242, 255, 244, 0.92); max-width: 27ch; }
 
-    /* mode picker (1v1 / 2v2) */
     .modepick { display: flex; justify-content: center; }
     .modepick > * + * { margin-left: 16px; }
     .modebtn {
@@ -192,7 +187,6 @@
     .dot.r { background: var(--opp); box-shadow: 0 0 8px rgba(255,77,77,0.6); }
     .vs { font-size: 1rem; font-weight: 800; opacity: 0.8; margin: 0 4px; }
 
-    /* team / character picker */
     .roster {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -210,10 +204,7 @@
     .charTile:active { transform: scale(0.95); }
     .charTile.sel { border-color: var(--gold); background: rgba(255,209,102,0.2); }
     .charTile canvas { display: block; width: 84px; height: 84px; }
-    .charTile .pick {
-      position: absolute; top: 4px; right: 6px;
-      font-size: 1.2rem; display: none;
-    }
+    .charTile .pick { position: absolute; top: 4px; right: 6px; font-size: 1.2rem; display: none; }
     .charTile.sel .pick { display: block; }
 
     .diffpick { display: flex; flex-wrap: wrap; justify-content: center; }
@@ -270,7 +261,6 @@
   <div class="stage">
     <canvas id="game"></canvas>
 
-    <!-- START: pick mode, then team -->
     <div class="overlay" id="startOverlay">
       <div id="stepMode">
         <h2>🥅 Soccer Stars</h2>
@@ -290,7 +280,7 @@
       <div id="stepTeam" style="display:none;">
         <h2 id="teamTitle">Pick your team!</h2>
         <p id="teamHint">Tap a player to join your team.</p>
-        <p style="font-size:0.95rem;opacity:0.82;">Tap the pitch to run and grab the ball, dribble past the red defenders, then 🥅 Shoot past the goalie!</p>
+        <p style="font-size:0.95rem;opacity:0.82;">Hold and slide anywhere to run. The ball sticks to your feet — 🥅 Shoot near the net, 👟 Pass to a team-mate.</p>
         <div class="roster" id="roster"></div>
         <p>Match speed:</p>
         <div class="diffpick" id="diffPickStart">
@@ -325,7 +315,7 @@
     </div>
   </div>
 
-  <div class="controls" id="controls">
+  <div class="controls hidden" id="controls">
     <button class="ctrlbtn shoot" id="shootBtn">🥅 <span>Shoot</span></button>
     <button class="ctrlbtn pass" id="passBtn">👟 <span>Pass</span></button>
   </div>
@@ -343,9 +333,8 @@
     var state = STATE.START;
 
     var W = 0, H = 0, dpr = 1;
-    var WIN_GOALS = 5;
+    var WIN_GOALS = 3;
 
-    // ---- Character roster (canvas-drawn animals; kit colour = team) ----
     var CHARS = [
       { type: 'fox',   fur: '#ff8a3d', ear: '#c85a1e' },
       { type: 'panda', fur: '#f4f6fb', ear: '#2b2b33' },
@@ -356,61 +345,58 @@
     ];
     var YOU_KIT = '#2a6cff', OPP_KIT = '#ff4d4d';
 
-    // ---- Difficulty (opponent + keeper speed) ----
+    // Difficulty: how quick/strong the opponent outfielders are.
     var DIFF = [
-      { opp: 0.60, keeper: 0.90, icon: '🐢' },
-      { opp: 0.85, keeper: 1.05, icon: '🙂' },
-      { opp: 1.05, keeper: 1.20, icon: '🐇' }
+      { opp: 0.70, keeper: 0.90, icon: '🐢' },
+      { opp: 0.90, keeper: 1.05, icon: '🙂' },
+      { opp: 1.10, keeper: 1.20, icon: '🐇' }
     ];
     var diffIdx = 0;
 
-    // ---- Match config (chosen on start screen) ----
-    var mode = 1;                 // 1 = 1v1, 2 = 2v2
-    var youChoice = [];           // indices into CHARS
-    var oppChoice = [];
+    var mode = 1, youChoice = [], oppChoice = [];
 
-    // ---- Live match state ----
     var players = [], ball = null;
-    var youTarget = null;   // where you last tapped for your player to run to
-    var scoreYou = 0, scoreOpp = 0;
-    var kickoffSide = 'you';
+    var scoreYou = 0, scoreOpp = 0, kickoffSide = 'you';
     var celebrateT = 0, celebrateText = '';
+    var overrideP = null, overrideT = 0;   // control the pass receiver briefly
+    var oppShotCd = 0;                      // stops the opponent machine-gunning shots
     var lastTs = 0, lastReady = null;
 
-    // ---- Tunables (recomputed on resize) ----
+    // Floating joystick
+    var stick = { active: false, ox: 0, oy: 0, dx: 0, dy: 0, mag: 0 };
+
     var R, BR, CONTROL_R, GLUE, MOUTH, TOPM, BOTM, LGOAL, RGOAL, MIDY;
-    var YOU_SPEED, DRIBBLE, OPP_SPEED, OPP_DRIBBLE, KEEP_SPEED, SHOOT_SP, PASS_SP, CLEAR_SP, FRICTION, KICKCD;
+    var YOU_SPEED, DRIBBLE, OPP_SPEED, OPP_DRIBBLE, KEEP_SPEED, SHOOT_SP, PASS_SP, CLEAR_SP, FRICTION, KICKCD, STICK_DEAD, STICK_MAXR;
 
     function computeTunables() {
-      R = H * 0.05;
-      BR = H * 0.024;
-      CONTROL_R = R * 1.5;          // generous touch radius so it's easy to win the ball
-      GLUE = R * 0.55 + BR;         // how far ahead of the carrier the ball sits
+      R = H * 0.052;
+      BR = H * 0.026;
+      CONTROL_R = R * 1.7;
+      GLUE = R * 0.5 + BR;
       MOUTH = H * 0.34;
       TOPM = H * 0.05;
       BOTM = H * 0.95;
-      LGOAL = W * 0.075;
-      RGOAL = W * 0.925;
+      LGOAL = W * 0.06;
+      RGOAL = W * 0.94;
       MIDY = H / 2;
-      // Gentle pace for little players. Your chase is always faster than the
-      // opponent's dribble, so you can reliably run the ball back off them.
-      YOU_SPEED = H * 0.42;
-      DRIBBLE = H * 0.30;
+      YOU_SPEED = H * 0.46;
+      DRIBBLE = H * 0.40;
       OPP_SPEED = H * 0.30 * DIFF[diffIdx].opp;
       OPP_DRIBBLE = H * 0.24 * DIFF[diffIdx].opp;
-      KEEP_SPEED = H * 0.26 * DIFF[diffIdx].keeper;
-      SHOOT_SP = H * 0.90;
-      PASS_SP = H * 0.72;
-      CLEAR_SP = H * 0.80;
-      FRICTION = 1.6;
-      KICKCD = 0.32;
+      KEEP_SPEED = H * 0.28 * DIFF[diffIdx].keeper;
+      SHOOT_SP = H * 1.20;
+      PASS_SP = H * 0.95;
+      CLEAR_SP = H * 0.90;
+      FRICTION = 1.5;
+      KICKCD = 0.28;
+      STICK_DEAD = R * 0.35;
+      STICK_MAXR = R * 2.0;
     }
 
     function rand(a, b) { return a + Math.random() * (b - a); }
     function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
     function dist2(ax, ay, bx, by) { var dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
 
-    // ---------- Sizing ----------
     function resize() {
       var rect = canvas.parentNode.getBoundingClientRect();
       W = Math.max(240, Math.floor(rect.width));
@@ -420,64 +406,56 @@
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       computeTunables();
-      render._h = -1; // force gradient rebuild
+      render._h = -1;
     }
 
     // ---------- Setup ----------
     function formationSpot(side, role, idx) {
-      // idx: field player index (0-based)
       var s = {};
       if (role === 'keeper') {
         s.x = (side === 'you') ? LGOAL + R * 0.7 : RGOAL - R * 0.7;
         s.y = MIDY;
         return s;
       }
-      var baseX = (side === 'you') ? W * 0.24 : W * 0.68;
+      var baseX = (side === 'you') ? W * 0.30 : W * 0.70;
       if (mode === 1) { s.x = baseX; s.y = MIDY; }
       else { s.x = baseX; s.y = (idx === 0) ? MIDY - H * 0.17 : MIDY + H * 0.17; }
       return s;
     }
-
     function makePlayer(side, role, char, idx) {
       var sp = formationSpot(side, role, idx);
       return {
         side: side, role: role, char: char, idx: idx,
         x: sp.x, y: sp.y, vx: 0, vy: 0, hold: 0,
         kit: (side === 'you') ? YOU_KIT : OPP_KIT,
-        attack: (side === 'you') ? 1 : -1  // +1 attack right, -1 attack left
+        attack: (side === 'you') ? 1 : -1
       };
     }
-
     function buildTeams() {
-      // You attack; the opponent is purely a goalie + defenders (they never score).
       players = [];
       var n = mode;
-      players.push(makePlayer('opp', 'keeper', CHARS[oppChoice[0]], -1)); // goalie
+      players.push(makePlayer('you', 'keeper', CHARS[youChoice[0]], -1));
+      players.push(makePlayer('opp', 'keeper', CHARS[oppChoice[0]], -1));
       for (var i = 0; i < n; i++) {
         players.push(makePlayer('you', 'field', CHARS[youChoice[i]], i));
-        players.push(makePlayer('opp', 'field', CHARS[oppChoice[i]], i)); // defender
+        players.push(makePlayer('opp', 'field', CHARS[oppChoice[i]], i));
       }
     }
-
     function resetPositions() {
       for (var i = 0; i < players.length; i++) {
         var p = players[i];
         var sp = formationSpot(p.side, p.role, p.idx < 0 ? 0 : p.idx);
         p.x = sp.x; p.y = sp.y; p.vx = 0; p.vy = 0; p.hold = 0;
       }
-      ball = { x: W / 2, y: MIDY, vx: 0, vy: 0, carrier: null, kickCd: 0 };
-      youTarget = null;
-      // give the kickoff side's nearest field player first touch
+      ball = { x: W / 2, y: MIDY, vx: 0, vy: 0, carrier: null, owner: null, kickCd: 0, protT: 0 };
+      overrideP = null; overrideT = 0; oppShotCd = 0;
+      stick.active = false; stick.mag = 0;
       var chaser = nearestFieldPlayer(kickoffSide, ball);
       if (chaser) { chaser.x = ball.x - chaser.attack * GLUE; chaser.y = ball.y; }
     }
-
     function newMatch() {
-      scoreYou = 0; scoreOpp = 0;
-      kickoffSide = 'you';
-      buildTeams();
-      resetPositions();
-      updateScore();
+      scoreYou = 0; scoreOpp = 0; kickoffSide = 'you';
+      buildTeams(); resetPositions(); updateScore();
     }
 
     // ---------- Helpers ----------
@@ -494,9 +472,8 @@
     function nearestPlayerToBall() {
       var best = null, bd = Infinity;
       for (var i = 0; i < players.length; i++) {
-        var p = players[i];
-        var d = dist2(p.x, p.y, ball.x, ball.y);
-        if (d < bd) { bd = d; best = p; }
+        var d = dist2(players[i].x, players[i].y, ball.x, ball.y);
+        if (d < bd) { bd = d; best = players[i]; }
       }
       return { p: best, d: Math.sqrt(bd) };
     }
@@ -507,13 +484,24 @@
       }
       return null;
     }
+    function keeperOf(side) {
+      for (var i = 0; i < players.length; i++) if (players[i].side === side && players[i].role === 'keeper') return players[i];
+      return null;
+    }
+    // The field player you're steering.
+    function activePlayer() {
+      if (overrideT > 0 && overrideP && overrideP.role === 'field') return overrideP;
+      var c = ball && ball.carrier;
+      if (c && c.side === 'you' && c.role === 'field') return c;
+      return nearestFieldPlayer('you', ball);
+    }
 
     // ---------- Movement ----------
     function moveToward(p, tx, ty, speed, dt) {
       var dx = tx - p.x, dy = ty - p.y;
       var d = Math.sqrt(dx * dx + dy * dy);
       var step = speed * dt;
-      if (d <= step || d < 0.0001) { p.x = tx; p.y = ty; p.vx = 0; p.vy = 0; }
+      if (d <= step || d < 0.0001) { p.vx = 0; p.vy = 0; }
       else { var nx = dx / d, ny = dy / d; p.x += nx * step; p.y += ny * step; p.vx = nx * speed; p.vy = ny * speed; }
       p.x = clamp(p.x, R, W - R);
       p.y = clamp(p.y, TOPM + R * 0.4, BOTM - R * 0.4);
@@ -527,25 +515,20 @@
       ball.vx = Math.cos(ang) * speed;
       ball.vy = Math.sin(ang) * speed;
       ball.carrier = null;
+      ball.owner = null;
+      ball.protT = 0;
       ball.kickCd = KICKCD;
-    }
-
-    function keeperOf(side) {
-      for (var i = 0; i < players.length; i++) if (players[i].side === side && players[i].role === 'keeper') return players[i];
-      return null;
     }
     function doShoot(carrier) {
       var goalX = (carrier.attack > 0) ? RGOAL : LGOAL;
       var aimY, speed, spread;
       if (carrier.side === 'you') {
-        // aim for the corner the goalie is NOT covering — rewards good positioning
         var gk = keeperOf('opp');
         aimY = (gk && gk.y > MIDY) ? MIDY - MOUTH * 0.45 : MIDY + MOUTH * 0.45;
-        speed = SHOOT_SP * 1.15; spread = 0.02;
+        speed = SHOOT_SP; spread = 0.02;
       } else {
-        // opponent shoots softer and more central so your keeper can save most
-        aimY = MIDY + rand(-MOUTH * 0.28, MOUTH * 0.28);
-        speed = SHOOT_SP * 0.8; spread = 0.12;
+        aimY = MIDY + rand(-MOUTH * 0.22, MOUTH * 0.22);
+        speed = SHOOT_SP * 0.68; spread = 0.13;
       }
       kickBall(goalX + carrier.attack * BR, aimY, speed, spread);
       sfx('kick');
@@ -553,193 +536,189 @@
     function doPass(carrier) {
       var mate = teammateOf(carrier);
       if (!mate) { doShoot(carrier); return; }
-      // lead the pass slightly toward goal
-      var lx = mate.x + carrier.attack * R * 0.8;
-      kickBall(lx, mate.y, PASS_SP, 0.02);
+      kickBall(mate.x + carrier.attack * R * 0.8, mate.y, PASS_SP, 0.02);
+      overrideP = mate; overrideT = 1.4;   // hand control to the receiver
       sfx('pass');
     }
     function keeperClear(keeper) {
-      // goalie punts the ball back out to your half so you can attack again
-      kickBall(W * 0.32, rand(H * 0.25, H * 0.75), CLEAR_SP, 0.15);
-      sfx('kick');
+      var tx = (keeper.side === 'you') ? W * 0.6 : W * 0.4;
+      kickBall(tx, rand(H * 0.25, H * 0.75), CLEAR_SP, 0.15);
+      sfx('save');
     }
 
     // ---------- Update ----------
     function update(dt) {
       if (ball.kickCd > 0) ball.kickCd -= dt;
+      if (overrideT > 0) overrideT -= dt;
+      if (ball.protT > 0) ball.protT -= dt;
+      if (oppShotCd > 0) oppShotCd -= dt;
 
-      // Determine carrier: nearest player within control radius (once kick settles)
+      // Possession model: whoever owns the ball keeps it (sticky) unless an
+      // opponent gets clearly closer once a short protection window has lapsed.
+      // This stops the ball ping-ponging between players near a goal.
       var carrier = null;
       if (ball.kickCd <= 0) {
         var nb = nearestPlayerToBall();
-        if (nb.p && nb.d < CONTROL_R) carrier = nb.p;
+        var owner = ball.owner;
+        var ownerDist = owner ? Math.sqrt(dist2(owner.x, owner.y, ball.x, ball.y)) : Infinity;
+        if (owner && ownerDist < CONTROL_R * 1.3) {
+          if (ball.protT > 0) carrier = owner;                 // protected: can't be tackled yet
+          else if (nb.p && nb.p !== owner && nb.p.side !== owner.side && nb.d < CONTROL_R && nb.d < ownerDist - R * 0.4) {
+            carrier = nb.p; ball.protT = 0.3;                  // clean tackle by a closer opponent
+          } else carrier = owner;
+        } else if (nb.p && nb.d < CONTROL_R) {
+          carrier = nb.p;
+          if (carrier !== owner) ball.protT = 0.3;
+        }
+        ball.owner = carrier;
       }
       ball.carrier = carrier;
-      if (carrier) { carrier.hold += dt; }
+      if (carrier) carrier.hold += dt;
       for (var i = 0; i < players.length; i++) if (players[i] !== carrier) players[i].hold = 0;
 
-      // ----- Set targets & move players -----
-      moveTeam('you', carrier, dt);
-      moveTeam('opp', carrier, dt);
+      var active = activePlayer();
+      moveYou(active, carrier, dt);
+      moveOpp(carrier, dt);
 
-      // ----- Ball -----
       if (carrier) {
-        // glue the ball to the carrier's feet, just ahead in their attack direction
-        ball.x = carrier.x + carrier.attack * GLUE;
-        ball.y = carrier.y;
+        // sticky ball: leads in the carrier's movement direction, else toward goal
+        var fl = Math.sqrt(carrier.vx * carrier.vx + carrier.vy * carrier.vy);
+        var fx, fy;
+        if (fl > 1) { fx = carrier.vx / fl; fy = carrier.vy / fl; } else { fx = carrier.attack; fy = 0; }
+        ball.x = clamp(carrier.x + fx * GLUE, LGOAL, RGOAL);
+        ball.y = clamp(carrier.y + fy * GLUE, TOPM + BR, BOTM - BR);
         ball.vx = 0; ball.vy = 0;
 
-        // Carrier behaviour
         if (carrier.role === 'keeper') {
-          if (carrier.hold > 0.30) keeperClear(carrier);
+          if (carrier.hold > 0.3) keeperClear(carrier);
         } else if (carrier.side === 'opp') {
-          // a defender who wins the ball just clears it back toward your half
-          if (carrier.hold > 0.30) { kickBall(W * 0.30, rand(H * 0.2, H * 0.8), CLEAR_SP, 0.2); sfx('kick'); }
+          aiCarry(carrier);
         }
-        // your field carrier: wait for the player to tap Shoot / Pass
+        // your field carrier: wait for Shoot / Pass
       } else {
-        // free ball: integrate + friction + walls + goals
         ball.x += ball.vx * dt;
         ball.y += ball.vy * dt;
         var fr = FRICTION * dt;
         ball.vx -= ball.vx * fr;
         ball.vy -= ball.vy * fr;
 
-        // keepers physically block shots (the possession rule can't catch a fast
-        // shot inside the kick cooldown, so the keeper's body deflects it)
-        for (var k = 0; k < players.length; k++) {
-          var kp = players[k];
+        // keepers physically block shots
+        for (i = 0; i < players.length; i++) {
+          var kp = players[i];
           if (kp.role !== 'keeper') continue;
-          var br = R * 0.7 + BR;
-          if (dist2(ball.x, ball.y, kp.x, kp.y) < br * br) {
-            keeperClear(kp);
-            sfx('save');
-            break;
-          }
+          var brd = R * 0.8 + BR;
+          if (dist2(ball.x, ball.y, kp.x, kp.y) < brd * brd) { keeperClear(kp); break; }
         }
 
-        // top / bottom walls
-        if (ball.y < TOPM + BR) { ball.y = TOPM + BR; ball.vy = Math.abs(ball.vy) * 0.72; }
-        if (ball.y > BOTM - BR) { ball.y = BOTM - BR; ball.vy = -Math.abs(ball.vy) * 0.72; }
-
-        // end lines / goal (only your attacking goal on the right scores)
-        if (ball.x <= LGOAL + BR) { ball.x = LGOAL + BR; ball.vx = Math.abs(ball.vx) * 0.72; }
+        if (ball.y < TOPM + BR) { ball.y = TOPM + BR; ball.vy = Math.abs(ball.vy) * 0.7; }
+        if (ball.y > BOTM - BR) { ball.y = BOTM - BR; ball.vy = -Math.abs(ball.vy) * 0.7; }
+        if (ball.x <= LGOAL + BR) {
+          if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('opp'); return; }
+          ball.x = LGOAL + BR; ball.vx = Math.abs(ball.vx) * 0.7;
+        }
         if (ball.x >= RGOAL - BR) {
           if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('you'); return; }
-          ball.x = RGOAL - BR; ball.vx = -Math.abs(ball.vx) * 0.72;
+          ball.x = RGOAL - BR; ball.vx = -Math.abs(ball.vx) * 0.7;
         }
       }
 
-      updateReady(carrier);
+      setReady(!!(carrier && carrier.side === 'you' && carrier.role === 'field'));
     }
 
-    // Which of your field players you are steering: the ball carrier if you have
-    // it, otherwise the one nearest the ball.
-    function activeYou(carrier) {
-      if (carrier && carrier.side === 'you' && carrier.role === 'field') return carrier;
-      return nearestFieldPlayer('you', ball);
-    }
-
-    function moveTeam(side, carrier, dt) {
-      var chaser = nearestFieldPlayer(side, ball);
-      var speed = (side === 'you') ? YOU_SPEED : OPP_SPEED;
-      var dribSpeed = (side === 'you') ? DRIBBLE : OPP_DRIBBLE;
-      var ownGoalX = (side === 'you') ? LGOAL : RGOAL;
-      var attackX = (side === 'you') ? RGOAL : LGOAL;
-      var attack = (side === 'you') ? 1 : -1;
-      var active = (side === 'you') ? activeYou(carrier) : null;
-
+    function moveYou(active, carrier, dt) {
       for (var i = 0; i < players.length; i++) {
         var p = players[i];
-        if (p.side !== side) continue;
+        if (p.side !== 'you') continue;
 
         if (p.role === 'keeper') {
           var ky = clamp(ball.y, MIDY - MOUTH * 0.55, MIDY + MOUTH * 0.55);
-          var kx = (side === 'you') ? LGOAL + R * 0.7 : RGOAL - R * 0.7;
-          moveToward(p, kx, ky, KEEP_SPEED, dt);
+          moveToward(p, LGOAL + R * 0.7, ky, KEEP_SPEED, dt);
           continue;
         }
-
-        // ---- YOUR side: you steer the active player by tapping the pitch ----
-        if (side === 'you') {
-          if (p === active) {
-            if (youTarget) {
-              var sp = (carrier === p) ? dribSpeed : speed;
-              moveToward(p, youTarget.x, youTarget.y, sp, dt);
-              var near = R * 0.5;
-              if (dist2(p.x, p.y, youTarget.x, youTarget.y) < near * near) youTarget = null;
-            }
-            // no target → stay put, fully under the player's control
-          } else if (carrier && carrier.side === 'you') {
-            // off-ball team-mate: run ahead to offer a pass
-            var asx = clamp(ball.x + attack * W * 0.18, W * 0.14, W * 0.86);
-            var asy = (ball.y < MIDY) ? MIDY + H * 0.16 : MIDY - H * 0.16;
-            moveToward(p, asx, asy, speed * 0.6, dt);
-          } else {
-            // off-ball team-mate on defence: drop back to cover our goal
-            var adx = clamp((ball.x + ownGoalX) / 2, W * 0.14, W * 0.86);
-            var ady = clamp((ball.y + MIDY) / 2, TOPM + R, BOTM - R);
-            moveToward(p, adx, ady, speed * 0.55, dt);
-          }
-          continue;
-        }
-
-        // ---- OPPONENT side: automatic AI ----
-        if (carrier === p) {
-          moveToward(p, attackX, clamp(MIDY + (p.y - MIDY) * 0.5, TOPM + R, BOTM - R), dribSpeed, dt);
-        } else if (carrier && carrier.side === side) {
-          var sx = clamp(ball.x + attack * W * 0.16, W * 0.14, W * 0.86);
-          var sy = (ball.y < MIDY) ? MIDY + H * 0.15 : MIDY - H * 0.15;
-          moveToward(p, sx, sy, speed * 0.85, dt);
-        } else if (p === chaser) {
-          moveToward(p, ball.x + ball.vx * 0.12, ball.y + ball.vy * 0.12, speed, dt);
+        if (p === active) {
+          if (stick.active && stick.mag > 0) {
+            var sp = (carrier === p ? DRIBBLE : YOU_SPEED) * stick.mag;
+            p.x = clamp(p.x + stick.dx * sp * dt, R, W - R);
+            p.y = clamp(p.y + stick.dy * sp * dt, TOPM + R * 0.4, BOTM - R * 0.4);
+            p.vx = stick.dx * sp; p.vy = stick.dy * sp;
+          } else { p.vx = 0; p.vy = 0; }
+        } else if (carrier && carrier.side === 'you') {
+          // off-ball team-mate: get open ahead
+          var sx = clamp(ball.x + W * 0.18, W * 0.14, W * 0.86);
+          var sy = (ball.y < MIDY) ? MIDY + H * 0.16 : MIDY - H * 0.16;
+          moveToward(p, sx, sy, YOU_SPEED * 0.6, dt);
         } else {
-          var cx = clamp((ball.x + ownGoalX) / 2, W * 0.14, W * 0.86);
-          var cy = clamp((ball.y + MIDY) / 2 + (p.idx === 0 ? -H * 0.12 : H * 0.12), TOPM + R, BOTM - R);
-          moveToward(p, cx, cy, speed * 0.75, dt);
+          // off-ball team-mate on defence: drop toward our goal
+          var dx = clamp((ball.x + LGOAL) / 2, W * 0.14, W * 0.86);
+          var dy = clamp((ball.y + MIDY) / 2, TOPM + R, BOTM - R);
+          moveToward(p, dx, dy, YOU_SPEED * 0.5, dt);
         }
       }
+    }
+
+    function moveOpp(carrier, dt) {
+      var chaser = nearestFieldPlayer('opp', ball);
+      for (var i = 0; i < players.length; i++) {
+        var p = players[i];
+        if (p.side !== 'opp') continue;
+        if (p.role === 'keeper') {
+          var ky = clamp(ball.y, MIDY - MOUTH * 0.55, MIDY + MOUTH * 0.55);
+          moveToward(p, RGOAL - R * 0.7, ky, KEEP_SPEED, dt);
+          continue;
+        }
+        if (carrier === p) {
+          moveToward(p, LGOAL, clamp(MIDY + (p.y - MIDY) * 0.5, TOPM + R, BOTM - R), OPP_DRIBBLE, dt);
+        } else if (carrier && carrier.side === 'opp') {
+          var sx = clamp(ball.x - W * 0.16, W * 0.14, W * 0.86);
+          var sy = (ball.y < MIDY) ? MIDY + H * 0.15 : MIDY - H * 0.15;
+          moveToward(p, sx, sy, OPP_SPEED * 0.85, dt);
+        } else if (p === chaser) {
+          moveToward(p, ball.x + ball.vx * 0.12, ball.y + ball.vy * 0.12, OPP_SPEED, dt);
+        } else {
+          var cx = clamp((ball.x + RGOAL) / 2, W * 0.14, W * 0.86);
+          var cy = clamp((ball.y + MIDY) / 2 + (p.idx === 0 ? -H * 0.12 : H * 0.12), TOPM + R, BOTM - R);
+          moveToward(p, cx, cy, OPP_SPEED * 0.75, dt);
+        }
+      }
+    }
+
+    function aiCarry(carrier) {
+      var nearGoal = ball.x < W * 0.40;
+      if ((nearGoal || carrier.hold > 2.6) && oppShotCd <= 0) { doShoot(carrier); oppShotCd = 1.6; }
     }
 
     // ---------- Goals / flow ----------
     function onGoal(scorer) {
-      scoreYou++;
+      if (scorer === 'you') scoreYou++; else scoreOpp++;
       updateScore();
       sfx('goal');
-      kickoffSide = 'you';
-      if (scoreYou >= WIN_GOALS) { endMatch(); return; }
-      celebrateText = 'GOAL! 🎉';
+      kickoffSide = (scorer === 'you') ? 'opp' : 'you';
+      if (scoreYou >= WIN_GOALS || scoreOpp >= WIN_GOALS) { endMatch(); return; }
+      celebrateText = (scorer === 'you') ? 'GOAL! 🎉' : 'They scored!';
       celebrateT = 1.3;
       state = STATE.CELEBRATE;
     }
-
     function endMatch() {
       state = STATE.OVER;
-      document.getElementById('overTitle').textContent = '🏆 Champion!';
-      document.getElementById('overScore').textContent = 'You scored ' + scoreYou + ' goals!';
+      var win = scoreYou > scoreOpp;
+      document.getElementById('overTitle').textContent = win ? '🏆 You win!' : '😅 So close!';
+      document.getElementById('overScore').textContent = scoreYou + ' – ' + scoreOpp;
       document.getElementById('overOverlay').classList.remove('hidden');
       setReady(false);
     }
+    function updateScore() { scoreEl.textContent = '🔵 ' + scoreYou + ' – ' + scoreOpp + ' 🔴'; }
 
-    function updateScore() {
-      scoreEl.textContent = '⚽ ' + scoreYou + ' / ' + WIN_GOALS;
-    }
-
-    // ---------- Controls readiness ----------
     function setReady(on) {
       if (lastReady === on) return;
       lastReady = on;
       if (on) controlsEl.classList.add('ready'); else controlsEl.classList.remove('ready');
-    }
-    function updateReady(carrier) {
-      setReady(!!(carrier && carrier.side === 'you' && carrier.role === 'field'));
     }
     function youCarrier() {
       var c = ball && ball.carrier;
       return (c && c.side === 'you' && c.role === 'field') ? c : null;
     }
 
-    // ---------- Sound (Web Audio) ----------
+    // ---------- Sound ----------
     var actx = null;
     function initAudio() {
       if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
@@ -759,17 +738,14 @@
     }
     function sfx(kind) {
       if (!actx) return;
-      if (kind === 'kick') { tone(180, 0, 0.09, 'square', 0.22); }
-      else if (kind === 'pass') { tone(300, 0, 0.08, 'triangle', 0.16); }
-      else if (kind === 'goal') {
-        tone(523, 0, 0.12, 'square', 0.2);
-        tone(659, 0.12, 0.12, 'square', 0.2);
-        tone(784, 0.24, 0.22, 'square', 0.22);
-      } else if (kind === 'save') { tone(150, 0, 0.13, 'sawtooth', 0.15); }
-      else if (kind === 'whistle') { tone(1000, 0, 0.12, 'sawtooth', 0.14); }
+      if (kind === 'kick') tone(185, 0, 0.09, 'square', 0.22);
+      else if (kind === 'pass') tone(300, 0, 0.08, 'triangle', 0.16);
+      else if (kind === 'save') tone(150, 0, 0.12, 'sawtooth', 0.15);
+      else if (kind === 'goal') { tone(523, 0, 0.12, 'square', 0.2); tone(659, 0.12, 0.12, 'square', 0.2); tone(784, 0.24, 0.22, 'square', 0.22); }
+      else if (kind === 'whistle') tone(1000, 0, 0.12, 'sawtooth', 0.14);
     }
 
-    // ---------- Render ----------
+    // ---------- Drawing helpers ----------
     function roundRectFull(c, x, y, w, h, r) {
       c.beginPath();
       c.moveTo(x + r, y);
@@ -779,73 +755,12 @@
       c.arcTo(x, y, x + w, y, r);
       c.closePath();
     }
+    function tri(c, x1, y1, x2, y2, x3, y3) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.lineTo(x3, y3); c.closePath(); c.fill(); }
 
-    function drawPitch() {
-      // striped grass
-      var bands = 8, bw = W / bands;
-      for (var i = 0; i < bands; i++) {
-        ctx.fillStyle = (i % 2 === 0) ? '#1e9344' : '#1a8a3e';
-        ctx.fillRect(i * bw, 0, bw + 1, H);
-      }
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.lineWidth = Math.max(2, H * 0.006);
-
-      // outer boundary
-      ctx.strokeRect(LGOAL, TOPM, RGOAL - LGOAL, BOTM - TOPM);
-      // halfway line
-      ctx.beginPath(); ctx.moveTo(W / 2, TOPM); ctx.lineTo(W / 2, BOTM); ctx.stroke();
-      // centre circle + spot
-      ctx.beginPath(); ctx.arc(W / 2, MIDY, H * 0.12, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(W / 2, MIDY, H * 0.012, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
-
-      // penalty boxes
-      var boxW = W * 0.11, boxH = MOUTH + H * 0.14;
-      ctx.strokeRect(LGOAL, MIDY - boxH / 2, boxW, boxH);
-      ctx.strokeRect(RGOAL - boxW, MIDY - boxH / 2, boxW, boxH);
-
-      // goals (frame + net) on left and right
-      drawGoal(LGOAL, -1);
-      drawGoal(RGOAL, 1);
-    }
-
-    function drawGoal(lineX, dir) {
-      var depth = W * 0.035;
-      var y0 = MIDY - MOUTH / 2, y1 = MIDY + MOUTH / 2;
-      var backX = lineX - dir * depth;
-      // net fill
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(Math.min(lineX, backX), y0, depth, MOUTH);
-      // net hatch
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1.5;
-      var step = MOUTH / 6;
-      var j;
-      for (j = 0; j <= 6; j++) {
-        var yy = y0 + j * step;
-        ctx.beginPath(); ctx.moveTo(lineX, yy); ctx.lineTo(backX, yy); ctx.stroke();
-      }
-      for (j = 0; j <= 3; j++) {
-        var xx = lineX - dir * (depth * j / 3);
-        ctx.beginPath(); ctx.moveTo(xx, y0); ctx.lineTo(xx, y1); ctx.stroke();
-      }
-      // posts + crossbar-ish frame
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(3, H * 0.008);
-      ctx.beginPath();
-      ctx.moveTo(backX, y0); ctx.lineTo(lineX, y0);
-      ctx.moveTo(lineX, y0); ctx.lineTo(lineX, y1);
-      ctx.moveTo(lineX, y1); ctx.lineTo(backX, y1);
-      ctx.stroke();
-    }
-
-    // Head with animal features, centred at (hx, hy), radius hr
     function drawHead(c, hx, hy, hr, char) {
       var t = char.type;
-      // ears (behind head)
       c.fillStyle = char.ear;
       if (t === 'fox' || t === 'cat') {
-        // pointy triangle ears
         tri(c, hx - hr * 0.7, hy - hr * 0.4, hx - hr * 0.2, hy - hr * 1.25, hx - hr * 0.05, hy - hr * 0.55);
         tri(c, hx + hr * 0.7, hy - hr * 0.4, hx + hr * 0.2, hy - hr * 1.25, hx + hr * 0.05, hy - hr * 0.55);
       } else if (t === 'panda') {
@@ -855,13 +770,9 @@
         roundRectFull(c, hx - hr * 0.55, hy - hr * 1.7, hr * 0.36, hr * 1.3, hr * 0.18); c.fill();
         roundRectFull(c, hx + hr * 0.2, hy - hr * 1.7, hr * 0.36, hr * 1.3, hr * 0.18); c.fill();
       }
-
-      // head
       c.fillStyle = char.fur;
       c.beginPath(); c.arc(hx, hy, hr, 0, Math.PI * 2); c.fill();
-
       if (t === 'frog') {
-        // bulging eyes on top
         c.fillStyle = char.fur;
         c.beginPath(); c.arc(hx - hr * 0.5, hy - hr * 0.7, hr * 0.42, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.arc(hx + hr * 0.5, hy - hr * 0.7, hr * 0.42, 0, Math.PI * 2); c.fill();
@@ -871,28 +782,21 @@
         c.fillStyle = '#111';
         c.beginPath(); c.arc(hx - hr * 0.5, hy - hr * 0.68, hr * 0.12, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.arc(hx + hr * 0.5, hy - hr * 0.68, hr * 0.12, 0, Math.PI * 2); c.fill();
-        // smile
         c.strokeStyle = '#2f7d2f'; c.lineWidth = hr * 0.12;
         c.beginPath(); c.arc(hx, hy + hr * 0.1, hr * 0.5, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
         return;
       }
-
-      // panda eye patches
       if (t === 'panda') {
         c.fillStyle = '#2b2b33';
         c.beginPath(); c.ellipse ? c.ellipse(hx - hr * 0.38, hy - hr * 0.05, hr * 0.26, hr * 0.34, 0, 0, Math.PI * 2) : c.arc(hx - hr * 0.38, hy - hr * 0.05, hr * 0.28, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.ellipse ? c.ellipse(hx + hr * 0.38, hy - hr * 0.05, hr * 0.26, hr * 0.34, 0, 0, Math.PI * 2) : c.arc(hx + hr * 0.38, hy - hr * 0.05, hr * 0.28, 0, Math.PI * 2); c.fill();
       }
-
-      // eyes
       c.fillStyle = '#fff';
       c.beginPath(); c.arc(hx - hr * 0.33, hy - hr * 0.05, hr * 0.2, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(hx + hr * 0.33, hy - hr * 0.05, hr * 0.2, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#111';
       c.beginPath(); c.arc(hx - hr * 0.30, hy - hr * 0.03, hr * 0.1, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(hx + hr * 0.30, hy - hr * 0.03, hr * 0.1, 0, Math.PI * 2); c.fill();
-
-      // nose / beak
       if (t === 'duck') {
         c.fillStyle = char.ear;
         roundRectFull(c, hx - hr * 0.34, hy + hr * 0.18, hr * 0.68, hr * 0.3, hr * 0.12); c.fill();
@@ -900,8 +804,6 @@
         c.fillStyle = '#3a2a2a';
         c.beginPath(); c.arc(hx, hy + hr * 0.28, hr * 0.12, 0, Math.PI * 2); c.fill();
       }
-
-      // cat whiskers
       if (t === 'cat') {
         c.strokeStyle = 'rgba(60,60,70,0.7)'; c.lineWidth = Math.max(1, hr * 0.06);
         for (var w = -1; w <= 1; w++) {
@@ -910,49 +812,24 @@
         }
       }
     }
-
-    function tri(c, x1, y1, x2, y2, x3, y3) {
-      c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.lineTo(x3, y3); c.closePath(); c.fill();
-    }
-
-    // Full player: kit body + animal head. Used on pitch and in picker tiles.
-    function drawPlayerShape(c, x, y, r, kit, char) {
-      // shadow
+    function drawPlayerShape(c, x, y, r, kit, char, gloves) {
       c.fillStyle = 'rgba(0,0,0,0.22)';
       c.beginPath(); c.ellipse ? c.ellipse(x, y + r * 0.95, r * 0.9, r * 0.35, 0, 0, Math.PI * 2) : c.arc(x, y + r * 0.9, r * 0.8, 0, Math.PI * 2); c.fill();
-
-      // feet
       c.fillStyle = '#2a2a33';
       c.beginPath(); c.arc(x - r * 0.4, y + r * 0.8, r * 0.24, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(x + r * 0.4, y + r * 0.8, r * 0.24, 0, Math.PI * 2); c.fill();
-
-      // body (jersey)
       c.fillStyle = kit;
       roundRectFull(c, x - r * 0.62, y - r * 0.1, r * 1.24, r * 1.0, r * 0.4); c.fill();
-      // jersey highlight stripe
       c.fillStyle = 'rgba(255,255,255,0.28)';
       roundRectFull(c, x - r * 0.14, y - r * 0.05, r * 0.28, r * 0.9, r * 0.12); c.fill();
-      // outline
       c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = Math.max(1, r * 0.08);
       roundRectFull(c, x - r * 0.62, y - r * 0.1, r * 1.24, r * 1.0, r * 0.4); c.stroke();
-
-      // head
+      if (gloves) {
+        c.fillStyle = '#ffe27a';
+        c.beginPath(); c.arc(x - r * 0.72, y + r * 0.2, r * 0.26, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(x + r * 0.72, y + r * 0.2, r * 0.26, 0, Math.PI * 2); c.fill();
+      }
       drawHead(c, x, y - r * 0.45, r * 0.6, char);
-    }
-
-    function drawBall(x, y, r) {
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.beginPath(); ctx.ellipse ? ctx.ellipse(x, y + r * 0.7, r * 0.9, r * 0.35, 0, 0, Math.PI * 2) : ctx.arc(x, y + r * 0.6, r * 0.8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = Math.max(1, r * 0.12);
-      ctx.stroke();
-      // centre pentagon-ish spot + a couple of side spots
-      ctx.fillStyle = '#222';
-      pentagon(ctx, x, y, r * 0.42);
-      ctx.beginPath(); ctx.arc(x - r * 0.66, y - r * 0.3, r * 0.16, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x + r * 0.66, y - r * 0.3, r * 0.16, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y + r * 0.7, r * 0.16, 0, Math.PI * 2); ctx.fill();
     }
     function pentagon(c, x, y, r) {
       c.beginPath();
@@ -963,38 +840,77 @@
       }
       c.closePath(); c.fill();
     }
+    function drawBall(x, y, r) {
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse ? ctx.ellipse(x, y + r * 0.7, r * 0.9, r * 0.35, 0, 0, Math.PI * 2) : ctx.arc(x, y + r * 0.6, r * 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke();
+      ctx.fillStyle = '#222';
+      pentagon(ctx, x, y, r * 0.42);
+      ctx.beginPath(); ctx.arc(x - r * 0.66, y - r * 0.3, r * 0.16, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + r * 0.66, y - r * 0.3, r * 0.16, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y + r * 0.7, r * 0.16, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawPitch() {
+      var bands = 8, bw = W / bands;
+      for (var i = 0; i < bands; i++) {
+        ctx.fillStyle = (i % 2 === 0) ? '#1e9344' : '#1a8a3e';
+        ctx.fillRect(i * bw, 0, bw + 1, H);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = Math.max(2, H * 0.006);
+      ctx.strokeRect(LGOAL, TOPM, RGOAL - LGOAL, BOTM - TOPM);
+      ctx.beginPath(); ctx.moveTo(W / 2, TOPM); ctx.lineTo(W / 2, BOTM); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W / 2, MIDY, H * 0.12, 0, Math.PI * 2); ctx.stroke();
+      var boxW = W * 0.10, boxH = MOUTH + H * 0.14;
+      ctx.strokeRect(LGOAL, MIDY - boxH / 2, boxW, boxH);
+      ctx.strokeRect(RGOAL - boxW, MIDY - boxH / 2, boxW, boxH);
+      drawGoal(LGOAL, -1);
+      drawGoal(RGOAL, 1);
+    }
+    function drawGoal(lineX, dir) {
+      var depth = W * 0.03;
+      var y0 = MIDY - MOUTH / 2, y1 = MIDY + MOUTH / 2, backX = lineX - dir * depth;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(Math.min(lineX, backX), y0, depth, MOUTH);
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
+      var j, step = MOUTH / 6;
+      for (j = 0; j <= 6; j++) { var yy = y0 + j * step; ctx.beginPath(); ctx.moveTo(lineX, yy); ctx.lineTo(backX, yy); ctx.stroke(); }
+      for (j = 0; j <= 3; j++) { var xx = lineX - dir * (depth * j / 3); ctx.beginPath(); ctx.moveTo(xx, y0); ctx.lineTo(xx, y1); ctx.stroke(); }
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(3, H * 0.008);
+      ctx.beginPath(); ctx.moveTo(backX, y0); ctx.lineTo(lineX, y0); ctx.lineTo(lineX, y1); ctx.lineTo(backX, y1); ctx.stroke();
+    }
 
     function render(ts) {
       drawPitch();
+      var active = (state === STATE.PLAYING || state === STATE.CELEBRATE) ? activePlayer() : null;
 
-      // marker where you last tapped for your player to run to
-      if (youTarget && state === STATE.PLAYING) {
-        var pr = R * (0.55 + 0.12 * Math.sin(ts / 160));
-        ctx.strokeStyle = 'rgba(255,209,102,0.85)';
-        ctx.lineWidth = Math.max(2, R * 0.1);
-        ctx.beginPath(); ctx.arc(youTarget.x, youTarget.y, pr, 0, Math.PI * 2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(youTarget.x, youTarget.y, R * 0.12, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,209,102,0.9)'; ctx.fill();
-      }
-
-      // ring the field player you're steering (carrier, else nearest the ball)
-      var yc = activeYou(ball && ball.carrier);
-
-      // draw keepers first (they sit on the goal line), then field players
       var order = players.slice().sort(function (a, b) { return a.y - b.y; });
       for (var i = 0; i < order.length; i++) {
         var p = order[i];
-        if (p === yc) {
+        if (p === active) {
           ctx.strokeStyle = 'rgba(255,209,102,0.95)';
           ctx.lineWidth = Math.max(3, R * 0.14);
-          ctx.beginPath(); ctx.arc(p.x, p.y + R * 0.7, R * 0.95, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(p.x, p.y + R * 0.7, R * 0.98, 0, Math.PI * 2); ctx.stroke();
         }
-        drawPlayerShape(ctx, p.x, p.y, R, p.kit, p.char);
+        drawPlayerShape(ctx, p.x, p.y, R, p.kit, p.char, p.role === 'keeper');
       }
 
       if (ball) drawBall(ball.x, ball.y, BR);
 
-      // celebrate banner
+      // joystick
+      if (stick.active && state === STATE.PLAYING) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = Math.max(2, R * 0.1);
+        ctx.beginPath(); ctx.arc(stick.ox, stick.oy, STICK_MAXR, 0, Math.PI * 2); ctx.stroke();
+        var kx = stick.ox + stick.dx * stick.mag * STICK_MAXR;
+        var ky = stick.oy + stick.dy * stick.mag * STICK_MAXR;
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath(); ctx.arc(kx, ky, R * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
+
       if (state === STATE.CELEBRATE) {
         ctx.fillStyle = 'rgba(0,0,0,0.35)';
         ctx.fillRect(0, MIDY - H * 0.11, W, H * 0.22);
@@ -1006,24 +922,55 @@
       }
     }
 
-    // ---------- Loop ----------
     function frame(ts) {
       if (!lastTs) lastTs = ts;
       var dt = Math.min(0.045, (ts - lastTs) / 1000);
       lastTs = ts;
-      if (state === STATE.PLAYING) {
-        update(dt);
-      } else if (state === STATE.CELEBRATE) {
+      if (state === STATE.PLAYING) update(dt);
+      else if (state === STATE.CELEBRATE) {
         celebrateT -= dt;
-        if (celebrateT <= 0) {
-          resetPositions();
-          state = STATE.PLAYING;
-          sfx('whistle');
-        }
+        if (celebrateT <= 0) { resetPositions(); state = STATE.PLAYING; sfx('whistle'); }
       }
       render(ts);
       requestAnimationFrame(frame);
     }
+
+    // ---------- Joystick input ----------
+    function pointFrom(e) {
+      var rect = canvas.getBoundingClientRect();
+      var cx, cy;
+      if (e.touches && e.touches[0]) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+      else if (e.changedTouches && e.changedTouches[0]) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
+      else { cx = e.clientX; cy = e.clientY; }
+      return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
+    }
+    function stickStart(e) {
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (state !== STATE.PLAYING) return;
+      e.preventDefault();
+      var p = pointFrom(e);
+      stick.active = true; stick.ox = p.x; stick.oy = p.y; stick.dx = 0; stick.dy = 0; stick.mag = 0;
+    }
+    function stickMove(e) {
+      if (!stick.active) return;
+      e.preventDefault();
+      var p = pointFrom(e);
+      var vx = p.x - stick.ox, vy = p.y - stick.oy;
+      var len = Math.sqrt(vx * vx + vy * vy);
+      if (len < STICK_DEAD) { stick.mag = 0; return; }
+      stick.dx = vx / len; stick.dy = vy / len;
+      stick.mag = clamp((len - STICK_DEAD) / (STICK_MAXR - STICK_DEAD), 0, 1);
+    }
+    function stickEnd() { stick.active = false; stick.mag = 0; }
+
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', stickStart, { passive: false });
+    stage.addEventListener('touchmove', stickMove, { passive: false });
+    stage.addEventListener('touchend', stickEnd);
+    stage.addEventListener('touchcancel', stickEnd);
+    stage.addEventListener('mousedown', stickStart);
+    window.addEventListener('mousemove', stickMove);
+    window.addEventListener('mouseup', stickEnd);
 
     // ---------- Start-screen wiring ----------
     var startOverlay = document.getElementById('startOverlay');
@@ -1031,11 +978,12 @@
     var stepTeam = document.getElementById('stepTeam');
     var rosterEl = document.getElementById('roster');
     var kickoffBtn = document.getElementById('kickoffBtn');
+    var shootBtn = document.getElementById('shootBtn');
+    var passBtn = document.getElementById('passBtn');
 
-    // difficulty (persisted)
     (function initDiff() {
       var saved = null;
-      try { saved = localStorage.getItem('gt_diff'); } catch (e) {}
+      try { saved = localStorage.getItem('ss_diff'); } catch (e) {}
       if (saved !== null && DIFF[+saved]) diffIdx = +saved;
     })();
     function paintDiff() {
@@ -1044,7 +992,7 @@
     }
     function applyDiff(idx) {
       diffIdx = idx;
-      try { localStorage.setItem('gt_diff', String(idx)); } catch (e) {}
+      try { localStorage.setItem('ss_diff', String(idx)); } catch (e) {}
       computeTunables();
       paintDiff();
     }
@@ -1056,7 +1004,6 @@
       paintDiff();
     })();
 
-    // mode buttons
     var modeBtns = document.querySelectorAll('.modebtn');
     for (var mi = 0; mi < modeBtns.length; mi++) {
       (function (b) {
@@ -1070,11 +1017,8 @@
         });
       })(modeBtns[mi]);
     }
-
     document.getElementById('backToMode').addEventListener('click', function (e) {
-      e.stopPropagation();
-      stepTeam.style.display = 'none';
-      stepMode.style.display = '';
+      e.stopPropagation(); stepTeam.style.display = 'none'; stepMode.style.display = '';
     });
 
     function buildRoster() {
@@ -1085,63 +1029,44 @@
           tile.className = 'charTile';
           tile.setAttribute('data-idx', idx);
           var cv = document.createElement('canvas');
-          cv.width = 168; cv.height = 168;   // 84 css * 2 for crispness
-          var cc = cv.getContext('2d');
-          drawPlayerShape(cc, 84, 74, 52, YOU_KIT, CHARS[idx]);
+          cv.width = 168; cv.height = 168;
+          drawPlayerShape(cv.getContext('2d'), 84, 74, 52, YOU_KIT, CHARS[idx], false);
           tile.appendChild(cv);
-          var pick = document.createElement('span');
-          pick.className = 'pick'; pick.textContent = '✅';
+          var pick = document.createElement('span'); pick.className = 'pick'; pick.textContent = '✅';
           tile.appendChild(pick);
-          tile.addEventListener('click', function (e) { e.stopPropagation(); toggleChar(idx, tile); });
+          tile.addEventListener('click', function (e) { e.stopPropagation(); toggleChar(idx); });
           rosterEl.appendChild(tile);
         })(i);
       }
     }
-
-    function toggleChar(idx, tile) {
+    function toggleChar(idx) {
       var pos = youChoice.indexOf(idx);
-      if (pos >= 0) {
-        youChoice.splice(pos, 1);
-      } else {
-        if (youChoice.length >= mode) youChoice.shift(); // keep only the most recent picks
-        youChoice.push(idx);
-      }
+      if (pos >= 0) youChoice.splice(pos, 1);
+      else { if (youChoice.length >= mode) youChoice.shift(); youChoice.push(idx); }
       paintRoster();
     }
-
     function paintRoster() {
       var tiles = rosterEl.querySelectorAll('.charTile');
       for (var i = 0; i < tiles.length; i++) {
         var idx = +tiles[i].getAttribute('data-idx');
         if (youChoice.indexOf(idx) >= 0) tiles[i].classList.add('sel'); else tiles[i].classList.remove('sel');
       }
-      var ready = youChoice.length === mode;
-      kickoffBtn.disabled = !ready;
+      kickoffBtn.disabled = youChoice.length !== mode;
       var hint = document.getElementById('teamHint');
-      if (mode === 2) hint.textContent = 'Pick 2 players (' + youChoice.length + '/2).';
-      else hint.textContent = 'Pick your player (' + youChoice.length + '/1).';
+      hint.textContent = (mode === 2) ? 'Pick 2 players (' + youChoice.length + '/2).' : 'Pick your player (' + youChoice.length + '/1).';
     }
-
     function openTeamStep() {
       youChoice = [];
-      buildRoster();
-      paintRoster();
+      buildRoster(); paintRoster();
       document.getElementById('teamTitle').textContent = (mode === 2) ? 'Pick your 2 players!' : 'Pick your player!';
-      stepMode.style.display = 'none';
-      stepTeam.style.display = '';
+      stepMode.style.display = 'none'; stepTeam.style.display = '';
     }
-
     function pickOpponents() {
       oppChoice = [];
       var pool = [];
       for (var i = 0; i < CHARS.length; i++) if (youChoice.indexOf(i) < 0) pool.push(i);
-      // shuffle-lite
-      while (oppChoice.length < mode && pool.length) {
-        var j = Math.floor(Math.random() * pool.length);
-        oppChoice.push(pool.splice(j, 1)[0]);
-      }
-      // fallback if somehow short
-      while (oppChoice.length < mode) oppChoice.push((oppChoice.length) % CHARS.length);
+      while (oppChoice.length < mode && pool.length) oppChoice.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      while (oppChoice.length < mode) oppChoice.push(oppChoice.length % CHARS.length);
     }
 
     kickoffBtn.addEventListener('click', function (e) {
@@ -1150,127 +1075,84 @@
       initAudio();
       pickOpponents();
       startOverlay.classList.add('hidden');
+      controlsEl.classList.remove('hidden');
       passBtn.classList.toggle('hidden', mode === 1);
       newMatch();
-      state = STATE.PLAYING;
-      lastTs = 0;
+      state = STATE.PLAYING; lastTs = 0;
       sfx('whistle');
     });
 
-    // ---------- Gameplay controls ----------
-    var shootBtn = document.getElementById('shootBtn');
-    var passBtn = document.getElementById('passBtn');
     shootBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       if (state !== STATE.PLAYING) return;
-      var c = youCarrier();
-      if (c) doShoot(c);
+      var c = youCarrier(); if (c) doShoot(c);
     });
     passBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       if (state !== STATE.PLAYING || mode === 1) return;
-      var c = youCarrier();
-      if (c) doPass(c);
+      var c = youCarrier(); if (c) doPass(c);
     });
     window.addEventListener('keydown', function (e) {
       if (e.key === ' ') { e.preventDefault(); var c = youCarrier(); if (state === STATE.PLAYING && c) doShoot(c); }
       else if (e.key === 'p' || e.key === 'P') { var c2 = youCarrier(); if (state === STATE.PLAYING && mode === 2 && c2) doPass(c2); }
     });
-
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
-    // ---------- Pause / resume ----------
     function pauseGame() {
       if (state !== STATE.PLAYING && state !== STATE.CELEBRATE) return;
-      state = STATE.PAUSED;
+      state = STATE.PAUSED; stick.active = false; stick.mag = 0;
       paintDiff();
       document.getElementById('pauseOverlay').classList.remove('hidden');
     }
     function resumeGame() {
       if (state !== STATE.PAUSED) return;
       document.getElementById('pauseOverlay').classList.add('hidden');
-      state = STATE.PLAYING;
-      lastTs = 0;
+      state = STATE.PLAYING; lastTs = 0;
     }
     document.getElementById('pauseBtn').addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (state === STATE.PAUSED) resumeGame(); else pauseGame();
+      e.stopPropagation(); if (state === STATE.PAUSED) resumeGame(); else pauseGame();
     });
     document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
 
     function returnToStart() {
       document.getElementById('pauseOverlay').classList.add('hidden');
       document.getElementById('overOverlay').classList.add('hidden');
+      controlsEl.classList.add('hidden');
       setReady(false);
       state = STATE.START;
-      stepTeam.style.display = 'none';
-      stepMode.style.display = '';
+      stepTeam.style.display = 'none'; stepMode.style.display = '';
       startOverlay.classList.remove('hidden');
     }
     document.getElementById('newTeamsBtn').addEventListener('click', function (e) { e.stopPropagation(); returnToStart(); });
     document.getElementById('overNewTeams').addEventListener('click', function (e) { e.stopPropagation(); returnToStart(); });
-
     document.getElementById('playAgainBtn').addEventListener('click', function (e) {
       e.stopPropagation();
       document.getElementById('overOverlay').classList.add('hidden');
-      newMatch();
-      state = STATE.PLAYING;
-      lastTs = 0;
-      sfx('whistle');
+      newMatch(); state = STATE.PLAYING; lastTs = 0; sfx('whistle');
     });
 
-    // ---------- Tap the pitch to move your player ----------
-    function pointFrom(e) {
-      var rect = canvas.getBoundingClientRect();
-      var cx, cy;
-      if (e.touches && e.touches[0]) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-      else if (e.changedTouches && e.changedTouches[0]) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
-      else { cx = e.clientX; cy = e.clientY; }
-      return { x: (cx - rect.left) * (W / rect.width), y: (cy - rect.top) * (H / rect.height) };
-    }
-    function onStageTap(e) {
-      // let taps on buttons / links run their own handlers
-      if (e.target && e.target.closest && e.target.closest('button, a')) return;
-      if (state !== STATE.PLAYING) return;
-      e.preventDefault();
-      var pt = pointFrom(e);
-      youTarget = { x: clamp(pt.x, R, W - R), y: clamp(pt.y, TOPM + R, BOTM - R) };
-    }
-    var stage = document.querySelector('.stage');
-    stage.addEventListener('touchstart', onStageTap, { passive: false });
-    stage.addEventListener('mousedown', onStageTap);
-
-    // ---------- Global handlers ----------
     window.addEventListener('resize', function () { resize(); if (rosterEl.children.length) buildRoster(); });
     window.addEventListener('orientationchange', function () { setTimeout(function () { resize(); if (rosterEl.children.length) buildRoster(); }, 150); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
     document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
-    // Keep links inside the iOS home-screen (standalone) app instead of Safari
     var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
     if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
       document.addEventListener('click', function (e) {
         var n = e.target;
         while (n && n.nodeName !== 'A') n = n.parentNode;
-        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
-          e.preventDefault();
-          location.href = n.getAttribute('href');
-        }
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') { e.preventDefault(); location.href = n.getAttribute('href'); }
       }, false);
     }
 
-    // ---------- Boot ----------
     resize();
     requestAnimationFrame(frame);
   })();
   </script>
   <script>
-    // Register the offline service worker (progressive enhancement; no-op where unsupported).
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').catch(function () {});
-      });
+      window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
     }
   </script>
 </body>
