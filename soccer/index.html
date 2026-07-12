@@ -290,6 +290,7 @@
       <div id="stepTeam" style="display:none;">
         <h2 id="teamTitle">Pick your team!</h2>
         <p id="teamHint">Tap a player to join your team.</p>
+        <p style="font-size:0.95rem;opacity:0.82;">Your player chases the ball on its own. Run it into the net — or tap ⚽ Shoot!</p>
         <div class="roster" id="roster"></div>
         <p>Match speed:</p>
         <div class="diffpick" id="diffPickStart">
@@ -357,9 +358,9 @@
 
     // ---- Difficulty (opponent + keeper speed) ----
     var DIFF = [
-      { opp: 0.80, keeper: 0.78, icon: '🐢' },
+      { opp: 0.75, keeper: 0.68, icon: '🐢' },
       { opp: 1.00, keeper: 1.00, icon: '🙂' },
-      { opp: 1.18, keeper: 1.20, icon: '🐇' }
+      { opp: 1.20, keeper: 1.25, icon: '🐇' }
     ];
     var diffIdx = 0;
 
@@ -376,27 +377,31 @@
     var lastTs = 0, lastReady = null;
 
     // ---- Tunables (recomputed on resize) ----
-    var R, BR, CONTROL_R, MOUTH, TOPM, BOTM, LGOAL, RGOAL, MIDY;
-    var YOU_SPEED, DRIBBLE, OPP_SPEED, KEEP_SPEED, SHOOT_SP, PASS_SP, CLEAR_SP, FRICTION, KICKCD;
+    var R, BR, CONTROL_R, GLUE, MOUTH, TOPM, BOTM, LGOAL, RGOAL, MIDY;
+    var YOU_SPEED, DRIBBLE, OPP_SPEED, OPP_DRIBBLE, KEEP_SPEED, SHOOT_SP, PASS_SP, CLEAR_SP, FRICTION, KICKCD;
 
     function computeTunables() {
       R = H * 0.05;
       BR = H * 0.024;
-      CONTROL_R = R * 1.35;
+      CONTROL_R = R * 1.5;          // generous touch radius so it's easy to win the ball
+      GLUE = R * 0.55 + BR;         // how far ahead of the carrier the ball sits
       MOUTH = H * 0.34;
       TOPM = H * 0.05;
       BOTM = H * 0.95;
       LGOAL = W * 0.075;
       RGOAL = W * 0.925;
       MIDY = H / 2;
-      YOU_SPEED = H * 0.56;
-      DRIBBLE = H * 0.44;
-      OPP_SPEED = H * 0.50 * DIFF[diffIdx].opp;
-      KEEP_SPEED = H * 0.42 * DIFF[diffIdx].keeper;
-      SHOOT_SP = H * 1.15;
-      PASS_SP = H * 0.9;
-      CLEAR_SP = H * 1.0;
-      FRICTION = 1.35;
+      // Gentle pace for little players. Your chase is always faster than the
+      // opponent's dribble, so you can reliably run the ball back off them.
+      YOU_SPEED = H * 0.34;
+      DRIBBLE = H * 0.24;
+      OPP_SPEED = H * 0.33 * DIFF[diffIdx].opp;
+      OPP_DRIBBLE = H * 0.24 * DIFF[diffIdx].opp;
+      KEEP_SPEED = H * 0.24 * DIFF[diffIdx].keeper;
+      SHOOT_SP = H * 0.90;
+      PASS_SP = H * 0.72;
+      CLEAR_SP = H * 0.80;
+      FRICTION = 1.6;
       KICKCD = 0.32;
     }
 
@@ -462,7 +467,7 @@
       ball = { x: W / 2, y: MIDY, vx: 0, vy: 0, carrier: null, kickCd: 0 };
       // give the kickoff side's nearest field player first touch
       var chaser = nearestFieldPlayer(kickoffSide, ball);
-      if (chaser) { chaser.x = ball.x - chaser.attack * (R + BR); chaser.y = ball.y; }
+      if (chaser) { chaser.x = ball.x - chaser.attack * GLUE; chaser.y = ball.y; }
     }
 
     function newMatch() {
@@ -565,10 +570,16 @@
 
       // ----- Ball -----
       if (carrier) {
-        // glue to carrier's feet, just ahead in their attack direction
-        ball.x = carrier.x + carrier.attack * (R * 0.7 + BR);
+        // glue the ball to the carrier's feet, just ahead in their attack direction
+        ball.x = carrier.x + carrier.attack * GLUE;
         ball.y = carrier.y;
         ball.vx = 0; ball.vy = 0;
+
+        // Dribbling the ball over the goal line scores — kids can just run it in.
+        if (carrier.role === 'field' && Math.abs(ball.y - MIDY) < MOUTH / 2) {
+          if (carrier.attack > 0 && ball.x >= RGOAL - BR) { onGoal('you'); return; }
+          if (carrier.attack < 0 && ball.x <= LGOAL + BR) { onGoal('opp'); return; }
+        }
 
         // Carrier behaviour
         if (carrier.role === 'keeper') {
@@ -576,7 +587,7 @@
         } else if (carrier.side === 'opp') {
           aiCarry(carrier);
         }
-        // your field carrier: wait for player to tap Shoot / Pass
+        // your field carrier: wait for the player to tap Shoot / Pass
       } else {
         // free ball: integrate + friction + walls + goals
         ball.x += ball.vx * dt;
@@ -606,6 +617,7 @@
     function moveTeam(side, carrier, dt) {
       var chaser = nearestFieldPlayer(side, ball);
       var speed = (side === 'you') ? YOU_SPEED : OPP_SPEED;
+      var dribSpeed = (side === 'you') ? DRIBBLE : OPP_DRIBBLE;
       var ownGoalX = (side === 'you') ? LGOAL : RGOAL;
       var attackX = (side === 'you') ? RGOAL : LGOAL;
       var attack = (side === 'you') ? 1 : -1;
@@ -623,7 +635,7 @@
 
         if (carrier === p) {
           // dribble toward opponent goal
-          moveToward(p, attackX, clamp(MIDY + (p.y - MIDY) * 0.5, TOPM + R, BOTM - R), DRIBBLE, dt);
+          moveToward(p, attackX, clamp(MIDY + (p.y - MIDY) * 0.5, TOPM + R, BOTM - R), dribSpeed, dt);
         } else if (carrier && carrier.side === side) {
           // teammate has the ball → get open ahead (support)
           var sx = clamp(ball.x + attack * W * 0.16, W * 0.14, W * 0.86);
@@ -925,8 +937,9 @@
     function render(ts) {
       drawPitch();
 
-      // active-player ring (your team's ball carrier)
-      var yc = youCarrier();
+      // ring your active player (the one nearest the ball) so it's always clear
+      // who you're steering — whether you have the ball or are chasing it back.
+      var yc = nearestFieldPlayer('you', ball);
 
       // draw keepers first (they sit on the goal line), then field players
       var order = players.slice().sort(function (a, b) { return a.y - b.y; });
