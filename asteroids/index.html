@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#03252e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reef Rescue">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Reef Rescue</title>
+  <style>
+    :root {
+      --space: #03252e;
+      --star: #ffd166;
+      --ink: #eaf9ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #0a7d8c 0%, #04505e 55%, #021f26 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(0, 194, 184, 0.18);
+      border: 2px solid rgba(0, 194, 184, 0.5);
+    }
+    .back:active { transform: scale(0.95); }
+    .score {
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.6rem);
+      font-weight: 800;
+      color: var(--star);
+      text-shadow: 0 0 16px rgba(255, 226, 122, 0.4);
+    }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .refresh, .pause {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 194, 184, 0.18);
+      border: 2px solid rgba(0, 194, 184, 0.5);
+    }
+    .refresh:active, .pause:active { transform: scale(0.95); }
+
+    /* Picker rows (choose ship / target / speed) */
+    .pick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .pick > * + * { margin-left: 10px; }  /* gap fallback for Safari < 14.5 */
+    .pick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 72px;
+      min-height: 72px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      font-size: 1.9rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(0, 194, 184, 0.14);
+      border: 2px solid rgba(0, 194, 184, 0.35);
+    }
+    .pick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+    .pick button.sel { border-color: var(--star); background: rgba(255, 226, 122, 0.18); transform: scale(1.05); }
+    .pick button:active { transform: scale(0.95); }
+    .picklabel { font-size: 0.95rem; font-weight: 700; opacity: 0.85; letter-spacing: 0.02em; }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      background: rgba(3, 37, 46, 0.82);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+      overflow-y: auto;
+    }
+    .overlay > * + * { margin-top: 14px; }     /* gap fallback for Safari < 14.5 */
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 2rem;
+      font-size: clamp(1.6rem, 7vw, 2.8rem);
+      background: linear-gradient(90deg, #2fd0c6, var(--star));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(238, 242, 255, 0.85); max-width: 26ch; }
+    .bigbtn {
+      min-height: 60px;
+      padding: 16px 34px;
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 800;
+      color: #03252e;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #2fd0c6, var(--star));
+      box-shadow: 0 12px 30px rgba(0, 194, 184, 0.4);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="score" id="score">0</div>
+    <div class="rightbtns">
+      <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🌊 Reef Rescue</h2>
+      <p><b>Tap the litter to zap it!</b> Drag to swim around and keep the ocean clean.</p>
+      <p class="picklabel">Dive as:</p>
+      <div class="pick" id="shipPick"></div>
+      <p class="picklabel">Clean up:</p>
+      <div class="pick" id="targetPick"></div>
+      <button class="bigbtn" id="playBtn">▶️ Dive in!</button>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>Paused</h2>
+      <p class="picklabel">Litter speed:</p>
+      <div class="pick" id="speedPick">
+        <button data-idx="0">🐢<span>Chill</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Fast</span></button>
+      </div>
+      <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2>🐠 Ocean saved!</h2>
+      <p id="finalScore">You cleaned up 0</p>
+      <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ============================================================================
+    //  THEME  —  edit this block to change WHO you fly and WHAT you blast.
+    //  Oisín & Finley pick from these on the start screen. To add a new one,
+    //  add an entry here AND a matching case in drawShip()/drawTarget() below.
+    //  Everything else (the engine) stays the same.
+    // ============================================================================
+    var SHIPS = [
+      { id: 'diver',  name: 'Diver',  icon: '🏊', color: '#ffd166' },
+      { id: 'sub',    name: 'Sub',    icon: '🚤', color: '#ff7a3d' },
+      { id: 'turtle', name: 'Turtle', icon: '🐢', color: '#57c785' }
+    ];
+    var TARGETS = [
+      { id: 'bottle', name: 'Bottles', icon: '🍾', color: '#6db8d6' },
+      { id: 'can',    name: 'Cans',    icon: '🥫', color: '#c0c5ce' },
+      { id: 'bag',    name: 'Bags',    icon: '🛍️', color: '#e8eef2' }
+    ];
+    var shipIdx = 0, targetIdx = 0;   // current picks (restored from localStorage)
+    // ============================================================================
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+
+    var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
+    var state = STATE.START;
+
+    var W = 0, H = 0, dpr = 1;
+
+    // Player-selectable rock speed (set in pause menu)
+    var SPEED_LEVELS = [
+      { m: 0.6, icon: '🐢', name: 'Chill' },
+      { m: 1.0, icon: '🙂', name: 'Normal' },
+      { m: 1.5, icon: '🐇', name: 'Fast' }
+    ];
+    var speedIdx = 1, speedMult = 1;
+
+    var ship, bullets, targets, sparks, bgStars, bgFish;
+    var lives, score, wave, fireCd, lastTs = 0;
+
+    // Tunables (recomputed from H on resize)
+    var SHIP_R, BULLET_SPD, BULLET_LIFE, AST_BIG, AST_SMALL, AST_SPD, FIRE_GAP;
+    var MAX_LIVES = 3;
+
+    function computeTunables() {
+      SHIP_R = H * 0.048;
+      BULLET_SPD = H * 1.05;
+      BULLET_LIFE = 1.3;
+      AST_BIG = H * 0.088;
+      AST_SMALL = H * 0.05;
+      AST_SPD = H * 0.11 * speedMult;
+      FIRE_GAP = 0.12;
+    }
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    // lighten (>0) / darken (<0) a hex colour
+    function shadeHex(hex, amt) {
+      var n = parseInt(hex.slice(1), 16);
+      var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      function mix(x) { return Math.max(0, Math.min(255, Math.round(x + (amt > 0 ? (255 - x) * amt : x * amt)))); }
+      return 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(b) + ')';
+    }
+
+    // ---------- Sizing ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      computeTunables();
+      if (ship) { ship.r = SHIP_R; }
+      buildBg();
+    }
+
+    var REEF = ['#ff8a5c', '#ffd166', '#5fd0e0', '#ff7eb6', '#9be27a'];
+    function buildBg() {
+      bgStars = [];
+      var n = Math.round((W * H) / 11000);
+      for (var i = 0; i < n; i++) {
+        bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: rand(1.2, 4.0), tw: Math.random() * 6.28 });
+      }
+      bgFish = [];
+      var fn = Math.max(3, Math.round(W / 220));
+      for (var j = 0; j < fn; j++) {
+        bgFish.push({
+          x: Math.random() * W, y: rand(H * 0.12, H * 0.92),
+          dir: Math.random() < 0.5 ? 1 : -1, spd: rand(H * 0.02, H * 0.06),
+          s: rand(H * 0.03, H * 0.06), col: REEF[j % REEF.length], tw: Math.random() * 6.28
+        });
+      }
+    }
+
+    function updateBgFish(dt) {
+      if (!bgFish) return;
+      for (var i = 0; i < bgFish.length; i++) {
+        var f = bgFish[i];
+        f.x += f.dir * f.spd * dt;
+        if (f.dir > 0 && f.x > W + f.s * 2) { f.x = -f.s * 2; f.y = rand(H * 0.12, H * 0.92); }
+        else if (f.dir < 0 && f.x < -f.s * 2) { f.x = W + f.s * 2; f.y = rand(H * 0.12, H * 0.92); }
+      }
+    }
+
+    // ---------- Setup ----------
+    function newGame() {
+      lives = MAX_LIVES;
+      score = 0;
+      wave = 0;
+      fireCd = 0;
+      bullets = [];
+      targets = [];
+      sparks = [];
+      ship = { x: W / 2, y: H / 2, r: SHIP_R, angle: -Math.PI / 2, invuln: 1.0 };
+      dragTarget = null; dragging = false;
+      nextWave();
+      updateScore();
+    }
+
+    function nextWave() {
+      wave++;
+      var n = Math.min(9, 2 + wave);
+      for (var i = 0; i < n; i++) spawnBig();
+    }
+
+    function spawnBig() {
+      // Spawn at a screen edge, away from the ship, drifting slowly.
+      var x, y;
+      if (Math.random() < 0.5) { x = Math.random() < 0.5 ? -AST_BIG : W + AST_BIG; y = rand(0, H); }
+      else { x = rand(0, W); y = Math.random() < 0.5 ? -AST_BIG : H + AST_BIG; }
+      var a = rand(0, Math.PI * 2);
+      targets.push(makeTarget(x, y, 2, Math.cos(a) * AST_SPD, Math.sin(a) * AST_SPD));
+    }
+
+    function makeTarget(x, y, tier, vx, vy) {
+      var r = tier === 2 ? AST_BIG : AST_SMALL;
+      // Pre-baked jagged outline so each rock keeps a stable shape.
+      var pts = [], n = 9;
+      for (var i = 0; i < n; i++) pts.push(0.72 + Math.random() * 0.45);
+      return { x: x, y: y, vx: vx, vy: vy, r: r, tier: tier, rot: rand(0, 6.28), vrot: rand(-1.4, 1.4), pts: pts };
+    }
+
+    // ---------- Input ----------
+    var dragTarget = null, dragging = false, downX = 0, downY = 0, tracking = false;
+
+    function getPos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]) || e;
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+
+    function onDown(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (state !== STATE.PLAYING) return;
+      if (e) e.preventDefault();
+      var p = getPos(e);
+      downX = p.x; downY = p.y; tracking = true; dragging = false;
+    }
+    function onMove(e) {
+      if (!tracking || state !== STATE.PLAYING) return;
+      if (e) e.preventDefault();
+      var p = getPos(e);
+      if (!dragging && Math.abs(p.x - downX) + Math.abs(p.y - downY) > SHIP_R * 0.7) dragging = true;
+      if (dragging) dragTarget = p;
+    }
+    function onUp(e) {
+      if (!tracking || state !== STATE.PLAYING) { tracking = false; return; }
+      if (e) e.preventDefault();
+      var p = getPos(e);
+      if (!dragging) fire(p.x, p.y);
+      tracking = false; dragging = false; dragTarget = null;
+    }
+
+    function fire(px, py) {
+      if (fireCd > 0) return;
+      fireCd = FIRE_GAP;
+      var ang = Math.atan2(py - ship.y, px - ship.x);
+      ship.angle = ang;
+      var nx = ship.x + Math.cos(ang) * ship.r, ny = ship.y + Math.sin(ang) * ship.r;
+      bullets.push({ x: nx, y: ny, vx: Math.cos(ang) * BULLET_SPD, vy: Math.sin(ang) * BULLET_SPD, life: BULLET_LIFE });
+      spawnSparks(nx, ny, '#dff6ff', 4, 0.4);
+    }
+
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      newGame();
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+
+    function gameOver() {
+      if (state === STATE.OVER) return;
+      state = STATE.OVER;
+      spawnSparks(ship.x, ship.y, SHIPS[shipIdx].color, 26, 1);
+      document.getElementById('finalScore').textContent = 'You cleaned up ' + score + ' bits of litter!';
+      document.getElementById('overOverlay').classList.remove('hidden');
+    }
+
+    // ---------- Particles ----------
+    function spawnSparks(x, y, color, n, spread) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(H * 0.1, H * 0.55) * (spread || 1);
+        sparks.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(2, H * 0.018), color: color, alpha: 1 });
+      }
+    }
+    function updateSparks(dt) {
+      for (var i = sparks.length - 1; i >= 0; i--) {
+        var s = sparks[i];
+        s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= 0.96; s.vy *= 0.96;
+        s.alpha -= dt * 1.4;
+        if (s.alpha <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    function popTarget(idx) {
+      var t = targets[idx];
+      spawnSparks(t.x, t.y, TARGETS[targetIdx].color, 12, 0.7);
+      score++;
+      if (t.tier === 2) {
+        // Break a big piece of litter into two smaller bits flying apart.
+        for (var k = 0; k < 2; k++) {
+          var a = rand(0, Math.PI * 2);
+          targets.push(makeTarget(t.x, t.y, 1, Math.cos(a) * AST_SPD * 1.5, Math.sin(a) * AST_SPD * 1.5));
+        }
+      }
+      targets.splice(idx, 1);
+      updateScore();
+    }
+
+    function loseLife() {
+      lives--;
+      ship.invuln = 1.6;
+      spawnSparks(ship.x, ship.y, '#ff6b57', 18, 1);
+      if (lives <= 0) gameOver();
+    }
+
+    // ---------- Update ----------
+    function wrap(o, r) {
+      if (o.x < -r) o.x = W + r; else if (o.x > W + r) o.x = -r;
+      if (o.y < -r) o.y = H + r; else if (o.y > H + r) o.y = -r;
+    }
+
+    function update(dt) {
+      if (fireCd > 0) fireCd -= dt;
+      if (ship.invuln > 0) ship.invuln -= dt;
+
+      // Ship follows a drag
+      if (dragging && dragTarget) {
+        ship.x += (dragTarget.x - ship.x) * Math.min(1, dt * 12);
+        ship.y += (dragTarget.y - ship.y) * Math.min(1, dt * 12);
+      }
+      ship.x = Math.max(ship.r, Math.min(W - ship.r, ship.x));
+      ship.y = Math.max(ship.r, Math.min(H - ship.r, ship.y));
+
+      // Bullets
+      var i;
+      for (i = bullets.length - 1; i >= 0; i--) {
+        var b = bullets[i];
+        b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+        if (b.life <= 0 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) bullets.splice(i, 1);
+      }
+
+      // Targets drift + wrap
+      for (i = 0; i < targets.length; i++) {
+        var t = targets[i];
+        t.x += t.vx * dt; t.y += t.vy * dt; t.rot += t.vrot * dt;
+        wrap(t, t.r);
+      }
+
+      // Bullet vs target
+      for (i = targets.length - 1; i >= 0; i--) {
+        var tt = targets[i];
+        for (var j = bullets.length - 1; j >= 0; j--) {
+          var bb = bullets[j];
+          var dx = bb.x - tt.x, dy = bb.y - tt.y;
+          if (dx * dx + dy * dy < tt.r * tt.r) {
+            bullets.splice(j, 1);
+            popTarget(i);
+            break;
+          }
+        }
+      }
+
+      // Ship vs target
+      if (ship.invuln <= 0) {
+        for (i = targets.length - 1; i >= 0; i--) {
+          var st = targets[i];
+          var ddx = st.x - ship.x, ddy = st.y - ship.y, rr = st.r + ship.r * 0.7;
+          if (ddx * ddx + ddy * ddy < rr * rr) {
+            targets.splice(i, 1);
+            loseLife();
+            break;
+          }
+        }
+      }
+
+      if (targets.length === 0 && state === STATE.PLAYING) nextWave();
+
+      updateSparks(dt);
+    }
+
+    function updateScore() { scoreEl.textContent = score; }
+
+    // ---------- Ship drawing (one case per SHIPS entry) ----------
+    function drawShip(entry, s) {
+      var c = ctx, col = entry.color;
+      if (entry.id === 'sub') {
+        // little submarine — porthole to the right
+        c.fillStyle = shadeHex(col, -0.18);
+        c.beginPath(); c.moveTo(-s * 0.55, 0); c.lineTo(-s * 0.98, -s * 0.42); c.lineTo(-s * 0.98, s * 0.42); c.closePath(); c.fill();
+        c.fillStyle = col;
+        c.beginPath(); c.ellipse(0, 0, s * 0.95, s * 0.5, 0, 0, Math.PI * 2); c.fill();
+        // conning tower + periscope
+        c.fillRect(-s * 0.22, -s * 0.74, s * 0.34, s * 0.32);
+        c.strokeStyle = col; c.lineWidth = s * 0.08; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(-s * 0.05, -s * 0.72); c.lineTo(-s * 0.05, -s * 0.98); c.lineTo(s * 0.12, -s * 0.98); c.stroke();
+        // big porthole
+        c.beginPath(); c.arc(s * 0.5, 0, s * 0.28, 0, Math.PI * 2); c.fillStyle = '#dff6ff'; c.fill();
+        c.lineWidth = s * 0.06; c.strokeStyle = shadeHex(col, -0.22); c.stroke();
+        // side portholes
+        c.fillStyle = '#dff6ff';
+        c.beginPath(); c.arc(-s * 0.12, 0, s * 0.12, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(-s * 0.48, 0, s * 0.1, 0, Math.PI * 2); c.fill();
+      } else if (entry.id === 'turtle') {
+        // sea turtle — head to the right
+        c.fillStyle = '#8fd694';
+        c.beginPath(); c.ellipse(s * 0.28, s * 0.46, s * 0.28, s * 0.14, 0.5, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(s * 0.22, -s * 0.46, s * 0.26, s * 0.13, -0.5, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(-s * 0.42, s * 0.4, s * 0.22, s * 0.11, -0.5, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.moveTo(-s * 0.62, 0); c.lineTo(-s * 0.92, -s * 0.16); c.lineTo(-s * 0.92, s * 0.16); c.closePath(); c.fill();
+        c.beginPath(); c.arc(s * 0.72, 0, s * 0.26, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#22304a';
+        c.beginPath(); c.arc(s * 0.82, -s * 0.08, s * 0.05, 0, Math.PI * 2); c.fill();
+        // shell
+        c.fillStyle = col;
+        c.beginPath(); c.ellipse(-s * 0.05, 0, s * 0.6, s * 0.5, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = shadeHex(col, -0.24);
+        c.beginPath(); c.arc(-s * 0.05, 0, s * 0.17, 0, Math.PI * 2); c.fill();
+        for (var a = 0; a < 6; a++) {
+          var ang = a * Math.PI / 3;
+          c.beginPath(); c.arc(-s * 0.05 + Math.cos(ang) * s * 0.35, Math.sin(ang) * s * 0.3, s * 0.075, 0, Math.PI * 2); c.fill();
+        }
+      } else {
+        // scuba diver (default) — facing right
+        c.fillStyle = '#2f5d7c';
+        c.beginPath(); c.moveTo(-s * 0.5, -s * 0.05); c.lineTo(-s * 1.0, -s * 0.42); c.lineTo(-s * 0.55, s * 0.12); c.closePath(); c.fill();
+        c.beginPath(); c.moveTo(-s * 0.5, s * 0.05); c.lineTo(-s * 1.0, s * 0.42); c.lineTo(-s * 0.55, -s * 0.12); c.closePath(); c.fill();
+        // air tank
+        c.fillStyle = '#9aa6b8';
+        c.beginPath(); c.ellipse(-s * 0.35, 0, s * 0.16, s * 0.3, 0, 0, Math.PI * 2); c.fill();
+        // body / wetsuit
+        c.fillStyle = col;
+        c.beginPath(); c.ellipse(s * 0.05, 0, s * 0.6, s * 0.34, 0, 0, Math.PI * 2); c.fill();
+        // arm reaching forward
+        c.fillStyle = shadeHex(col, -0.12);
+        c.beginPath(); c.ellipse(s * 0.52, s * 0.12, s * 0.24, s * 0.09, -0.2, 0, Math.PI * 2); c.fill();
+        // head + mask
+        c.fillStyle = col;
+        c.beginPath(); c.arc(s * 0.66, -s * 0.12, s * 0.28, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#bff0ff';
+        c.beginPath(); c.ellipse(s * 0.78, -s * 0.14, s * 0.17, s * 0.13, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.85)';
+        c.beginPath(); c.arc(s * 0.74, -s * 0.2, s * 0.05, 0, Math.PI * 2); c.fill();
+        // regulator
+        c.fillStyle = '#2f5d7c';
+        c.beginPath(); c.arc(s * 0.66, s * 0.06, s * 0.07, 0, Math.PI * 2); c.fill();
+      }
+    }
+
+    // ---------- Target drawing (one case per TARGETS entry) ----------
+    function drawTarget(entry, t) {
+      var c = ctx, col = entry.color, r = t.r;
+      c.save();
+      c.translate(t.x, t.y);
+      c.rotate(t.rot * 0.3);   // gentle tumble
+      if (entry.id === 'can') {
+        // dented tin can
+        c.fillStyle = col;
+        c.fillRect(-r * 0.45, -r * 0.7, r * 0.9, r * 1.4);
+        c.fillStyle = shadeHex(col, -0.22);
+        c.beginPath(); c.ellipse(0, r * 0.7, r * 0.45, r * 0.14, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = shadeHex(col, 0.28);
+        c.beginPath(); c.ellipse(0, -r * 0.7, r * 0.45, r * 0.14, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#e05c4a';
+        c.fillRect(-r * 0.45, -r * 0.18, r * 0.9, r * 0.38);
+        c.fillStyle = 'rgba(255,255,255,0.5)';
+        c.fillRect(-r * 0.3, -r * 0.62, r * 0.1, r * 1.24);
+      } else if (entry.id === 'bag') {
+        // floating plastic bag
+        c.strokeStyle = col; c.lineWidth = r * 0.12; c.lineCap = 'round';
+        c.beginPath(); c.arc(-r * 0.22, -r * 0.5, r * 0.22, Math.PI, 0); c.stroke();
+        c.beginPath(); c.arc(r * 0.22, -r * 0.5, r * 0.22, Math.PI, 0); c.stroke();
+        c.fillStyle = col;
+        c.beginPath();
+        c.moveTo(-r * 0.55, -r * 0.45);
+        c.quadraticCurveTo(-r * 0.78, r * 0.5, -r * 0.35, r * 0.88);
+        c.quadraticCurveTo(0, r * 1.02, r * 0.35, r * 0.88);
+        c.quadraticCurveTo(r * 0.78, r * 0.5, r * 0.55, -r * 0.45);
+        c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(0,0,0,0.1)'; c.lineWidth = r * 0.05;
+        c.beginPath(); c.moveTo(-r * 0.1, -r * 0.3); c.lineTo(-r * 0.2, r * 0.6); c.stroke();
+        c.beginPath(); c.moveTo(r * 0.15, -r * 0.3); c.lineTo(r * 0.22, r * 0.6); c.stroke();
+      } else {
+        // plastic bottle (default)
+        c.fillStyle = col;
+        c.beginPath();
+        c.moveTo(-r * 0.42, -r * 0.2);
+        c.lineTo(-r * 0.42, r * 0.75);
+        c.quadraticCurveTo(-r * 0.42, r * 0.95, -r * 0.22, r * 0.95);
+        c.lineTo(r * 0.22, r * 0.95);
+        c.quadraticCurveTo(r * 0.42, r * 0.95, r * 0.42, r * 0.75);
+        c.lineTo(r * 0.42, -r * 0.2);
+        c.quadraticCurveTo(r * 0.42, -r * 0.5, r * 0.18, -r * 0.55);
+        c.lineTo(r * 0.18, -r * 0.75);
+        c.lineTo(-r * 0.18, -r * 0.75);
+        c.lineTo(-r * 0.18, -r * 0.55);
+        c.quadraticCurveTo(-r * 0.42, -r * 0.5, -r * 0.42, -r * 0.2);
+        c.closePath(); c.fill();
+        c.fillStyle = '#3a7ca5';
+        c.fillRect(-r * 0.2, -r * 0.95, r * 0.4, r * 0.22);
+        c.fillStyle = 'rgba(255,255,255,0.55)';
+        c.fillRect(-r * 0.42, r * 0.05, r * 0.84, r * 0.35);
+        c.fillStyle = 'rgba(255,255,255,0.4)';
+        c.fillRect(-r * 0.28, -r * 0.45, r * 0.1, r * 1.2);
+      }
+      c.restore();
+    }
+
+    // ---------- Background reef fish (the ocean life we're protecting) ----------
+    function drawBgFish(f, ts) {
+      var c = ctx, s = f.s, sway = Math.sin(ts / 400 + f.tw) * s * 0.15;
+      c.save();
+      c.translate(f.x, f.y + sway);
+      c.scale(f.dir, 1);
+      c.globalAlpha = 0.45;
+      c.fillStyle = f.col;
+      c.beginPath(); c.ellipse(0, 0, s, s * 0.6, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.moveTo(-s * 0.7, 0); c.lineTo(-s * 1.2, -s * 0.5); c.lineTo(-s * 1.2, s * 0.5); c.closePath(); c.fill();
+      c.globalAlpha = 1;
+      c.restore();
+    }
+
+    // ---------- Render ----------
+    function drawHeart(x, y, r, filled) {
+      var c = ctx;
+      c.beginPath();
+      c.moveTo(x, y + r * 0.3);
+      c.bezierCurveTo(x, y - r * 0.3, x - r, y - r * 0.3, x - r, y + r * 0.25);
+      c.bezierCurveTo(x - r, y + r * 0.65, x, y + r, x, y + r * 1.15);
+      c.bezierCurveTo(x, y + r, x + r, y + r * 0.65, x + r, y + r * 0.25);
+      c.bezierCurveTo(x + r, y - r * 0.3, x, y - r * 0.3, x, y + r * 0.3);
+      c.closePath();
+      c.fillStyle = filled ? '#ff5d8f' : 'rgba(255,255,255,0.22)';
+      c.fill();
+    }
+
+    function render(ts) {
+      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a7d8c'); g.addColorStop(0.55, '#04505e'); g.addColorStop(1, '#021f26'); render._g = g; render._h = H; }
+      ctx.fillStyle = render._g;
+      ctx.fillRect(0, 0, W, H);
+
+      // Rising bubbles
+      var i;
+      for (i = 0; i < bgStars.length; i++) {
+        var bs = bgStars[i];
+        var by = bs.y - ((ts * 0.02 + bs.tw * 40) % (H + 40));
+        if (by < -10) by += H + 40;
+        ctx.globalAlpha = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(ts / 500 + bs.tw));
+        ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(bs.x, by, bs.r, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Reef fish swimming past
+      for (i = 0; i < bgFish.length; i++) drawBgFish(bgFish[i], ts);
+
+      // Litter
+      for (i = 0; i < targets.length; i++) drawTarget(TARGETS[targetIdx], targets[i]);
+
+      // Bubbles (your zap)
+      for (i = 0; i < bullets.length; i++) {
+        var b = bullets[i];
+        var br = Math.max(3, H * 0.011);
+        ctx.fillStyle = 'rgba(200,240,255,0.5)';
+        ctx.beginPath(); ctx.arc(b.x, b.y, br, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x, b.y, br, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(b.x - br * 0.3, b.y - br * 0.3, br * 0.25, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Ship (blink while invulnerable)
+      if (ship && !(ship.invuln > 0 && Math.floor(ts / 100) % 2 === 0)) {
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+        ctx.rotate(ship.angle);
+        drawShip(SHIPS[shipIdx], ship.r);
+        ctx.restore();
+      }
+
+      // Sparks
+      for (i = 0; i < sparks.length; i++) {
+        var sp = sparks[i];
+        ctx.globalAlpha = Math.max(0, sp.alpha);
+        ctx.fillStyle = sp.color;
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Lives (hearts, top-left)
+      if (state === STATE.PLAYING || state === STATE.PAUSED) {
+        var hr = H * 0.022, hx = W * 0.03 + hr, hy = H * 0.03;
+        for (i = 0; i < MAX_LIVES; i++) drawHeart(hx + i * hr * 2.6, hy, hr, i < lives);
+      }
+    }
+
+    // ---------- Loop ----------
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (state === STATE.PLAYING) update(dt);
+      else updateSparks(dt);
+      updateBgFish(dt);
+      render(ts);
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Pickers (built from THEME arrays) ----------
+    function buildPick(containerId, list, current, storageKey, onPick) {
+      var box = document.getElementById(containerId);
+      box.innerHTML = '';
+      for (var i = 0; i < list.length; i++) {
+        (function (i) {
+          var b = document.createElement('button');
+          b.className = (i === current) ? 'sel' : '';
+          b.innerHTML = list[i].icon + '<span>' + list[i].name + '</span>';
+          b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            onPick(i);
+            var kids = box.children;
+            for (var k = 0; k < kids.length; k++) kids[k].className = (k === i) ? 'sel' : '';
+            try { localStorage.setItem(storageKey, String(i)); } catch (err) {}
+          });
+          box.appendChild(b);
+        })(i);
+      }
+    }
+    function readIdx(key, len) {
+      var v = null; try { v = localStorage.getItem(key); } catch (e) {}
+      return (v !== null && +v >= 0 && +v < len) ? +v : 0;
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onDown, { passive: false });
+    stage.addEventListener('touchmove', onMove, { passive: false });
+    stage.addEventListener('touchend', onUp, { passive: false });
+    stage.addEventListener('mousedown', onDown);
+    stage.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+
+    document.getElementById('playBtn').addEventListener('click', function (e) { e.stopPropagation(); startGame(); });
+    document.getElementById('playAgainBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('overOverlay').classList.add('hidden');
+      startGame();
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    // Ship / target pickers
+    shipIdx = readIdx('ar_ship', SHIPS.length);
+    targetIdx = readIdx('ar_target', TARGETS.length);
+    buildPick('shipPick', SHIPS, shipIdx, 'ar_ship', function (i) { shipIdx = i; });
+    buildPick('targetPick', TARGETS, targetIdx, 'ar_target', function (i) { targetIdx = i; });
+
+    // Speed picker (pause menu)
+    var speedBtns = document.querySelectorAll('#speedPick button');
+    function updateSpeedPick() {
+      for (var i = 0; i < speedBtns.length; i++) speedBtns[i].className = (+speedBtns[i].getAttribute('data-idx') === speedIdx) ? 'sel' : '';
+    }
+    function applySpeed(idx) {
+      speedIdx = idx; speedMult = SPEED_LEVELS[idx].m;
+      try { localStorage.setItem('ar_speed', String(idx)); } catch (e) {}
+      computeTunables();
+      updateSpeedPick();
+    }
+    (function initSpeed() {
+      speedIdx = readIdx('ar_speed', SPEED_LEVELS.length) || 1;
+      speedMult = SPEED_LEVELS[speedIdx].m;
+      updateSpeedPick();
+    })();
+    for (var _i = 0; _i < speedBtns.length; _i++) {
+      (function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); applySpeed(+b.getAttribute('data-idx')); }); })(speedBtns[_i]);
+    }
+
+    // Pause / resume
+    function pauseGame() {
+      if (state !== STATE.PLAYING) return;
+      state = STATE.PAUSED;
+      updateSpeedPick();
+      document.getElementById('pauseOverlay').classList.remove('hidden');
+    }
+    function resumeGame() {
+      if (state !== STATE.PAUSED) return;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      state = STATE.PLAYING;
+      lastTs = 0;
+    }
+    document.getElementById('pauseBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (state === STATE.PLAYING) pauseGame(); else if (state === STATE.PAUSED) resumeGame();
+    });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) { e.stopPropagation(); resumeGame(); });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // Keep links inside the iOS home-screen (standalone) app on OLD iOS (<13)
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    resize();
+    // Idle demo state so the start screen isn't blank behind the overlay.
+    ship = { x: W / 2, y: H / 2, r: SHIP_R, angle: -Math.PI / 2, invuln: 0 };
+    bullets = []; targets = []; sparks = []; lives = MAX_LIVES; score = 0;
+    requestAnimationFrame(frame);
+  })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
