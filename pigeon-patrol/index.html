@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#1b1140">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Pigeon Patrol">
+  <meta name="apple-mobile-web-app-title" content="Wreck It Bob">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
-  <title>Pigeon Patrol</title>
+  <title>Wreck It Bob</title>
   <style>
     :root {
       --dusk: #1b1140;
@@ -176,6 +176,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">0</div>
     <div class="rightbtns">
+      <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -185,11 +186,11 @@
     <canvas id="game"></canvas>
 
     <div class="overlay" id="startOverlay">
-      <h2>🐩 Pigeon Patrol 👑</h2>
+      <h2>🐩 Wreck It Bob 👑</h2>
       <p>King Pigeon is up on the roof making <b>more and more pigeons!</b></p>
-      <p>Send the fluffy pup to shoo them away before the park fills up.</p>
+      <p>Send Bob the fluffy pup to shoo them away before the park fills up.</p>
       <div class="tap-hint">👆</div>
-      <p><b>Tap the grass</b> and the pup runs there. Get close to a pigeon to scare it off!</p>
+      <p><b>Tap the grass</b> and Bob runs there. Get close to a pigeon to scare it off!</p>
       <p id="bestStart" class="bestline"></p>
       <div class="speedpick" id="speedPickStart">
         <button data-idx="0">🐢<span>Chill</span></button>
@@ -214,7 +215,7 @@
     <div class="overlay hidden" id="overOverlay">
       <h2>🐦 Pigeon Pile-Up!</h2>
       <p>The park filled right up with pigeons!</p>
-      <p id="finalScore">You shooed 0 pigeons</p>
+      <p id="finalScore">Bob shooed 0 pigeons</p>
       <p id="bestOver" class="bestline"></p>
       <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
     </div>
@@ -405,6 +406,7 @@
       points++;
       dog.bark = 0.7;
       spawnFeathers(p.x, p.y - p.s * 0.6, 6);
+      woofSound();
       updateScore();
     }
 
@@ -449,6 +451,96 @@
       }
     }
 
+    // ---------- Sound (Web Audio, generated — no audio files) ----------
+    // The AudioContext is created lazily inside a touch handler so iOS allows it.
+    var audio = { ctx: null, muted: false };
+    try { audio.muted = localStorage.getItem('pp_mute') === '1'; } catch (e) {}
+
+    function audioCtx() {
+      if (!audio.ctx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audio.ctx = new AC();
+      }
+      if (audio.ctx.state === 'suspended' && audio.ctx.resume) audio.ctx.resume();
+      return audio.ctx;
+    }
+
+    function tone(when, freq, dur, type, vol, slideTo) {
+      var c = audio.ctx;
+      var o = c.createOscillator();
+      var g = c.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, when);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, when + dur);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(vol, when + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(when);
+      o.stop(when + dur + 0.05);
+    }
+
+    // Bob's theme: an original, bouncy work-song chant (call-and-response
+    // style) written for this game. Notes are [startBeat, lengthBeats, Hz].
+    var BEAT = 0.27;
+    var CHANT_NOTES = [
+      // "Bob the De-struc-tor!"
+      [0, 1, 262], [1, 0.5, 294], [1.5, 0.5, 330], [2, 1, 392], [3, 1.5, 330],
+      // "Can he wreck it?"
+      [5, 0.5, 392], [5.5, 0.5, 392], [6, 1, 440], [7, 1.5, 294],
+      // "Bob the De-struc-tor!"
+      [9, 1, 262], [10, 0.5, 294], [10.5, 0.5, 330], [11, 1, 392], [12, 1.5, 330],
+      // "Yes he can!"
+      [14, 0.75, 392], [14.75, 0.75, 440], [15.5, 2.5, 523]
+    ];
+    var CHANT_WORDS = [
+      { b: 0,    e: 4.8,  txt: '🎵 BOB THE DESTRUCTOR!' },
+      { b: 4.8,  e: 8.8,  txt: 'CAN HE WRECK IT?' },
+      { b: 8.8,  e: 13.8, txt: 'BOB THE DESTRUCTOR!' },
+      { b: 13.8, e: 18.5, txt: 'YES HE CAN! 🎵' }
+    ];
+    var CHANT_END = 18.5 * BEAT;
+    var chantStart = -1;      // rAF-timebase ms; karaoke words show while active
+
+    function playChant() {
+      chantStart = performance.now();
+      if (audio.muted) return;             // words still bounce, tune stays quiet
+      var c = audioCtx();
+      if (!c) return;
+      var t0 = c.currentTime + 0.05, i, n;
+      for (i = 0; i < CHANT_NOTES.length; i++) {
+        n = CHANT_NOTES[i];
+        tone(t0 + n[0] * BEAT, n[2], n[1] * BEAT * 0.95, 'square', 0.07);
+        tone(t0 + n[0] * BEAT, n[2] / 2, n[1] * BEAT * 0.95, 'triangle', 0.1);
+      }
+      // oompah bass underneath
+      for (i = 0; i < 18; i += 2) {
+        tone(t0 + i * BEAT, (i % 4) ? 98 : 131, BEAT * 0.9, 'triangle', 0.12);
+      }
+    }
+
+    function woofSound() {
+      if (audio.muted) return;
+      var c = audioCtx();
+      if (!c) return;
+      var t = c.currentTime;
+      tone(t, 400, 0.07, 'square', 0.12, 150);
+      tone(t + 0.03, 180, 0.1, 'sawtooth', 0.1, 80);
+    }
+
+    function loseSting() {
+      if (audio.muted) return;
+      var c = audioCtx();
+      if (!c) return;
+      var t = c.currentTime + 0.05;
+      var seq = [330, 311, 294, 262];
+      for (var i = 0; i < seq.length; i++) {
+        tone(t + i * 0.22, seq[i], i === seq.length - 1 ? 0.5 : 0.2, 'sawtooth', 0.08);
+      }
+    }
+
     // ---------- Input ----------
     function setDogTarget(cx, cy) {
       dog.tx = clamp(cx, DOG_S * 0.5, W - DOG_S * 0.5);
@@ -485,16 +577,19 @@
       newGame();
       state = STATE.PLAYING;
       lastTs = 0;
+      playChant();
     }
 
     function gameOver() {
       if (state === STATE.OVER) return;
       state = STATE.OVER;
+      chantStart = -1;
+      loseSting();
       if (points > best) {
         best = points;
         try { localStorage.setItem('pp_best', String(best)); } catch (e) {}
       }
-      document.getElementById('finalScore').textContent = 'You shooed ' + points + (points === 1 ? ' pigeon' : ' pigeons');
+      document.getElementById('finalScore').textContent = 'Bob shooed ' + points + (points === 1 ? ' pigeon' : ' pigeons');
       document.getElementById('bestOver').textContent = '⭐ Best: ' + best;
       document.getElementById('overOverlay').classList.remove('hidden');
     }
@@ -1147,6 +1242,36 @@
       ctx.globalAlpha = 1;
 
       drawMeter(ts);
+
+      // Karaoke chant words while Bob's theme plays
+      if (chantStart >= 0) {
+        var ce = (ts - chantStart) / 1000;
+        if (ce > CHANT_END + 0.3) {
+          chantStart = -1;
+        } else {
+          for (i = 0; i < CHANT_WORDS.length; i++) {
+            var wd = CHANT_WORDS[i];
+            if (ce >= wd.b * BEAT && ce < wd.e * BEAT) {
+              var wp = (ce - wd.b * BEAT) / ((wd.e - wd.b) * BEAT);
+              ctx.save();
+              ctx.translate(W / 2, H * 0.135);
+              ctx.scale(1 + 0.06 * Math.sin(ce * 18), 1 + 0.06 * Math.sin(ce * 18));
+              ctx.font = '800 ' + Math.round(H * 0.042) + 'px "Trebuchet MS", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.globalAlpha = Math.min(1, wp * 6, (1 - wp) * 6 + 0.4);
+              ctx.strokeStyle = 'rgba(13, 8, 36, 0.85)';
+              ctx.lineWidth = Math.max(3, H * 0.008);
+              ctx.strokeText(wd.txt, 0, 0);
+              ctx.fillStyle = '#ffd166';
+              ctx.fillText(wd.txt, 0, 0);
+              ctx.restore();
+              ctx.globalAlpha = 1;
+              break;
+            }
+          }
+        }
+      }
     }
 
     // ---------- Loop ----------
@@ -1183,8 +1308,33 @@
       newGame();
       state = STATE.PLAYING;
       lastTs = 0;
+      playChant();
     });
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+
+    // ----- Sound toggle -----
+    var muteBtn = document.getElementById('muteBtn');
+    function updateMuteBtn() { muteBtn.textContent = audio.muted ? '🔇' : '🔊'; }
+    muteBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      audio.muted = !audio.muted;
+      try { localStorage.setItem('pp_mute', audio.muted ? '1' : '0'); } catch (err) {}
+      updateMuteBtn();
+      if (!audio.muted) woofSound();   // little confirmation blip
+    });
+    updateMuteBtn();
+
+    // iOS only unlocks Web Audio from a user gesture — nudge it on first touch.
+    document.addEventListener('touchend', function unlockOnce() {
+      document.removeEventListener('touchend', unlockOnce);
+      var c = audioCtx();
+      if (!c) return;
+      var b = c.createBuffer(1, 1, 22050);
+      var src = c.createBufferSource();
+      src.buffer = b;
+      src.connect(c.destination);
+      if (src.start) src.start(0); else src.noteOn(0);
+    }, false);
 
     // ----- Difficulty (Chill/Normal/Fast/Zoom): chosen on start or pause, remembered -----
     var diffBtns = document.querySelectorAll('.speedpick button');
