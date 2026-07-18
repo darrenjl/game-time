@@ -102,43 +102,6 @@
     }
     canvas#game { display: block; width: 100%; height: 100%; touch-action: none; }
 
-    /* ---- Controls (shoot / pass) ---- */
-    .controls {
-      flex: 0 0 auto;
-      display: flex;
-      justify-content: center;
-      align-items: stretch;
-      padding: 10px 14px max(12px, env(safe-area-inset-bottom));
-    }
-    .controls.hidden { display: none; }
-    .controls > * + * { margin-left: 14px; }
-    .ctrlbtn {
-      -webkit-appearance: none;
-      appearance: none;
-      flex: 1 1 0;
-      max-width: 260px;
-      min-height: 70px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px 18px;
-      border-radius: 22px;
-      font-size: 1.4rem;
-      font-size: clamp(1.15rem, 5.5vw, 1.7rem);
-      font-weight: 800;
-      color: #06280f;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
-      transition: transform 0.08s ease;
-    }
-    .ctrlbtn > * + * { margin-left: 10px; }
-    .ctrlbtn:active { transform: scale(0.95); }
-    .ctrlbtn.shoot { background: linear-gradient(135deg, #ffe27a, #ff9d3d); }
-    .ctrlbtn.pass  { background: linear-gradient(135deg, #9ff0ff, #2a9cff); color: #051a33; }
-    .ctrlbtn.hidden { display: none; }
-
     /* ---- Overlays ---- */
     .overlay {
       position: absolute;
@@ -280,7 +243,7 @@
       <div id="stepTeam" style="display:none;">
         <h2 id="teamTitle">Pick your team!</h2>
         <p id="teamHint">Tap a player to join your team.</p>
-        <p style="font-size:0.95rem;opacity:0.82;">Hold and slide anywhere to run. The ball sticks to your feet — 🥅 Shoot near the net, 👟 Pass to a team-mate.</p>
+        <p style="font-size:0.95rem;opacity:0.82;">Hold and slide anywhere to run your player. Bump into the ball to kick it — run at it hard to shoot for the net! ⚽🥅</p>
         <div class="roster" id="roster"></div>
         <p>Match speed:</p>
         <div class="diffpick" id="diffPickStart">
@@ -315,10 +278,6 @@
     </div>
   </div>
 
-  <div class="controls hidden" id="controls">
-    <button class="ctrlbtn shoot" id="shootBtn">🥅 <span>Shoot</span></button>
-    <button class="ctrlbtn pass" id="passBtn">👟 <span>Pass</span></button>
-  </div>
 
   <script>
   (function () {
@@ -327,7 +286,6 @@
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var scoreEl = document.getElementById('score');
-    var controlsEl = document.getElementById('controls');
 
     var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3, CELEBRATE: 4 };
     var state = STATE.START;
@@ -358,37 +316,33 @@
     var players = [], ball = null;
     var scoreYou = 0, scoreOpp = 0, kickoffSide = 'you';
     var celebrateT = 0, celebrateText = '';
-    var overrideP = null, overrideT = 0;   // control the pass receiver briefly
-    var oppShotCd = 0;                      // stops the opponent machine-gunning shots
-    var lastTs = 0, lastReady = null;
+    var activeRef = null;                   // you-field player being steered (with hysteresis)
+    var kickoffGrace = 0;                   // opponents hold back briefly so the kids get first touch
+    var lastTs = 0;
 
     // Floating joystick
     var stick = { active: false, ox: 0, oy: 0, dx: 0, dy: 0, mag: 0 };
 
-    var R, BR, CONTROL_R, GLUE, MOUTH, TOPM, BOTM, LGOAL, RGOAL, MIDY;
-    var YOU_SPEED, DRIBBLE, OPP_SPEED, OPP_DRIBBLE, KEEP_SPEED, SHOOT_SP, PASS_SP, CLEAR_SP, FRICTION, KICKCD, STICK_DEAD, STICK_MAXR;
+    var R, BR, MOUTH, TOPM, BOTM, LGOAL, RGOAL, MIDY;
+    var YOU_SPEED, OPP_SPEED, KEEP_SPEED, BALL_FR, KICK_MUL, KICK_MIN, KICK_MAX, WALL_BOUNCE, STICK_DEAD, STICK_MAXR;
 
     function computeTunables() {
       R = H * 0.052;
       BR = H * 0.026;
-      CONTROL_R = R * 1.7;
-      GLUE = R * 0.5 + BR;
       MOUTH = H * 0.34;
       TOPM = H * 0.05;
       BOTM = H * 0.95;
       LGOAL = W * 0.06;
       RGOAL = W * 0.94;
       MIDY = H / 2;
-      YOU_SPEED = H * 0.46;
-      DRIBBLE = H * 0.40;
-      OPP_SPEED = H * 0.30 * DIFF[diffIdx].opp;
-      OPP_DRIBBLE = H * 0.24 * DIFF[diffIdx].opp;
-      KEEP_SPEED = H * 0.28 * DIFF[diffIdx].keeper;
-      SHOOT_SP = H * 1.20;
-      PASS_SP = H * 0.95;
-      CLEAR_SP = H * 0.90;
-      FRICTION = 1.5;
-      KICKCD = 0.28;
+      YOU_SPEED = H * 0.60;                       // you always run faster than the opponent
+      OPP_SPEED = H * 0.32 * DIFF[diffIdx].opp;
+      KEEP_SPEED = H * 0.55 * DIFF[diffIdx].keeper;
+      BALL_FR = 1.15;                             // ball friction (per second)
+      KICK_MUL = 1.7;                             // ball speed = player speed * this
+      KICK_MIN = H * 0.11;                        // gentle touch still nudges the ball
+      KICK_MAX = H * 1.15;                        // cap on a full-power shot
+      WALL_BOUNCE = 0.72;
       STICK_DEAD = R * 0.35;
       STICK_MAXR = R * 2.0;
     }
@@ -447,11 +401,12 @@
         var sp = formationSpot(p.side, p.role, p.idx < 0 ? 0 : p.idx);
         p.x = sp.x; p.y = sp.y; p.vx = 0; p.vy = 0; p.hold = 0;
       }
-      ball = { x: W / 2, y: MIDY, vx: 0, vy: 0, carrier: null, owner: null, kickCd: 0, protT: 0 };
-      overrideP = null; overrideT = 0; oppShotCd = 0;
+      ball = { x: W / 2, y: MIDY, vx: 0, vy: 0, sndCd: 0 };
+      activeRef = null;
+      kickoffGrace = 0.9;
       stick.active = false; stick.mag = 0;
       var chaser = nearestFieldPlayer(kickoffSide, ball);
-      if (chaser) { chaser.x = ball.x - chaser.attack * GLUE; chaser.y = ball.y; }
+      if (chaser) { chaser.x = ball.x - chaser.attack * (R + BR) * 1.4; chaser.y = ball.y; activeRef = chaser; }
     }
     function newMatch() {
       scoreYou = 0; scoreOpp = 0; kickoffSide = 'you';
@@ -469,31 +424,22 @@
       }
       return best;
     }
-    function nearestPlayerToBall() {
-      var best = null, bd = Infinity;
-      for (var i = 0; i < players.length; i++) {
-        var d = dist2(players[i].x, players[i].y, ball.x, ball.y);
-        if (d < bd) { bd = d; best = players[i]; }
-      }
-      return { p: best, d: Math.sqrt(bd) };
-    }
-    function teammateOf(p) {
-      for (var i = 0; i < players.length; i++) {
-        var q = players[i];
-        if (q.side === p.side && q.role === 'field' && q !== p) return q;
-      }
-      return null;
-    }
-    function keeperOf(side) {
-      for (var i = 0; i < players.length; i++) if (players[i].side === side && players[i].role === 'keeper') return players[i];
-      return null;
-    }
-    // The field player you're steering.
+    // The field player you're steering: the you-field player nearest the ball,
+    // with a little stickiness so control doesn't flip between team-mates.
     function activePlayer() {
-      if (overrideT > 0 && overrideP && overrideP.role === 'field') return overrideP;
-      var c = ball && ball.carrier;
-      if (c && c.side === 'you' && c.role === 'field') return c;
-      return nearestFieldPlayer('you', ball);
+      var best = null, bd = Infinity, i, p, d;
+      for (i = 0; i < players.length; i++) {
+        p = players[i];
+        if (p.side !== 'you' || p.role !== 'field') continue;
+        d = dist2(p.x, p.y, ball.x, ball.y);
+        if (d < bd) { bd = d; best = p; }
+      }
+      if (activeRef && activeRef.side === 'you' && activeRef.role === 'field' && activeRef !== best) {
+        var cd = Math.sqrt(dist2(activeRef.x, activeRef.y, ball.x, ball.y));
+        if (cd <= Math.sqrt(bd) + R * 1.6) best = activeRef;   // keep current unless clearly beaten
+      }
+      activeRef = best;
+      return best;
     }
 
     // ---------- Movement ----------
@@ -507,184 +453,115 @@
       p.y = clamp(p.y, TOPM + R * 0.4, BOTM - R * 0.4);
     }
 
-    // ---------- Kicks ----------
-    function kickBall(tx, ty, speed, spread) {
-      var dx = tx - ball.x, dy = ty - ball.y;
-      var d = Math.sqrt(dx * dx + dy * dy) || 1;
-      var ang = Math.atan2(dy, dx) + (spread ? rand(-spread, spread) : 0);
-      ball.vx = Math.cos(ang) * speed;
-      ball.vy = Math.sin(ang) * speed;
-      ball.carrier = null;
-      ball.owner = null;
-      ball.protT = 0;
-      ball.kickCd = KICKCD;
-    }
-    function doShoot(carrier) {
-      var goalX = (carrier.attack > 0) ? RGOAL : LGOAL;
-      var aimY, speed, spread;
-      if (carrier.side === 'you') {
-        var gk = keeperOf('opp');
-        aimY = (gk && gk.y > MIDY) ? MIDY - MOUTH * 0.45 : MIDY + MOUTH * 0.45;
-        speed = SHOOT_SP; spread = 0.02;
-      } else {
-        aimY = MIDY + rand(-MOUTH * 0.22, MOUTH * 0.22);
-        speed = SHOOT_SP * 0.68; spread = 0.13;
-      }
-      kickBall(goalX + carrier.attack * BR, aimY, speed, spread);
-      sfx('kick');
-    }
-    function doPass(carrier) {
-      var mate = teammateOf(carrier);
-      if (!mate) { doShoot(carrier); return; }
-      kickBall(mate.x + carrier.attack * R * 0.8, mate.y, PASS_SP, 0.02);
-      overrideP = mate; overrideT = 1.4;   // hand control to the receiver
-      sfx('pass');
-    }
-    function keeperClear(keeper) {
-      var tx = (keeper.side === 'you') ? W * 0.6 : W * 0.4;
-      kickBall(tx, rand(H * 0.25, H * 0.75), CLEAR_SP, 0.15);
-      sfx('save');
-    }
-
     // ---------- Update ----------
+    // Pure physics: you steer one player; running your body into the ball kicks
+    // it away with momentum. No possession model, no shoot/pass buttons — a
+    // gentle touch dribbles, a hard run shoots. Everyone (keepers included) bumps
+    // the ball the same way.
     function update(dt) {
-      if (ball.kickCd > 0) ball.kickCd -= dt;
-      if (overrideT > 0) overrideT -= dt;
-      if (ball.protT > 0) ball.protT -= dt;
-      if (oppShotCd > 0) oppShotCd -= dt;
-
-      // Possession model: whoever owns the ball keeps it (sticky) unless an
-      // opponent gets clearly closer once a short protection window has lapsed.
-      // This stops the ball ping-ponging between players near a goal.
-      var carrier = null;
-      if (ball.kickCd <= 0) {
-        var nb = nearestPlayerToBall();
-        var owner = ball.owner;
-        var ownerDist = owner ? Math.sqrt(dist2(owner.x, owner.y, ball.x, ball.y)) : Infinity;
-        if (owner && ownerDist < CONTROL_R * 1.3) {
-          if (ball.protT > 0) carrier = owner;                 // protected: can't be tackled yet
-          else if (nb.p && nb.p !== owner && nb.p.side !== owner.side && nb.d < CONTROL_R && nb.d < ownerDist - R * 0.4) {
-            carrier = nb.p; ball.protT = 0.3;                  // clean tackle by a closer opponent
-          } else carrier = owner;
-        } else if (nb.p && nb.d < CONTROL_R) {
-          carrier = nb.p;
-          if (carrier !== owner) ball.protT = 0.3;
-        }
-        ball.owner = carrier;
-      }
-      ball.carrier = carrier;
-      if (carrier) carrier.hold += dt;
-      for (var i = 0; i < players.length; i++) if (players[i] !== carrier) players[i].hold = 0;
-
+      if (kickoffGrace > 0) kickoffGrace -= dt;
       var active = activePlayer();
-      moveYou(active, carrier, dt);
-      moveOpp(carrier, dt);
-
-      if (carrier) {
-        // sticky ball: leads in the carrier's movement direction, else toward goal
-        var fl = Math.sqrt(carrier.vx * carrier.vx + carrier.vy * carrier.vy);
-        var fx, fy;
-        if (fl > 1) { fx = carrier.vx / fl; fy = carrier.vy / fl; } else { fx = carrier.attack; fy = 0; }
-        ball.x = clamp(carrier.x + fx * GLUE, LGOAL, RGOAL);
-        ball.y = clamp(carrier.y + fy * GLUE, TOPM + BR, BOTM - BR);
-        ball.vx = 0; ball.vy = 0;
-
-        if (carrier.role === 'keeper') {
-          if (carrier.hold > 0.3) keeperClear(carrier);
-        } else if (carrier.side === 'opp') {
-          aiCarry(carrier);
-        }
-        // your field carrier: wait for Shoot / Pass
-      } else {
-        ball.x += ball.vx * dt;
-        ball.y += ball.vy * dt;
-        var fr = FRICTION * dt;
-        ball.vx -= ball.vx * fr;
-        ball.vy -= ball.vy * fr;
-
-        // keepers physically block shots
-        for (i = 0; i < players.length; i++) {
-          var kp = players[i];
-          if (kp.role !== 'keeper') continue;
-          var brd = R * 0.8 + BR;
-          if (dist2(ball.x, ball.y, kp.x, kp.y) < brd * brd) { keeperClear(kp); break; }
-        }
-
-        if (ball.y < TOPM + BR) { ball.y = TOPM + BR; ball.vy = Math.abs(ball.vy) * 0.7; }
-        if (ball.y > BOTM - BR) { ball.y = BOTM - BR; ball.vy = -Math.abs(ball.vy) * 0.7; }
-        if (ball.x <= LGOAL + BR) {
-          if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('opp'); return; }
-          ball.x = LGOAL + BR; ball.vx = Math.abs(ball.vx) * 0.7;
-        }
-        if (ball.x >= RGOAL - BR) {
-          if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('you'); return; }
-          ball.x = RGOAL - BR; ball.vx = -Math.abs(ball.vx) * 0.7;
-        }
-      }
-
-      setReady(!!(carrier && carrier.side === 'you' && carrier.role === 'field'));
+      movePlayers(active, dt);
+      updateBall(dt);
+      if (state === STATE.PLAYING) collideBall();   // skip if a goal just flipped state
     }
 
-    function moveYou(active, carrier, dt) {
+    function movePlayers(active, dt) {
       for (var i = 0; i < players.length; i++) {
         var p = players[i];
-        if (p.side !== 'you') continue;
 
         if (p.role === 'keeper') {
-          var ky = clamp(ball.y, MIDY - MOUTH * 0.55, MIDY + MOUTH * 0.55);
-          moveToward(p, LGOAL + R * 0.7, ky, KEEP_SPEED, dt);
+          var gx = (p.side === 'you') ? LGOAL + R * 0.7 : RGOAL - R * 0.7;
+          var gy = clamp(ball.y + ball.vy * 0.12, MIDY - MOUTH * 0.5, MIDY + MOUTH * 0.5);  // anticipate
+          moveToward(p, gx, gy, KEEP_SPEED, dt);
           continue;
         }
+
         if (p === active) {
           if (stick.active && stick.mag > 0) {
-            var sp = (carrier === p ? DRIBBLE : YOU_SPEED) * stick.mag;
+            var sp = YOU_SPEED * stick.mag;
             p.x = clamp(p.x + stick.dx * sp * dt, R, W - R);
             p.y = clamp(p.y + stick.dy * sp * dt, TOPM + R * 0.4, BOTM - R * 0.4);
             p.vx = stick.dx * sp; p.vy = stick.dy * sp;
           } else { p.vx = 0; p.vy = 0; }
-        } else if (carrier && carrier.side === 'you') {
-          // off-ball team-mate: get open ahead
-          var sx = clamp(ball.x + W * 0.18, W * 0.14, W * 0.86);
-          var sy = (ball.y < MIDY) ? MIDY + H * 0.16 : MIDY - H * 0.16;
-          moveToward(p, sx, sy, YOU_SPEED * 0.6, dt);
-        } else {
-          // off-ball team-mate on defence: drop toward our goal
-          var dx = clamp((ball.x + LGOAL) / 2, W * 0.14, W * 0.86);
-          var dy = clamp((ball.y + MIDY) / 2, TOPM + R, BOTM - R);
-          moveToward(p, dx, dy, YOU_SPEED * 0.5, dt);
-        }
-      }
-    }
-
-    function moveOpp(carrier, dt) {
-      var chaser = nearestFieldPlayer('opp', ball);
-      for (var i = 0; i < players.length; i++) {
-        var p = players[i];
-        if (p.side !== 'opp') continue;
-        if (p.role === 'keeper') {
-          var ky = clamp(ball.y, MIDY - MOUTH * 0.55, MIDY + MOUTH * 0.55);
-          moveToward(p, RGOAL - R * 0.7, ky, KEEP_SPEED, dt);
           continue;
         }
-        if (carrier === p) {
-          moveToward(p, LGOAL, clamp(MIDY + (p.y - MIDY) * 0.5, TOPM + R, BOTM - R), OPP_DRIBBLE, dt);
-        } else if (carrier && carrier.side === 'opp') {
-          var sx = clamp(ball.x - W * 0.16, W * 0.14, W * 0.86);
-          var sy = (ball.y < MIDY) ? MIDY + H * 0.15 : MIDY - H * 0.15;
-          moveToward(p, sx, sy, OPP_SPEED * 0.85, dt);
-        } else if (p === chaser) {
-          moveToward(p, ball.x + ball.vx * 0.12, ball.y + ball.vy * 0.12, OPP_SPEED, dt);
+
+        if (p.side === 'you') {
+          // off-ball team-mate: hold a support spot goal-side of the ball, kept
+          // clear of the ball so it never steals control from the player.
+          var suppX = clamp(ball.x + p.attack * W * 0.16, W * 0.14, W * 0.86);
+          var suppY = (ball.y < MIDY) ? MIDY + H * 0.15 : MIDY - H * 0.15;
+          moveToward(p, suppX, suppY, YOU_SPEED * 0.5, dt);
+        } else if (kickoffGrace > 0) {
+          // kickoff grace: opponents return to formation so the kids reach the ball first
+          var fs = formationSpot('opp', 'field', p.idx < 0 ? 0 : p.idx);
+          moveToward(p, fs.x, fs.y, OPP_SPEED, dt);
         } else {
-          var cx = clamp((ball.x + RGOAL) / 2, W * 0.14, W * 0.86);
-          var cy = clamp((ball.y + MIDY) / 2 + (p.idx === 0 ? -H * 0.12 : H * 0.12), TOPM + R, BOTM - R);
-          moveToward(p, cx, cy, OPP_SPEED * 0.75, dt);
+          chaseToGoal(p, OPP_SPEED, dt);   // opponent outfielder
         }
       }
     }
 
-    function aiCarry(carrier) {
-      var nearGoal = ball.x < W * 0.40;
-      if ((nearGoal || carrier.hold > 2.6) && oppShotCd <= 0) { doShoot(carrier); oppShotCd = 1.6; }
+    // Steer an outfielder to get behind the ball, then charge it toward the goal
+    // it attacks — so it bumps the ball goalward.
+    function chaseToGoal(p, speed, dt) {
+      var goalX = (p.attack > 0) ? RGOAL : LGOAL;
+      var behindSign = (p.attack > 0) ? -1 : 1;               // which side of the ball to attack from
+      var behind = (p.x - ball.x) * behindSign > R * 0.4;
+      var tx, ty;
+      if (behind) { tx = goalX; ty = ball.y * 0.7 + MIDY * 0.3; }
+      else { tx = ball.x + behindSign * (R + BR) * 2.4; ty = ball.y; }
+      moveToward(p, tx, ty, speed, dt);
+    }
+
+    // ---------- Ball ----------
+    function updateBall(dt) {
+      if (ball.sndCd > 0) ball.sndCd -= dt;
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+      var fr = BALL_FR * dt;
+      ball.vx -= ball.vx * fr;
+      ball.vy -= ball.vy * fr;
+
+      if (ball.y < TOPM + BR) { ball.y = TOPM + BR; ball.vy = Math.abs(ball.vy) * WALL_BOUNCE; }
+      if (ball.y > BOTM - BR) { ball.y = BOTM - BR; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; }
+      if (ball.x <= LGOAL + BR) {
+        if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('opp'); return; }
+        ball.x = LGOAL + BR; ball.vx = Math.abs(ball.vx) * WALL_BOUNCE;
+      }
+      if (ball.x >= RGOAL - BR) {
+        if (Math.abs(ball.y - MIDY) < MOUTH / 2) { onGoal('you'); return; }
+        ball.x = RGOAL - BR; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE;
+      }
+    }
+
+    // Bump the ball off any player it overlaps: push it clear and give it speed
+    // scaled by how fast the player is moving, biased in the player's heading.
+    function collideBall() {
+      for (var i = 0; i < players.length; i++) {
+        var p = players[i];
+        // Your keeper is a big, reliable wall; the opponent keeper is softer so the
+        // kids can score. Outfielders use a normal body-sized reach.
+        var reach = (p.role === 'keeper' ? (p.side === 'you' ? R * 1.3 : R * 0.95) : R * 0.9) + BR;
+        var dx = ball.x - p.x, dy = ball.y - p.y;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d >= reach) continue;
+        var nx, ny;
+        if (d < 0.001) { nx = p.attack; ny = 0; } else { nx = dx / d; ny = dy / d; }
+        ball.x = p.x + nx * reach;
+        ball.y = p.y + ny * reach;
+        var psp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        var kick = clamp(psp * KICK_MUL + KICK_MIN, KICK_MIN, KICK_MAX);
+        var kx = nx, ky = ny;
+        if (psp > 1) {                                  // blend player heading in so pushes steer
+          kx = nx + p.vx / psp; ky = ny + p.vy / psp;
+          var kl = Math.sqrt(kx * kx + ky * ky) || 1; kx /= kl; ky /= kl;
+        }
+        ball.vx = kx * kick;
+        ball.vy = ky * kick;
+        if (ball.sndCd <= 0) { sfx('kick'); ball.sndCd = 0.12; }
+      }
     }
 
     // ---------- Goals / flow ----------
@@ -704,19 +581,8 @@
       document.getElementById('overTitle').textContent = win ? '🏆 You win!' : '😅 So close!';
       document.getElementById('overScore').textContent = scoreYou + ' – ' + scoreOpp;
       document.getElementById('overOverlay').classList.remove('hidden');
-      setReady(false);
     }
     function updateScore() { scoreEl.textContent = '🔵 ' + scoreYou + ' – ' + scoreOpp + ' 🔴'; }
-
-    function setReady(on) {
-      if (lastReady === on) return;
-      lastReady = on;
-      if (on) controlsEl.classList.add('ready'); else controlsEl.classList.remove('ready');
-    }
-    function youCarrier() {
-      var c = ball && ball.carrier;
-      return (c && c.side === 'you' && c.role === 'field') ? c : null;
-    }
 
     // ---------- Sound ----------
     var actx = null;
@@ -978,8 +844,6 @@
     var stepTeam = document.getElementById('stepTeam');
     var rosterEl = document.getElementById('roster');
     var kickoffBtn = document.getElementById('kickoffBtn');
-    var shootBtn = document.getElementById('shootBtn');
-    var passBtn = document.getElementById('passBtn');
 
     (function initDiff() {
       var saved = null;
@@ -1075,27 +939,11 @@
       initAudio();
       pickOpponents();
       startOverlay.classList.add('hidden');
-      controlsEl.classList.remove('hidden');
-      passBtn.classList.toggle('hidden', mode === 1);
       newMatch();
       state = STATE.PLAYING; lastTs = 0;
       sfx('whistle');
     });
 
-    shootBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (state !== STATE.PLAYING) return;
-      var c = youCarrier(); if (c) doShoot(c);
-    });
-    passBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (state !== STATE.PLAYING || mode === 1) return;
-      var c = youCarrier(); if (c) doPass(c);
-    });
-    window.addEventListener('keydown', function (e) {
-      if (e.key === ' ') { e.preventDefault(); var c = youCarrier(); if (state === STATE.PLAYING && c) doShoot(c); }
-      else if (e.key === 'p' || e.key === 'P') { var c2 = youCarrier(); if (state === STATE.PLAYING && mode === 2 && c2) doPass(c2); }
-    });
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
 
     function pauseGame() {
@@ -1117,8 +965,6 @@
     function returnToStart() {
       document.getElementById('pauseOverlay').classList.add('hidden');
       document.getElementById('overOverlay').classList.add('hidden');
-      controlsEl.classList.add('hidden');
-      setReady(false);
       state = STATE.START;
       stepTeam.style.display = 'none'; stepMode.style.display = '';
       startOverlay.classList.remove('hidden');

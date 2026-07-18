@@ -231,10 +231,10 @@
 
     // Player-selectable speed
     var SPEED_LEVELS = [
-      { m: 0.50, icon: '🐢', name: 'Chill' },
-      { m: 1.00, icon: '🙂', name: 'Normal' },
-      { m: 1.35, icon: '🐇', name: 'Fast' },
-      { m: 1.80, icon: '⚡', name: 'Zoom' }
+      { m: 0.26, icon: '🐢', name: 'Chill' },
+      { m: 0.55, icon: '🙂', name: 'Normal' },
+      { m: 0.85, icon: '🐇', name: 'Fast' },
+      { m: 1.25, icon: '⚡', name: 'Zoom' }
     ];
     var speedIdx = 1, speedMult = 1;
 
@@ -249,10 +249,10 @@
       GRAV = H * 2.4;
       JUMP = -H * 1.06;
       SPEED0 = H * 0.38 * speedMult;
-      SPEEDMAX = H * 0.68 * speedMult;
-      SPEEDACC = H * 0.013 * speedMult;
-      GAPMIN = H * 0.16; GAPMAX = H * 0.32;
-      PWMIN = H * 0.34;  PWMAX = H * 0.62;
+      SPEEDMAX = H * 0.60 * speedMult;
+      SPEEDACC = H * 0.008 * speedMult;
+      GAPMIN = H * 0.16; GAPMAX = H * 0.28;
+      PWMIN = H * 0.40;  PWMAX = H * 0.62;
       TOPMIN = H * 0.44; TOPMAX = H * 0.72;
       MAXRISE = H * 0.15;
     }

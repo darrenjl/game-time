@@ -104,41 +104,6 @@
     }
     canvas#game { display: block; width: 100%; height: 100%; touch-action: none; }
 
-    /* ---- Controls (pass) ---- */
-    .controls {
-      flex: 0 0 auto;
-      display: flex;
-      justify-content: center;
-      align-items: stretch;
-      padding: 10px 14px max(12px, env(safe-area-inset-bottom));
-    }
-    .controls.hidden { display: none; }
-    .controls > * + * { margin-left: 14px; }   /* gap fallback for Safari < 14.5 */
-    .ctrlbtn {
-      -webkit-appearance: none;
-      appearance: none;
-      flex: 1 1 0;
-      max-width: 300px;
-      min-height: 68px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px 18px;
-      border-radius: 22px;
-      font-size: 1.4rem;
-      font-size: clamp(1.15rem, 5.5vw, 1.7rem);
-      font-weight: 800;
-      color: #051a33;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
-      transition: transform 0.08s ease;
-    }
-    .ctrlbtn > * + * { margin-left: 10px; }
-    .ctrlbtn:active { transform: scale(0.96); }
-    .ctrlbtn.pass  { background: linear-gradient(135deg, #9ff0ff, #2a9cff); }
-
     /* ---- Overlays ---- */
     .overlay {
       position: absolute;
@@ -166,30 +131,6 @@
     .overlay p { font-size: 1.05rem; font-size: clamp(0.98rem, 4vw, 1.25rem); color: rgba(242, 255, 244, 0.92); max-width: 26ch; }
     .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
     @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-
-    /* mode picker (1v1 / 2v2) */
-    .modepick { display: flex; justify-content: center; }
-    .modepick > * + * { margin-left: 16px; }
-    .modebtn {
-      -webkit-appearance: none; appearance: none;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-width: 130px; min-height: 120px;
-      padding: 14px; border-radius: 22px; cursor: pointer;
-      color: var(--ink);
-      background: rgba(255,255,255,0.12);
-      border: 3px solid rgba(255,255,255,0.35);
-    }
-    .modebtn > * + * { margin-top: 10px; }
-    .modebtn:active { transform: scale(0.96); }
-    .modebtn.sel { border-color: var(--gold); background: rgba(255,209,102,0.18); }
-    .modebtn .lbl { font-size: 1.4rem; font-weight: 800; }
-    .modebtn .sub { font-size: 0.78rem; opacity: 0.8; }
-    .dots { display: flex; align-items: center; justify-content: center; }
-    .dots > * + * { margin-left: 5px; }
-    .dot { width: 18px; height: 18px; border-radius: 50%; display: inline-block; }
-    .dot.b { background: var(--you); box-shadow: 0 0 8px rgba(42,108,255,0.6); }
-    .dot.r { background: var(--opp); box-shadow: 0 0 8px rgba(255,77,77,0.6); }
-    .vs { font-size: 1rem; font-weight: 800; opacity: 0.8; margin: 0 4px; }
 
     /* team / character picker */
     .roster {
@@ -269,41 +210,19 @@
   <div class="stage">
     <canvas id="game"></canvas>
 
-    <!-- START: pick mode, then team -->
+    <!-- START: pick your shooter -->
     <div class="overlay" id="startOverlay">
-      <div id="stepMode">
-        <h2>⚽ Shootout</h2>
-        <p>How many shooters?</p>
-        <div class="modepick">
-          <button class="modebtn" data-mode="1">
-            <span class="dots"><i class="dot b"></i><span class="vs">vs</span><i class="dot r"></i></span>
-            <span class="lbl">1 Shooter</span>
-            <span class="sub">just you vs the goalie</span>
-          </button>
-          <button class="modebtn" data-mode="2">
-            <span class="dots"><i class="dot b"></i><i class="dot b"></i><span class="vs">vs</span><i class="dot r"></i></span>
-            <span class="lbl">2 Shooters</span>
-            <span class="sub">pass for a better angle</span>
-          </button>
-        </div>
+      <h2>⚽ Shootout</h2>
+      <p>Tap a player to be your shooter.</p>
+      <p style="font-size:0.95rem;opacity:0.82;">Then just tap the goal to shoot — aim where the goalie isn't!</p>
+      <div class="roster" id="roster"></div>
+      <p>Goalie speed:</p>
+      <div class="diffpick" id="diffPickStart">
+        <button data-idx="0">🐢<span>Easy</span></button>
+        <button data-idx="1">🙂<span>Normal</span></button>
+        <button data-idx="2">🐇<span>Hard</span></button>
       </div>
-
-      <div id="stepTeam" style="display:none;">
-        <h2 id="teamTitle">Pick your shooter!</h2>
-        <p id="teamHint">Tap a player to be your shooter.</p>
-        <p style="font-size:0.95rem;opacity:0.82;">Then just tap the goal to shoot — aim where the goalie isn't!</p>
-        <div class="roster" id="roster"></div>
-        <p>Goalie speed:</p>
-        <div class="diffpick" id="diffPickStart">
-          <button data-idx="0">🐢<span>Easy</span></button>
-          <button data-idx="1">🙂<span>Normal</span></button>
-          <button data-idx="2">🐇<span>Hard</span></button>
-        </div>
-        <div class="smallrow">
-          <button class="linkbtn" id="backToMode">⬅️ Change</button>
-          <button class="bigbtn" id="kickoffBtn" disabled>⚽ Start!</button>
-        </div>
-      </div>
+      <button class="bigbtn" id="kickoffBtn" disabled>⚽ Start!</button>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
@@ -326,10 +245,6 @@
     </div>
   </div>
 
-  <div class="controls hidden" id="controls">
-    <button class="ctrlbtn pass" id="passBtn">👟 <span>Pass</span></button>
-  </div>
-
   <script>
   (function () {
     'use strict';
@@ -337,7 +252,6 @@
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var scoreEl = document.getElementById('score');
-    var controlsEl = document.getElementById('controls');
 
     var STATE = { START: 0, PLAYING: 1, OVER: 2, PAUSED: 3 };
     var state = STATE.START;
@@ -356,24 +270,29 @@
     ];
     var YOU_KIT = '#2a6cff', OPP_KIT = '#ff4d4d';
 
-    // ---- Difficulty (goalie dive speed + how wide it covers) ----
+    // ---- Difficulty (goalie reactions) ----
+    // The keeper chases the shot but is speed-limited, so it can't reach a
+    // well-placed corner in time — "aim where the goalie isn't" actually works.
+    //  speed  : dive speed, in goal-widths per second (higher = covers more goal)
+    //  width  : save-span multiplier (how wide the keeper's reach is)
+    //  react  : reaction delay (s) before the keeper starts moving
+    //  lead   : how much the keeper anticipates the crossing point (0 = pure
+    //           chase, 1 = full anticipation) — higher makes corners harder
     var DIFF = [
-      { speed: 0.70, width: 0.85, icon: '🐢' },
-      { speed: 1.00, width: 1.10, icon: '🙂' },
-      { speed: 1.30, width: 1.40, icon: '🐇' }
+      { speed: 0.44, width: 1.15, react: 0.10, lead: 0.15, icon: '🐢' },  // Easy
+      { speed: 0.54, width: 1.15, react: 0.07, lead: 0.35, icon: '🙂' },  // Normal
+      { speed: 0.62, width: 1.15, react: 0.04, lead: 0.50, icon: '🐇' }   // Hard
     ];
     var diffIdx = 0;
 
     // ---- Match config (chosen on start screen) ----
-    var mode = 1;                 // 1 or 2 shooters
-    var youChoice = [];           // indices into CHARS
+    var youChoice = [];           // index into CHARS (single shooter)
     var oppChoice = [];           // goalie char (1)
 
     // ---- Live match state ----
-    var shooters = [];            // {char, x, y, kickT}
-    var activeIdx = 0;
-    var goalie = null;            // {char, x, y, dir}
-    var ball = null;              // {x, y, vx, vy, flying}
+    var shooter = null;           // {char, x, y, kickT}
+    var goalie = null;            // {char, x, y, dir, react, aim}
+    var ball = null;              // {x, y, vx, vy, tx, flying}
     var goals = 0;
     var msg = '', msgT = 0, msgGood = false;
     var lastTs = 0;
@@ -389,14 +308,13 @@
       GOALX0 = (W - GOALW) / 2;
       GOALX1 = GOALX0 + GOALW;
       NETD = H * 0.11;                         // net depth (above the line)
-      SHOOTY = H * 0.82;                       // shooters' row
-      KHW = GOALW * 0.10 * DIFF[diffIdx].width; // goalie half-width
-      KEEP_SPEED = H * 0.55 * DIFF[diffIdx].speed;
-      PATROL = H * 0.16 * DIFF[diffIdx].speed;
+      SHOOTY = H * 0.82;                       // shooter's row
+      KHW = GOALW * 0.09 * DIFF[diffIdx].width; // goalie save half-span
+      KEEP_SPEED = GOALW * DIFF[diffIdx].speed; // scale by the goal it defends
+      PATROL = H * 0.16;
       SHOOT_SP = H * 1.35;
     }
 
-    function rand(a, b) { return a + Math.random() * (b - a); }
     function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
     // ---------- Sizing ----------
@@ -409,31 +327,27 @@
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       computeTunables();
-      if (shooters.length) layoutPositions();
+      if (shooter) layoutPositions();
       render._h = -1;
     }
 
     // ---------- Setup ----------
     function layoutPositions() {
-      if (mode === 1) shooters[0].x = W / 2;
-      else { shooters[0].x = W * 0.32; shooters[1].x = W * 0.68; }
-      for (var i = 0; i < shooters.length; i++) shooters[i].y = SHOOTY;
+      if (shooter) { shooter.x = W / 2; shooter.y = SHOOTY; }
       if (goalie) { goalie.y = GLINE + R * 0.45; goalie.x = clamp(goalie.x, GOALX0 + KHW, GOALX1 - KHW); }
       if (ball && !ball.flying) placeBall();
     }
 
     function placeBall() {
-      var s = shooters[activeIdx];
-      ball.x = s.x; ball.y = s.y - R * 0.95;
+      ball.x = shooter.x; ball.y = shooter.y - R * 0.95;
       ball.vx = 0; ball.vy = 0; ball.flying = false;
     }
 
     function setupMatch() {
-      goals = 0; activeIdx = 0; msg = ''; msgT = 0;
-      shooters = [];
-      for (var i = 0; i < mode; i++) shooters.push({ char: CHARS[youChoice[i]], x: 0, y: SHOOTY, kickT: 0 });
-      goalie = { char: CHARS[oppChoice[0]], x: W / 2, y: GLINE + R * 0.45, dir: 1 };
-      ball = { x: W / 2, y: SHOOTY - R * 0.95, vx: 0, vy: 0, flying: false };
+      goals = 0; msg = ''; msgT = 0;
+      shooter = { char: CHARS[youChoice[0]], x: W / 2, y: SHOOTY, kickT: 0 };
+      goalie = { char: CHARS[oppChoice[0]], x: W / 2, y: GLINE + R * 0.45, dir: 1, react: 0 };
+      ball = { x: W / 2, y: SHOOTY - R * 0.95, vx: 0, vy: 0, tx: W / 2, flying: false };
       layoutPositions();
       placeBall();
       updateScore();
@@ -446,18 +360,13 @@
       var tx = clamp(px, GOALX0 - GOALW * 0.1, GOALX1 + GOALW * 0.1);
       var dx = tx - ball.x, dy = GLINE - ball.y;
       var d = Math.sqrt(dx * dx + dy * dy) || 1;
+      ball.tx = tx;                            // where the shot will cross the line
       ball.vx = dx / d * SHOOT_SP;
       ball.vy = dy / d * SHOOT_SP;
       ball.flying = true;
-      shooters[activeIdx].kickT = 0.2;
+      shooter.kickT = 0.2;
+      goalie.react = DIFF[diffIdx].react;      // keeper hesitates, then dives
       sfx('kick');
-    }
-
-    function swapShooter() {
-      if (mode !== 2 || ball.flying || msgT > 0) return;
-      activeIdx = (activeIdx + 1) % shooters.length;
-      placeBall();
-      sfx('pass');
     }
 
     function resolveShot() {
@@ -492,13 +401,17 @@
 
     // ---------- Update ----------
     function update(dt) {
-      var i;
-      for (i = 0; i < shooters.length; i++) if (shooters[i].kickT > 0) shooters[i].kickT -= dt;
+      if (shooter.kickT > 0) shooter.kickT -= dt;
 
       if (ball.flying) {
-        // goalie dives toward the ball
-        var gt = clamp(ball.x, GOALX0 + KHW, GOALX1 - KHW);
-        goalie.x += clamp(gt - goalie.x, -KEEP_SPEED * dt, KEEP_SPEED * dt);
+        // goalie waits out its reaction time, then chases the ball (leading toward
+        // the crossing point). Speed-limited, so sharp corners can beat it.
+        if (goalie.react > 0) goalie.react -= dt;
+        else {
+          var gt = ball.x + DIFF[diffIdx].lead * (ball.tx - ball.x);
+          gt = clamp(gt, GOALX0 + KHW, GOALX1 - KHW);
+          goalie.x += clamp(gt - goalie.x, -KEEP_SPEED * dt, KEEP_SPEED * dt);
+        }
         ball.x += ball.vx * dt;
         ball.y += ball.vy * dt;
         if (ball.y <= GLINE) { ball.y = GLINE; resolveShot(); }
@@ -702,7 +615,7 @@
     }
 
     function drawGoalie() {
-      // little goalie with gloves, facing the shooters
+      // little goalie with gloves, facing the shooter
       drawPlayerShape(ctx, goalie.x, goalie.y, R * 0.95, OPP_KIT, goalie.char, true);
     }
 
@@ -722,16 +635,9 @@
 
       if (goalie) drawGoalie();
 
-      // shooters (ring the active one)
-      for (var i = 0; i < shooters.length; i++) {
-        var s = shooters[i];
-        var lift = s.kickT > 0 ? R * 0.25 : 0;
-        if (i === activeIdx && state === STATE.PLAYING) {
-          ctx.strokeStyle = 'rgba(255,209,102,0.95)';
-          ctx.lineWidth = Math.max(3, R * 0.14);
-          ctx.beginPath(); ctx.arc(s.x, s.y + R * 0.7, R * 0.95, 0, Math.PI * 2); ctx.stroke();
-        }
-        drawPlayerShape(ctx, s.x, s.y - lift, R, YOU_KIT, s.char, false);
+      if (shooter) {
+        var lift = shooter.kickT > 0 ? R * 0.25 : 0;
+        drawPlayerShape(ctx, shooter.x, shooter.y - lift, R, YOU_KIT, shooter.char, false);
       }
 
       if (ball) drawBall(ball.x, ball.y, BR);
@@ -780,8 +686,6 @@
 
     // ---------- Start-screen wiring ----------
     var startOverlay = document.getElementById('startOverlay');
-    var stepMode = document.getElementById('stepMode');
-    var stepTeam = document.getElementById('stepTeam');
     var rosterEl = document.getElementById('roster');
     var kickoffBtn = document.getElementById('kickoffBtn');
 
@@ -798,7 +702,7 @@
       diffIdx = idx;
       try { localStorage.setItem('so_diff', String(idx)); } catch (e) {}
       computeTunables();
-      if (shooters.length) layoutPositions();
+      if (shooter) layoutPositions();
       paintDiff();
     }
     (function wireDiff() {
@@ -808,25 +712,6 @@
       }
       paintDiff();
     })();
-
-    var modeBtns = document.querySelectorAll('.modebtn');
-    for (var mi = 0; mi < modeBtns.length; mi++) {
-      (function (b) {
-        b.addEventListener('click', function (e) {
-          e.stopPropagation();
-          initAudio();
-          mode = +b.getAttribute('data-mode');
-          for (var k = 0; k < modeBtns.length; k++) modeBtns[k].classList.remove('sel');
-          b.classList.add('sel');
-          openTeamStep();
-        });
-      })(modeBtns[mi]);
-    }
-    document.getElementById('backToMode').addEventListener('click', function (e) {
-      e.stopPropagation();
-      stepTeam.style.display = 'none';
-      stepMode.style.display = '';
-    });
 
     function buildRoster() {
       rosterEl.innerHTML = '';
@@ -843,15 +728,13 @@
           var pick = document.createElement('span');
           pick.className = 'pick'; pick.textContent = '✅';
           tile.appendChild(pick);
-          tile.addEventListener('click', function (e) { e.stopPropagation(); toggleChar(idx); });
+          tile.addEventListener('click', function (e) { e.stopPropagation(); pickChar(idx); });
           rosterEl.appendChild(tile);
         })(i);
       }
     }
-    function toggleChar(idx) {
-      var pos = youChoice.indexOf(idx);
-      if (pos >= 0) { youChoice.splice(pos, 1); }
-      else { if (youChoice.length >= mode) youChoice.shift(); youChoice.push(idx); }
+    function pickChar(idx) {
+      youChoice = [idx];
       paintRoster();
     }
     function paintRoster() {
@@ -860,18 +743,7 @@
         var idx = +tiles[i].getAttribute('data-idx');
         if (youChoice.indexOf(idx) >= 0) tiles[i].classList.add('sel'); else tiles[i].classList.remove('sel');
       }
-      kickoffBtn.disabled = youChoice.length !== mode;
-      var hint = document.getElementById('teamHint');
-      if (mode === 2) hint.textContent = 'Pick 2 shooters (' + youChoice.length + '/2).';
-      else hint.textContent = 'Pick your shooter (' + youChoice.length + '/1).';
-    }
-    function openTeamStep() {
-      youChoice = [];
-      buildRoster();
-      paintRoster();
-      document.getElementById('teamTitle').textContent = (mode === 2) ? 'Pick your 2 shooters!' : 'Pick your shooter!';
-      stepMode.style.display = 'none';
-      stepTeam.style.display = '';
+      kickoffBtn.disabled = youChoice.length !== 1;
     }
     function pickGoalie() {
       oppChoice = [];
@@ -882,25 +754,18 @@
 
     kickoffBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      if (youChoice.length !== mode) return;
+      if (youChoice.length !== 1) return;
       initAudio();
       pickGoalie();
       startOverlay.classList.add('hidden');
-      controlsEl.classList.toggle('hidden', mode === 1);
       setupMatch();
       state = STATE.PLAYING;
       lastTs = 0;
       sfx('whistle');
     });
 
-    // ---------- Pass ----------
-    document.getElementById('passBtn').addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (state === STATE.PLAYING) swapShooter();
-    });
     window.addEventListener('keydown', function (e) {
       if (e.key === ' ') { e.preventDefault(); if (state === STATE.PLAYING) shootAt(goalie ? (goalie.x < W / 2 ? W * 0.7 : W * 0.3) : W / 2, GLINE); }
-      else if (e.key === 'p' || e.key === 'P') { if (state === STATE.PLAYING) swapShooter(); }
     });
 
     document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
@@ -927,10 +792,9 @@
     function returnToStart() {
       document.getElementById('pauseOverlay').classList.add('hidden');
       document.getElementById('overOverlay').classList.add('hidden');
-      controlsEl.classList.add('hidden');
       state = STATE.START;
-      stepTeam.style.display = 'none';
-      stepMode.style.display = '';
+      youChoice = [];
+      paintRoster();
       startOverlay.classList.remove('hidden');
     }
     document.getElementById('newTeamsBtn').addEventListener('click', function (e) { e.stopPropagation(); returnToStart(); });
@@ -946,8 +810,8 @@
     });
 
     // ---------- Global handlers ----------
-    window.addEventListener('resize', function () { resize(); if (rosterEl.children.length) buildRoster(); });
-    window.addEventListener('orientationchange', function () { setTimeout(function () { resize(); if (rosterEl.children.length) buildRoster(); }, 150); });
+    window.addEventListener('resize', function () { resize(); buildRoster(); paintRoster(); });
+    window.addEventListener('orientationchange', function () { setTimeout(function () { resize(); buildRoster(); paintRoster(); }, 150); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
     document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
@@ -966,6 +830,8 @@
 
     // ---------- Boot ----------
     resize();
+    buildRoster();
+    paintRoster();
     requestAnimationFrame(frame);
   })();
   </script>

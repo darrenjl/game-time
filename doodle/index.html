@@ -48,7 +48,7 @@
       <h2>🎨 Doodle</h2>
       <p>A blank page for Oisín &amp; Finley!</p>
       <div class="tap-hint">👆</div>
-      <p><b>Drag your finger to draw.</b> Pick a colour and brush size below. ↩️ undo, 🗑️ clear.</p>
+      <p><b>Drag your finger to draw.</b> Pick a colour, brush &amp; size. Bottom row sets the page colour. ↩️ undo, 🗑️ clear.</p>
     </div>
   </div>
 
@@ -59,21 +59,36 @@
     var ctx = canvas.getContext('2d');
     var W = 0, H = 0, dpr = 1, started = false;
 
-    // artwork buffer (device pixels) so UI redraws don't erase the drawing
+    // artwork buffer (device pixels) so UI redraws don't erase the drawing.
+    // The buffer is transparent, so changing the page background never touches it.
     var buffer = document.createElement('canvas');
     var bctx = buffer.getContext('2d');
 
-    var COLORS = ['#ff5d5d', '#ff9f2e', '#ffd23f', '#5fd07f', '#4fa8ff', '#b79bff', '#ff7eb6', '#2a2a33'];
-    var BRUSH = [0.55, 1.0, 1.9];   // small / medium / large brush multipliers
-    var brushIdx = 1;
-    var slots = [];            // palette hit areas (colours + eraser + sizes)
-    var selected = 0;          // index into COLORS, or 'eraser'
+    var COLORS = ['#ff5d5d', '#ff9f2e', '#ffd23f', '#5fd07f', '#4fa8ff', '#b79bff', '#ff7eb6', '#ffffff', '#2a2a33'];
+    var SIZES = [0.4, 0.7, 1.0, 1.6, 2.6];               // small -> very large
+    var BRUSHES = ['round', 'marker', 'crayon', 'spray', 'rainbow'];
+    var BGS = ['paper', '#ffffff', '#dceeff', '#e4fbe8', '#ffe4f0', '#20242e'];   // 'paper' = default cream gradient
+
+    var sizeIdx = 2;           // index into SIZES
+    var brushType = 0;         // index into BRUSHES
+    var bgIdx = 0;             // index into BGS
+    var selected = 0;          // index into COLORS
     var eraser = false;
-    var paletteY = 0, PB = 0;
+    var rainbowHue = 0;        // advances along a rainbow stroke
+
+    var PALROWS = 3;
+    var slots = [];            // palette hit areas across 3 rows
+    var paletteY = 0, PB = 0;  // PB = height of ONE palette row
     var drawing = false, lastX = 0, lastY = 0;
-    var history = [];          // undo snapshots (buffer copies)
     var needsRender = false;   // dirty flag: render once per frame, not per touch event
     var paperGrad = null;      // cached paper gradient (rebuilt on resize)
+
+    // Undo snapshots reuse a small fixed pool of canvases instead of allocating a
+    // fresh full-resolution canvas per stroke — that churn was thrashing GC and
+    // stalling low-RAM devices (iPad mini 2) the longer the kids drew.
+    var HIST_MAX = 6;
+    var history = [];          // stack of snapshot canvases
+    var freePool = [];         // recycled snapshot canvases
 
     function resize() {
       var rect = canvas.parentNode.getBoundingClientRect();
@@ -89,34 +104,50 @@
       bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       bctx.lineCap = 'round'; bctx.lineJoin = 'round';
       if (old) bctx.drawImage(old, 0, 0, old.width, old.height, 0, 0, W, H);
-      PB = Math.max(64, Math.min(H * 0.13, W * 0.13));
-      paletteY = H - PB;
+      PB = Math.max(52, Math.min(H * 0.1, W * 0.11, 92));
+      paletteY = H - PALROWS * PB;
       paperGrad = ctx.createLinearGradient(0, 0, 0, paletteY);
       paperGrad.addColorStop(0, '#fffdf6'); paperGrad.addColorStop(1, '#f2ede0');
       layoutSlots();
-      history = [];   // snapshots are tied to the old buffer size
+      history = []; freePool = [];   // snapshots are tied to the old buffer size
       needsRender = true;
     }
 
     function layoutSlots() {
       slots = [];
-      var n = COLORS.length + 1 + BRUSH.length;  // colours + eraser + sizes
-      var pad = W * 0.02, gap = W * 0.012;
-      var sw = (W - pad * 2 - gap * (n - 1)) / n;
-      var sh = Math.min(PB * 0.72, sw);
-      var sy = paletteY + (PB - sh) / 2;
-      var k = 0, x, i;
-      for (i = 0; i < COLORS.length; i++) { x = pad + k * (sw + gap); slots.push({ kind: 'color', idx: i, x: x, y: sy, w: sw, h: sh }); k++; }
-      x = pad + k * (sw + gap); slots.push({ kind: 'eraser', x: x, y: sy, w: sw, h: sh }); k++;
-      for (i = 0; i < BRUSH.length; i++) { x = pad + k * (sw + gap); slots.push({ kind: 'size', idx: i, x: x, y: sy, w: sw, h: sh }); k++; }
+      var rows = [[], [], []], i;
+      for (i = 0; i < COLORS.length; i++) rows[0].push({ kind: 'color', idx: i });
+      rows[0].push({ kind: 'eraser' });
+      for (i = 0; i < BRUSHES.length; i++) rows[1].push({ kind: 'brush', idx: i });
+      for (i = 0; i < SIZES.length; i++) rows[1].push({ kind: 'size', idx: i });
+      for (i = 0; i < BGS.length; i++) rows[2].push({ kind: 'bg', idx: i });
+      var pad = W * 0.02, gap = W * 0.012, r, n, sw, sh, rowTop, sy, s;
+      for (r = 0; r < rows.length; r++) {
+        n = rows[r].length;
+        sw = (W - pad * 2 - gap * (n - 1)) / n;
+        sh = Math.min(PB * 0.72, sw);
+        rowTop = paletteY + r * PB;
+        sy = rowTop + (PB - sh) / 2;
+        for (i = 0; i < n; i++) {
+          s = rows[r][i]; s.x = pad + i * (sw + gap); s.y = sy; s.w = sw; s.h = sh; s.row = r;
+          slots.push(s);
+        }
+      }
     }
 
-    function brushW() { return Math.max(3, H * 0.014) * BRUSH[brushIdx]; }
+    function brushW() { return Math.max(3, H * 0.014) * SIZES[sizeIdx]; }
 
+    // ---------- Undo history ----------
     function pushHistory() {
-      var c = document.createElement('canvas'); c.width = buffer.width; c.height = buffer.height;
-      c.getContext('2d').drawImage(buffer, 0, 0);
-      history.push(c); if (history.length > 8) history.shift();   // bound memory on low-RAM devices (iPad mini 2)
+      var c = freePool.pop();
+      if (!c) c = document.createElement('canvas');
+      if (c.width !== buffer.width || c.height !== buffer.height) { c.width = buffer.width; c.height = buffer.height; }
+      var cc = c.getContext('2d');
+      cc.setTransform(1, 0, 0, 1, 0, 0);
+      cc.clearRect(0, 0, c.width, c.height);
+      cc.drawImage(buffer, 0, 0);
+      history.push(c);
+      while (history.length > HIST_MAX) freePool.push(history.shift());   // recycle, don't discard
     }
     function undo() {
       if (!history.length) return;
@@ -124,8 +155,44 @@
       bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0);
       bctx.clearRect(0, 0, buffer.width, buffer.height);
       bctx.drawImage(c, 0, 0); bctx.restore();
+      freePool.push(c);
       needsRender = true;
     }
+
+    // ---------- Painting (all effects drawn straight onto the buffer) ----------
+    function strokeLine(x0, y0, x1, y1, lw) {
+      bctx.lineWidth = lw;
+      bctx.beginPath(); bctx.moveTo(x0, y0); bctx.lineTo(x1, y1); bctx.stroke();
+      if (x0 === x1 && y0 === y1) { bctx.fillStyle = bctx.strokeStyle; bctx.beginPath(); bctx.arc(x0, y0, lw / 2, 0, Math.PI * 2); bctx.fill(); }
+    }
+    function stampAlong(x0, y0, x1, y1, w, col, kind) {
+      var dx = x1 - x0, dy = y1 - y0, dist = Math.sqrt(dx * dx + dy * dy);
+      var step = Math.max(1, w * 0.35), n = Math.min(48, Math.floor(dist / step) + 1);
+      bctx.fillStyle = col;
+      for (var i = 0; i < n; i++) {
+        var t = n > 1 ? i / (n - 1) : 0, px = x0 + dx * t, py = y0 + dy * t, j, a, rr;
+        if (kind === 'crayon') {
+          bctx.globalAlpha = 0.5;
+          for (j = 0; j < 5; j++) { a = Math.random() * Math.PI * 2; rr = Math.random() * w * 0.5; bctx.beginPath(); bctx.arc(px + Math.cos(a) * rr, py + Math.sin(a) * rr, Math.max(0.7, w * 0.12), 0, Math.PI * 2); bctx.fill(); }
+        } else {   // spray
+          bctx.globalAlpha = 0.8;
+          for (j = 0; j < 8; j++) { a = Math.random() * Math.PI * 2; rr = Math.random() * w * 0.9; bctx.beginPath(); bctx.arc(px + Math.cos(a) * rr, py + Math.sin(a) * rr, Math.max(0.6, w * 0.07), 0, Math.PI * 2); bctx.fill(); }
+        }
+      }
+      bctx.globalAlpha = 1;
+    }
+    function paintSegment(x0, y0, x1, y1) {
+      var w = brushW();
+      if (eraser) { bctx.globalAlpha = 1; bctx.globalCompositeOperation = 'destination-out'; bctx.strokeStyle = '#000'; strokeLine(x0, y0, x1, y1, w * 2.4); return; }
+      bctx.globalCompositeOperation = 'source-over';
+      var t = BRUSHES[brushType], col = COLORS[selected];
+      if (t === 'marker') { bctx.globalAlpha = 0.5; bctx.strokeStyle = col; strokeLine(x0, y0, x1, y1, w * 1.5); bctx.globalAlpha = 1; }
+      else if (t === 'rainbow') { bctx.globalAlpha = 1; bctx.strokeStyle = 'hsl(' + (rainbowHue % 360) + ',90%,55%)'; strokeLine(x0, y0, x1, y1, w); rainbowHue += 8; }
+      else if (t === 'crayon') { stampAlong(x0, y0, x1, y1, w, col, 'crayon'); }
+      else if (t === 'spray') { stampAlong(x0, y0, x1, y1, w, col, 'spray'); }
+      else { bctx.globalAlpha = 1; bctx.strokeStyle = col; strokeLine(x0, y0, x1, y1, w); }
+    }
+    function dab(x, y) { paintSegment(x, y, x, y); }
 
     // ---------- Input ----------
     function pointFromEvent(e) {
@@ -135,8 +202,15 @@
     }
     function hitPalette(p) {
       if (p.y < paletteY) return null;
-      for (var i = 0; i < slots.length; i++) { var s = slots[i]; if (p.x >= s.x - 4 && p.x <= s.x + s.w + 4) return s; }
-      return null;
+      var r = Math.floor((p.y - paletteY) / PB);
+      if (r < 0) r = 0; if (r > PALROWS - 1) r = PALROWS - 1;
+      var best = null, bestd = Infinity;   // whole row band is tappable — big targets for little fingers
+      for (var i = 0; i < slots.length; i++) {
+        var s = slots[i]; if (s.row !== r) continue;
+        var d = Math.abs(p.x - (s.x + s.w / 2));
+        if (d < bestd) { bestd = d; best = s; }
+      }
+      return best;
     }
     function onDown(e) {
       if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
@@ -147,58 +221,74 @@
       if (s) {
         if (s.kind === 'color') { selected = s.idx; eraser = false; }
         else if (s.kind === 'eraser') { eraser = true; }
-        else { brushIdx = s.idx; }
+        else if (s.kind === 'brush') { brushType = s.idx; eraser = false; }
+        else if (s.kind === 'size') { sizeIdx = s.idx; }
+        else if (s.kind === 'bg') { bgIdx = s.idx; }
         needsRender = true;
         return;
       }
       if (p.y < paletteY) { pushHistory(); drawing = true; lastX = p.x; lastY = p.y; dab(p.x, p.y); needsRender = true; }
-    }
-    function dab(x, y) {
-      // a single dot so a tap leaves a mark
-      bctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
-      bctx.fillStyle = eraser ? '#000' : COLORS[selected];
-      bctx.beginPath(); bctx.arc(x, y, (eraser ? brushW() * 2.2 : brushW()) / 2, 0, Math.PI * 2); bctx.fill();
     }
     function onMove(e) {
       if (!drawing) return;
       if (e) e.preventDefault();
       var p = pointFromEvent(e);
       var y = Math.min(p.y, paletteY - 1);
-      bctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
-      bctx.strokeStyle = eraser ? '#000' : COLORS[selected];
-      bctx.lineWidth = eraser ? brushW() * 2.4 : brushW();
-      bctx.beginPath(); bctx.moveTo(lastX, lastY); bctx.lineTo(p.x, y); bctx.stroke();
+      paintSegment(lastX, lastY, p.x, y);
       lastX = p.x; lastY = y;
       needsRender = true;
     }
-    function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; }
+    function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; bctx.globalAlpha = 1; }
 
     function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); needsRender = true; }
 
     // ---------- Draw ----------
     function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+    function dot(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+    function drawBrushIcon(s, cx, cy, previewCol) {
+      var t = BRUSHES[s.idx], base = Math.min(s.w, s.h);
+      if (t === 'round') { ctx.fillStyle = previewCol; dot(cx, cy, base * 0.24); }
+      else if (t === 'marker') { ctx.globalAlpha = 0.55; ctx.fillStyle = previewCol; roundRect(ctx, cx - base * 0.3, cy - base * 0.14, base * 0.6, base * 0.28, base * 0.1); ctx.fill(); ctx.globalAlpha = 1; }
+      else if (t === 'crayon') { ctx.fillStyle = previewCol; ctx.globalAlpha = 0.55; for (var k = 0; k < 9; k++) { var a = k / 9 * Math.PI * 2, rr = base * 0.16 * (k % 2 ? 1.4 : 0.7); dot(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, base * 0.05); } ctx.globalAlpha = 1; }
+      else if (t === 'spray') { ctx.fillStyle = previewCol; ctx.globalAlpha = 0.8; for (var m = 0; m < 12; m++) { var a2 = Math.random() * Math.PI * 2, r2 = Math.random() * base * 0.28; dot(cx + Math.cos(a2) * r2, cy + Math.sin(a2) * r2, base * 0.035); } ctx.globalAlpha = 1; }
+      else { for (var h = 0; h < 6; h++) { var a3 = h / 6 * Math.PI * 2; ctx.fillStyle = 'hsl(' + (h * 60) + ',90%,58%)'; dot(cx + Math.cos(a3) * base * 0.16, cy + Math.sin(a3) * base * 0.16, base * 0.07); } }
+    }
 
     function render() {
-      // paper (gradient cached in resize so we don't re-allocate every frame)
-      ctx.fillStyle = paperGrad; ctx.fillRect(0, 0, W, paletteY);
-      // artwork
+      // page background (default 'paper' gradient, or a chosen solid colour)
+      ctx.fillStyle = (BGS[bgIdx] === 'paper') ? paperGrad : BGS[bgIdx];
+      ctx.fillRect(0, 0, W, paletteY);
+      // artwork (transparent buffer painted on top — background changes never erase it)
       ctx.drawImage(buffer, 0, 0, buffer.width, buffer.height, 0, 0, W, H);
-      // palette strip
-      ctx.fillStyle = '#1a1f2e'; ctx.fillRect(0, paletteY, W, PB);
+      // palette strip (3 rows)
+      ctx.fillStyle = '#1a1f2e'; ctx.fillRect(0, paletteY, W, PALROWS * PB);
+      var previewCol = eraser ? '#fff' : COLORS[selected];
       for (var i = 0; i < slots.length; i++) {
-        var s = slots[i];
-        var isSel = (s.kind === 'color' && !eraser && s.idx === selected) || (s.kind === 'eraser' && eraser) || (s.kind === 'size' && s.idx === brushIdx);
-        if (s.kind === 'color') { ctx.fillStyle = COLORS[s.idx]; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill(); }
-        else if (s.kind === 'eraser') {
+        var s = slots[i], cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+        var isSel = (s.kind === 'color' && !eraser && s.idx === selected) || (s.kind === 'eraser' && eraser) ||
+                    (s.kind === 'brush' && !eraser && s.idx === brushType) || (s.kind === 'size' && s.idx === sizeIdx) ||
+                    (s.kind === 'bg' && s.idx === bgIdx);
+        if (s.kind === 'color') {
+          ctx.fillStyle = COLORS[s.idx]; dot(cx, cy, Math.min(s.w, s.h) * 0.45);
+          ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, Math.min(s.w, s.h) * 0.45, 0, Math.PI * 2); ctx.stroke();
+        } else if (s.kind === 'eraser') {
           ctx.fillStyle = '#fff'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill();
           ctx.fillStyle = '#ff9fc0'; roundRect(ctx, s.x + s.w * 0.16, s.y + s.h * 0.5, s.w * 0.68, s.h * 0.38, s.w * 0.1); ctx.fill();
-        } else {
+        } else if (s.kind === 'brush') {
           ctx.fillStyle = '#33384a'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill();
-          ctx.fillStyle = '#fff'; var dr = s.w * (0.13 + 0.11 * s.idx);
-          ctx.beginPath(); ctx.arc(s.x + s.w / 2, s.y + s.h / 2, dr, 0, Math.PI * 2); ctx.fill();
+          drawBrushIcon(s, cx, cy, previewCol);
+        } else if (s.kind === 'size') {
+          ctx.fillStyle = '#33384a'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.fill();
+          ctx.fillStyle = '#fff'; dot(cx, cy, Math.min(s.h * 0.42, s.w * (0.12 + 0.07 * s.idx)));
+        } else {   // background swatch — a framed square, visually distinct from the round brush colours
+          var bcol = (BGS[s.idx] === 'paper') ? '#f5efe0' : BGS[s.idx];
+          ctx.fillStyle = '#0d1018'; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.14); ctx.fill();
+          ctx.fillStyle = bcol; roundRect(ctx, s.x + s.w * 0.14, s.y + s.h * 0.14, s.w * 0.72, s.h * 0.72, s.w * 0.08); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; roundRect(ctx, s.x + s.w * 0.14, s.y + s.h * 0.14, s.w * 0.72, s.h * 0.72, s.w * 0.08); ctx.stroke();
         }
         if (isSel) { ctx.strokeStyle = '#ffd166'; ctx.lineWidth = Math.max(3, s.w * 0.09); roundRect(ctx, s.x - 3, s.y - 3, s.w + 6, s.h + 6, s.w * 0.24); ctx.stroke(); }
-        else { ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.22); ctx.stroke(); }
+        else if (s.kind !== 'color') { ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; roundRect(ctx, s.x, s.y, s.w, s.h, s.w * 0.2); ctx.stroke(); }
       }
     }
 
