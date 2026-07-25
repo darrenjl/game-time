@@ -289,7 +289,12 @@
       READY_FLUSH: 4, // the wee/poo pops up smiling, waiting to be flushed
       FLUSHING: 5,    // whoosh + wave goodbye + swirl away
       WASH: 6,        // hand-wash bubbles at the sink
-      CHEER: 7        // happy dance: "that wasn't scary at all!"
+      CHEER: 7,       // happy dance: "that wasn't scary at all!"
+      // The accident branch. Waiting too long is NOT a fail — it's the calmest,
+      // warmest thing in the game: a puddle, a parent, a wipe, no telling-off.
+      ACCIDENT: 8,
+      CLEANUP: 9,
+      REASSURE: 10
     };
     var step = STEP.ARRIVE, stepT = 0;
 
@@ -374,6 +379,12 @@
     function sndStep() { tone(220, 0, 0.06, 0.04, 'sine', 160); }
     // Short scrubby tune for the hand wash
     function sndScrub(i) { tone(440 + (i % 6) * 70, 0, 0.12, 0.06, 'square', 520 + (i % 6) * 70); }
+    // A soft "oh well" — deliberately warm and low-key, never an alarm or a buzzer.
+    function sndOops() { tone(392, 0, 0.22, 0.07, 'sine', 330); tone(440, 0.2, 0.3, 0.07, 'sine', 494); }
+    // Cheery wipe-wipe-wipe rhythm
+    function sndWipe(i) { tone(300 + (i % 3) * 60, 0, 0.14, 0.05, 'triangle', 240 + (i % 3) * 60); }
+    // Warm reassuring chord
+    function sndWarm() { tone(392, 0, 0.6, 0.07, 'sine'); tone(494, 0.05, 0.6, 0.06, 'sine'); tone(587, 0.1, 0.6, 0.05, 'sine'); }
 
     var FLUSH_SOUNDS = [
       function () { sndWhoosh(1.6); },
@@ -394,6 +405,13 @@
       { name: 'Hoppy', body: '#f19ec2', belly: '#ffd8ea', accent: '#c96b98', head: null, ear: 'long',    says: 'I need a wee, quick!',   done: 'Hop hop, all done!' },
       { name: 'Oisín', body: '#5aa9f6', belly: '#a8d4ff', accent: '#2f6db0', head: '#f2c9a0', ear: 'hair', says: "I'll go first — easy peasy!", done: 'See? Easy peasy!' }
     ];
+    // Mommy and Daddy — they only ever turn up to help.
+    var PARENTS = [
+      { name: 'Mommy', body: '#c48be0', belly: '#e6c9f5', accent: '#9a63b8', head: '#f2c9a0', ear: 'hairlong' },
+      { name: 'Daddy', body: '#5ac9a8', belly: '#b6ecdd', accent: '#2f8f74', head: '#f2c9a0', ear: 'hair' }
+    ];
+    var parent = null, px = 0, puddle = null, wipeT = 0;
+
     var pickedIdx = -1;   // -1 = surprise
     var friend = null, friendPose = 'walk';
     var fx = 0, fy = 0;   // friend feet position
@@ -688,6 +706,14 @@
         c.arc(hx, hy - hr * 0.22, hr * 1.02, Math.PI * 1.06, Math.PI * 1.94);
         c.closePath();
         c.fillStyle = '#5b3a26'; c.fill();
+      } else if (f.ear === 'hairlong') {
+        c.fillStyle = '#7b4a2c';
+        ellipse(c, hx - hr * 0.92, hy + hr * 0.3, hr * 0.3, hr * 0.85); c.fill();
+        ellipse(c, hx + hr * 0.92, hy + hr * 0.3, hr * 0.3, hr * 0.85); c.fill();
+        c.beginPath();
+        c.arc(hx, hy - hr * 0.14, hr * 1.06, Math.PI * 1.0, Math.PI * 2.0);
+        c.closePath();
+        c.fill();
       }
     }
 
@@ -735,6 +761,7 @@
       else if (pose === 'held') { tilt = Math.sin(ts / 160) * 0.14; }
       else if (pose === 'dance') { bob = Math.abs(Math.sin(ts / 150)) * s * 0.1; tilt = Math.sin(ts / 150) * 0.14; }
       else if (pose === 'wash') { tilt = Math.sin(ts / 110) * 0.05; }
+      else if (pose === 'wipe') { tilt = 0.16 + Math.sin(ts / 120) * 0.04; }
 
       c.save();
       c.translate(cx, footY - bob);
@@ -770,6 +797,12 @@
           rr(c, -bw * 0.1, -bh * 0.5, bw * 0.2, bh * 0.55, bw * 0.09); c.fill(); c.restore();
           c.save(); c.translate(bw * 0.5, bodyTop + bh * 0.2); c.rotate(0.9);
           rr(c, -bw * 0.1, -bh * 0.5, bw * 0.2, bh * 0.55, bw * 0.09); c.fill(); c.restore();
+        } else if (pose === 'wipe') {
+          // one arm reaching right down to the floor, scrubbing side to side
+          var sw = Math.sin(ts / 120) * bw * 0.16;
+          c.save(); c.translate(bw * 0.34 + sw, bodyTop + bh * 0.28); c.rotate(-0.42);
+          rr(c, -bw * 0.11, 0, bw * 0.22, bh * 1.35, bw * 0.1); c.fill(); c.restore();
+          rr(c, -bw * 0.62, bodyTop + bh * 0.18, bw * 0.2, bh * 0.6, bw * 0.09); c.fill();
         } else if (pose === 'wash') {
           var rub = Math.sin(ts / 110) * bw * 0.07;
           c.save(); c.translate(bw * 0.05 + rub, bodyTop - bh * 0.02); c.rotate(-0.55);
@@ -781,7 +814,7 @@
           rr(c, bw * 0.42, bodyTop + bh * 0.18, bw * 0.2, bh * 0.6, bw * 0.09); c.fill();
         }
       }
-      if (pose !== 'wash') drawArms();
+      if (pose !== 'wash' && pose !== 'wipe') drawArms();
 
       // body
       c.fillStyle = f.body;
@@ -794,7 +827,7 @@
       c.beginPath(); c.arc(0, headY, hr, 0, Math.PI * 2); c.fill();
       drawEars(c, f, s, 0, headY, hr);
       drawFace(c, f, 0, headY, hr, (pose === 'sit' || pose === 'dance') ? 'relaxed' : 'wide');
-      if (pose === 'wash') drawArms();
+      if (pose === 'wash' || pose === 'wipe') drawArms();
 
       c.restore();
     }
@@ -863,6 +896,30 @@
       c.beginPath(); c.moveTo(0, 0); c.lineTo(r * 0.6, -r * 0.2); c.stroke();
       c.restore();
 
+      c.restore();
+    }
+
+    // ---------- The puddle and the wiping cloth ----------
+    function drawPuddle(pd, ts) {
+      if (!pd || pd.r <= 0.5) return;
+      var c = ctx;
+      c.globalAlpha = Math.max(0, Math.min(1, pd.a));
+      ellipse(c, pd.x, pd.y, pd.r, pd.r * 0.34);
+      c.fillStyle = '#ffe066'; c.fill();
+      ellipse(c, pd.x - pd.r * 0.3, pd.y - pd.r * 0.08, pd.r * 0.22, pd.r * 0.09);
+      c.fillStyle = 'rgba(255,255,255,0.55)'; c.fill();
+      c.globalAlpha = 1;
+    }
+
+    function drawCloth(x, y, s) {
+      var c = ctx;
+      c.save();
+      c.translate(x, y);
+      c.rotate(0.2);
+      rr(c, -s * 0.5, -s * 0.3, s, s * 0.6, s * 0.12);
+      c.fillStyle = '#a8d4ff'; c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      rr(c, -s * 0.32, -s * 0.16, s * 0.28, s * 0.14, s * 0.05); c.fill();
       c.restore();
     }
 
@@ -952,6 +1009,19 @@
       }
       if (s === STEP.WASH) { friendPose = 'wash'; washTaps = 0; }
       if (s === STEP.CHEER) { friendPose = 'dance'; sndCheer(); spawnBits(W * 0.5, H * 0.4, 34, CONFETTI, true); }
+      if (s === STEP.ACCIDENT) {
+        friendPose = 'wiggle';
+        var sz = friendSize();
+        puddle = { x: fx - sz * 0.05, y: floorY() + sz * 0.05, r: 1, a: 1 };
+        sndOops();
+      }
+      if (s === STEP.CLEANUP) {
+        parent = PARENTS[Math.floor(Math.random() * PARENTS.length)];
+        px = -W * 0.2;
+        wipeT = 0;
+        friendPose = 'wiggle';
+      }
+      if (s === STEP.REASSURE) { friendPose = 'dance'; sndWarm(); spawnBits(W * 0.5, H * 0.45, 22, CONFETTI, true); }
       updateAction();
     }
 
@@ -975,8 +1045,27 @@
         fx += (target - fx) * Math.min(1, dt * 4.5);
         if (stepT > 0.25 && !updatePlay._st) { sndStep(); updatePlay._st = 1; }
         if (Math.abs(fx - target) < W * 0.01) { updatePlay._st = 0; setStep(STEP.WAIT_DRAG); }
+      } else if (step === STEP.WAIT_DRAG) {
+        // Nobody is being timed out here — after a good long wait the friend
+        // simply can't hold it, which is the cue for the calm-cleanup scene.
+        if (stepT > 14 && !drag) setStep(STEP.ACCIDENT);
       } else if (step === STEP.SITTING) {
         if (stepT > 2.6) setStep(STEP.HOP_OFF);
+      } else if (step === STEP.ACCIDENT) {
+        puddle.r = Math.min(friendSize() * 0.42, puddle.r + friendSize() * 1.1 * dt);
+        if (stepT > 2.6) setStep(STEP.CLEANUP);
+      } else if (step === STEP.CLEANUP) {
+        var wx = puddle.x - friendSize() * 0.72;
+        px += (wx - px) * Math.min(1, dt * 3.2);
+        if (stepT > 1.6) {
+          wipeT += dt;
+          if (Math.floor(wipeT / 0.42) !== Math.floor((wipeT - dt) / 0.42)) sndWipe(Math.floor(wipeT / 0.42));
+          puddle.r = Math.max(0, puddle.r - friendSize() * 0.10 * dt);
+          puddle.a = Math.max(0, puddle.a - dt * 0.26);
+          if (puddle.r <= 0.5) { puddle = null; setStep(STEP.REASSURE); }
+        }
+      } else if (step === STEP.REASSURE) {
+        if (stepT > 2.2 && actionBtn.className.indexOf('hidden') >= 0) updateAction();
       } else if (step === STEP.HOP_OFF) {
         var tx = standX();
         fx += (tx - fx) * Math.min(1, dt * 6);
@@ -1016,11 +1105,24 @@
       drawSink(step === STEP.WASH, ts);
       drawPottyBack(p, ts);
 
+      drawPuddle(puddle, ts);
+
       if (step === STEP.SITTING) {
         drawFriend(friend, p.cx, p.top + p.h * 0.06 + s * 0.30, s, 'sit', ts);
         drawPottyFront(p);
       } else {
         drawFriend(friend, fx, fy, s, drag ? 'held' : friendPose, ts);
+      }
+
+      // Mommy or Daddy, in to help
+      if (parent && (step === STEP.CLEANUP || step === STEP.REASSURE)) {
+        var ps = s * 1.32;
+        var wiping = step === STEP.CLEANUP && stepT > 1.6;
+        drawFriend(parent, px, floorY(), ps, wiping ? 'wipe' : (step === STEP.REASSURE ? 'dance' : 'walk'), ts);
+        if (wiping && puddle) {
+          var swipe = Math.sin(ts / 120) * s * 0.14;
+          drawCloth(puddle.x - s * 0.1 + swipe, puddle.y - s * 0.03, s * 0.3);
+        }
       }
 
       if (blob) drawBlob(blob, p, ts);
@@ -1065,6 +1167,19 @@
         speech(stepT < 3 ? 'Now wash your hands — rub rub rub!' : 'Nice clean hands!', W * 0.5, H * 0.2);
       } else if (step === STEP.CHEER) {
         speech('That wasn’t scary at all!', fx, fy - s * 1.12);
+      } else if (step === STEP.ACCIDENT) {
+        speech(stepT < 1.4
+          ? 'Oops! I did a wee on the floor.'
+          : 'That’s okay — it happens to everyone!', fx, fy - s * 1.12);
+      } else if (step === STEP.CLEANUP) {
+        var line = stepT < 1.6 ? 'Don’t worry, ' + parent.name + ' is coming to help!'
+          : (stepT < 3.4 ? 'Wipe, wipe, wipe… no bother at all!'
+                         : 'Nobody is in trouble. Accidents happen!');
+        speech(line, W * 0.5, H * 0.2);
+      } else if (step === STEP.REASSURE) {
+        speech(stepT < 2.2
+          ? parent.name + ': “All clean! Good try, ' + friend.name + '.”'
+          : 'We’ll try the potty again next time!', W * 0.5, H * 0.2);
       }
     }
 
@@ -1180,6 +1295,7 @@
         if (step === STEP.READY_FLUSH) { show = true; label = '🚽 Flush!'; }
         else if (step === STEP.WASH) { show = true; label = '🧼 All clean!'; }
         else if (step === STEP.CHEER) { show = true; label = 'Who’s next? ➡️'; }
+        else if (step === STEP.REASSURE && stepT > 2.2) { show = true; label = 'Who’s next? ➡️'; }
       }
       actionBtn.textContent = label;
       if (show) actionBtn.classList.remove('hidden');
@@ -1192,13 +1308,17 @@
       if (state === STATE.TOY) { toyFlush(); return; }
       if (step === STEP.READY_FLUSH) setStep(STEP.FLUSHING);
       else if (step === STEP.WASH) setStep(STEP.CHEER);
-      else if (step === STEP.CHEER) { chooseFriend(); setStep(STEP.ARRIVE); }
+      else if (step === STEP.CHEER || step === STEP.REASSURE) {
+        parent = null; puddle = null;
+        chooseFriend();
+        setStep(STEP.ARRIVE);
+      }
     });
 
     // ---------- Screen switching ----------
     function goHome() {
       state = STATE.HOME;
-      blob = null; toyBlob = null; drag = null;
+      blob = null; toyBlob = null; drag = null; parent = null; puddle = null;
       homeOverlay.classList.remove('hidden');
       palette.classList.add('hidden');
       updateAction();
@@ -1207,6 +1327,7 @@
       state = STATE.PLAY;
       homeOverlay.classList.add('hidden');
       palette.classList.add('hidden');
+      parent = null; puddle = null;
       chooseFriend();
       setStep(STEP.ARRIVE);
     }
