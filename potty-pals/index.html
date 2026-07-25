@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2a1c46">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Potty Crew">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Bob's Potty Crew</title>
+  <style>
+    :root {
+      --bg: #2a1c46;
+      --bg-2: #170f2b;
+      --sun: #ffd166;
+      --ink: #fff4e8;
+      --mint: #63d9c0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #3a2660 0%, #2a1c46 55%, #170f2b 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+    }
+    .topbar > * + * { margin-left: 10px; }   /* gap fallback for Safari < 14.5 */
+    .back {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(255, 209, 102, 0.16);
+      border: 2px solid rgba(255, 209, 102, 0.5);
+    }
+    .back:active { transform: scale(0.95); }
+    .title {
+      font-size: 1.1rem;
+      font-size: clamp(1rem, 4.4vw, 1.5rem);
+      font-weight: 800;
+      color: var(--sun);
+      text-align: center;
+    }
+    .rightbtns { display: flex; }
+    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .tbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(255, 209, 102, 0.16);
+      border: 2px solid rgba(255, 209, 102, 0.5);
+    }
+    .tbtn:active { transform: scale(0.95); }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* ---- Big context button, floats over the bottom of the stage ---- */
+    .action {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 68px;
+      padding: 16px 34px;
+      font-family: inherit;
+      font-size: 1.3rem;
+      font-size: clamp(1.15rem, 5.2vw, 1.6rem);
+      font-weight: 800;
+      color: #2a1c46;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--sun), #ff9f68);
+      box-shadow: 0 12px 30px rgba(255, 159, 104, 0.45);
+      cursor: pointer;
+      z-index: 4;
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+    .action:active { transform: translateX(-50%) scale(0.96); }
+    .action.hidden { display: none; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 12px 30px rgba(255, 159, 104, 0.35); }
+      50% { box-shadow: 0 12px 44px rgba(255, 209, 102, 0.75); }
+    }
+
+    /* ---- Decorate palette ---- */
+    .palette {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+      background: rgba(23, 15, 43, 0.82);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 4;
+    }
+    .palette > * + * { margin-top: 8px; }     /* gap fallback for Safari < 14.5 */
+    .palette.hidden { display: none; }
+    .prow { display: flex; flex-wrap: wrap; justify-content: center; }
+    .prow > * + * { margin-left: 8px; }
+    .pbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 52px;
+      min-height: 52px;
+      padding: 6px;
+      border-radius: 14px;
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--ink);
+      background: rgba(255, 244, 232, 0.12);
+      border: 2px solid rgba(255, 244, 232, 0.28);
+    }
+    .pbtn.sel { border-color: var(--sun); background: rgba(255, 209, 102, 0.24); transform: scale(1.06); }
+    .pbtn:active { transform: scale(0.94); }
+    .swatch { min-width: 44px; min-height: 44px; border-radius: 999px; border: 3px solid rgba(255, 244, 232, 0.35); }
+    .swatch.sel { border-color: #fff; transform: scale(1.12); }
+    .phint { font-size: 0.85rem; font-weight: 700; opacity: 0.8; }
+
+    /* ---- Home overlay ---- */
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      background: rgba(23, 15, 43, 0.86);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 6;
+      overflow-y: auto;
+    }
+    .overlay > * + * { margin-top: 14px; }     /* gap fallback for Safari < 14.5 */
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 1.9rem;
+      font-size: clamp(1.5rem, 7vw, 2.6rem);
+      color: var(--sun);
+    }
+    .overlay p { font-size: 1rem; font-size: clamp(0.9rem, 3.8vw, 1.15rem); color: rgba(255, 244, 232, 0.85); max-width: 26ch; }
+    .menu { display: flex; flex-direction: column; align-items: stretch; width: 100%; max-width: 320px; }
+    .menu > * + * { margin-top: 12px; }
+    .mbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 64px;
+      padding: 14px 20px;
+      font-family: inherit;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #2a1c46;
+      border: none;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--sun), #ff9f68);
+      cursor: pointer;
+    }
+    .mbtn.alt { color: var(--ink); background: rgba(99, 217, 192, 0.2); border: 2px solid rgba(99, 217, 192, 0.6); }
+    .mbtn:active { transform: scale(0.97); }
+    .roster { display: flex; flex-wrap: wrap; justify-content: center; max-width: 340px; }
+    .roster > * { margin: 5px; }
+    .face {
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 3px;
+      border-radius: 16px;
+      line-height: 0;
+      cursor: pointer;
+      background: rgba(255, 244, 232, 0.1);
+      border: 3px solid rgba(255, 244, 232, 0.2);
+    }
+    .face.sel { border-color: var(--sun); background: rgba(255, 209, 102, 0.2); }
+    .face:active { transform: scale(0.94); }
+    .face canvas { width: 54px; height: 54px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="title">🚽 Potty Crew</div>
+    <div class="rightbtns">
+      <button class="tbtn" id="homeBtn" aria-label="Home">🏠</button>
+      <button class="tbtn" id="muteBtn" aria-label="Sound on or off">🔊</button>
+      <button class="tbtn" id="refreshBtn" aria-label="Refresh">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <button class="action hidden" id="actionBtn">🚽 Flush!</button>
+
+    <div class="palette hidden" id="palette">
+      <div class="phint" id="palHint">Pick a sticker, then tap the potty</div>
+      <div class="prow" id="stickerRow"></div>
+      <div class="prow" id="colourRow"></div>
+      <div class="prow">
+        <button class="pbtn" id="undoSticker" aria-label="Undo">↩️</button>
+        <button class="pbtn" id="clearStickers" aria-label="Clear stickers">🗑️</button>
+        <button class="pbtn" id="doneDeco" aria-label="Done">✅</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="homeOverlay">
+      <h2>🚽 Bob's Potty Crew</h2>
+      <p>Oisín &amp; Finley's crew all need the potty. Can you help them?</p>
+      <div class="roster" id="roster"></div>
+      <div class="menu">
+        <button class="mbtn" id="playBtn">▶️ Who needs the potty?</button>
+        <button class="mbtn alt" id="toyBtn">🚽 Flush Toy</button>
+        <button class="mbtn alt" id="decoBtn">🎨 Decorate the Potty</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var actionBtn = document.getElementById('actionBtn');
+    var homeOverlay = document.getElementById('homeOverlay');
+    var palette = document.getElementById('palette');
+    var palHint = document.getElementById('palHint');
+
+    var STATE = { HOME: 0, PLAY: 1, TOY: 2, DECO: 3 };
+    var state = STATE.HOME;
+
+    // Steps inside a PLAY visit. Nothing here can be failed or run out of time.
+    var STEP = {
+      ARRIVE: 0,      // friend walks in doing the wiggle dance
+      WAIT_DRAG: 1,   // Finley moves them onto the potty
+      SITTING: 2,     // happy relaxed sit
+      HOP_OFF: 3,     // friend steps off, "all done!"
+      READY_FLUSH: 4, // the wee/poo pops up smiling, waiting to be flushed
+      FLUSHING: 5,    // whoosh + wave goodbye + swirl away
+      WASH: 6,        // hand-wash bubbles at the sink
+      CHEER: 7        // happy dance: "that wasn't scary at all!"
+    };
+    var step = STEP.ARRIVE, stepT = 0;
+
+    var W = 0, H = 0, dpr = 1, lastTs = 0;
+
+    // ---------- Sound (Web Audio only — no files) ----------
+    var AC = null, muted = false, noiseBuf = null;
+    try { muted = localStorage.getItem('bp_mute') === '1'; } catch (e) {}
+
+    function audio() {
+      if (muted) return null;
+      if (!AC) {
+        var Ctor = window.AudioContext || window.webkitAudioContext;
+        if (!Ctor) return null;
+        AC = new Ctor();
+      }
+      if (AC.state === 'suspended' && AC.resume) AC.resume();
+      return AC;
+    }
+
+    function noise() {
+      var ac = audio();
+      if (!ac) return null;
+      if (!noiseBuf) {
+        noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+        var d = noiseBuf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      return noiseBuf;
+    }
+
+    function tone(freq, start, dur, vol, type, slideTo) {
+      var ac = audio();
+      if (!ac) return;
+      var t0 = ac.currentTime + start;
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.03, dur * 0.3));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+
+    // Friendly, watery whoosh — filtered noise sweeping down then up.
+    function sndWhoosh(dur) {
+      var ac = audio(), buf = noise();
+      if (!ac || !buf) return;
+      dur = dur || 1.6;
+      var t0 = ac.currentTime;
+      var src = ac.createBufferSource(); src.buffer = buf;
+      var f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.1;
+      f.frequency.setValueAtTime(320, t0);
+      f.frequency.linearRampToValueAtTime(1500, t0 + dur * 0.45);
+      f.frequency.linearRampToValueAtTime(260, t0 + dur);
+      var g = ac.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.22, t0 + 0.12);
+      g.gain.setValueAtTime(0.22, t0 + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(f); f.connect(g); g.connect(ac.destination);
+      src.start(t0); src.stop(t0 + dur + 0.05);
+      // a few bubbles riding the swirl
+      for (var i = 0; i < 6; i++) tone(500 + Math.random() * 700, 0.15 + i * 0.18, 0.1, 0.05, 'sine', 900);
+    }
+
+    function sndTinkle() {
+      for (var i = 0; i < 9; i++) {
+        tone(900 + Math.random() * 700, i * 0.13, 0.09, 0.045, 'triangle', 600 + Math.random() * 300);
+      }
+    }
+    function sndPop() { tone(420 + Math.random() * 380, 0, 0.09, 0.09, 'sine', 900); }
+    function sndBoing() { tone(180, 0, 0.4, 0.12, 'sine', 640); }
+    function sndTrumpet() { tone(392, 0, 0.16, 0.09, 'sawtooth'); tone(523, 0.16, 0.28, 0.09, 'sawtooth'); }
+    function sndQuack() { tone(300, 0, 0.18, 0.11, 'sawtooth', 170); }
+    function sndCheer() {
+      var n = [523, 659, 784, 1047];
+      for (var i = 0; i < n.length; i++) tone(n[i], i * 0.11, 0.3, 0.1, 'triangle');
+    }
+    function sndStep() { tone(220, 0, 0.06, 0.04, 'sine', 160); }
+    // Short scrubby tune for the hand wash
+    function sndScrub(i) { tone(440 + (i % 6) * 70, 0, 0.12, 0.06, 'square', 520 + (i % 6) * 70); }
+
+    var FLUSH_SOUNDS = [
+      function () { sndWhoosh(1.6); },
+      function () { sndWhoosh(1.0); sndBoing(); },
+      function () { sndWhoosh(1.2); sndTrumpet(); },
+      function () { sndWhoosh(1.0); sndQuack(); }
+    ];
+
+    function updateMuteBtn() { document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊'; }
+
+    // ---------- The crew (all canvas-drawn) ----------
+    // ear: floppy | spike | point | long | antenna | hair
+    var FRIENDS = [
+      { name: 'Bob',   body: '#f3ead6', belly: '#fffaf0', accent: '#c9b98f', head: null, ear: 'floppy',  says: 'Finley! I need a wee!', done: 'All done! Good job Finley!' },
+      { name: 'Rex',   body: '#57c785', belly: '#b7f0c9', accent: '#2f8f5c', head: null, ear: 'spike',   says: 'Uh oh — I need a poo!',  done: 'That felt great!' },
+      { name: 'Beep',  body: '#8fa6d8', belly: '#d6e2ff', accent: '#4f6bb0', head: null, ear: 'antenna', says: 'BEEP! Wee alert!',       done: 'Beep! All finished!' },
+      { name: 'Nala',  body: '#f6a15a', belly: '#ffd9b0', accent: '#c9743a', head: null, ear: 'point',   says: 'Meow, I need the potty!', done: 'Purrfect!' },
+      { name: 'Hoppy', body: '#f19ec2', belly: '#ffd8ea', accent: '#c96b98', head: null, ear: 'long',    says: 'I need a wee, quick!',   done: 'Hop hop, all done!' },
+      { name: 'Oisín', body: '#5aa9f6', belly: '#a8d4ff', accent: '#2f6db0', head: '#f2c9a0', ear: 'hair', says: "I'll go first — easy peasy!", done: 'See? Easy peasy!' }
+    ];
+    var pickedIdx = -1;   // -1 = surprise
+    var friend = null, friendPose = 'walk';
+    var fx = 0, fy = 0;   // friend feet position
+    var drag = null;
+    var lastFriendIdx = -1;
+
+    function chooseFriend() {
+      var i = pickedIdx;
+      if (i < 0) {
+        i = Math.floor(Math.random() * FRIENDS.length);
+        if (i === lastFriendIdx) i = (i + 1) % FRIENDS.length;
+      }
+      lastFriendIdx = i;
+      friend = FRIENDS[i];
+      friend.wee = friend.name !== 'Rex' ? (Math.random() < 0.72) : false;
+    }
+
+    // ---------- Potty decoration (saved) ----------
+    var POT_COLOURS = ['#7fd8e8', '#ffd166', '#f19ec2', '#9fe08a', '#c4a6ff'];
+    var STICKERS = ['eyes', 'star', 'heart', 'crown', 'spot'];
+    var STICKER_LABEL = { eyes: '👀', star: '⭐', heart: '❤️', crown: '👑', spot: '🔴' };
+    var deco = { colour: POT_COLOURS[0], stickers: [] };
+    var stickerPick = 'eyes';
+
+    function loadDeco() {
+      try {
+        var raw = localStorage.getItem('bp_deco');
+        if (!raw) return;
+        var d = JSON.parse(raw);
+        if (d && d.colour) deco.colour = d.colour;
+        if (d && d.stickers && d.stickers.length) deco.stickers = d.stickers;
+      } catch (e) {}
+    }
+    function saveDeco() {
+      try { localStorage.setItem('bp_deco', JSON.stringify(deco)); } catch (e) {}
+    }
+
+    // ---------- Sizing ----------
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(200, Math.floor(rect.width));
+      H = Math.max(200, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (friend && step <= STEP.WAIT_DRAG) { fx = standX(); fy = floorY(); }
+    }
+
+    // The decorate screen lifts the potty clear of the palette bar.
+    function floorY() { return (state === STATE.DECO) ? H * 0.56 : H * 0.80; }
+    function standX() { return W * 0.70; }
+    function friendSize() { return Math.min(H * 0.30, W * 0.34); }
+
+    // Potty geometry — deliberately low, with a footrest, so it reads as safe.
+    function potty() {
+      var w = (state === STATE.DECO) ? Math.min(W * 0.44, H * 0.34) : Math.min(W * 0.28, H * 0.28);
+      var h = w * 0.82;
+      var cx = (state === STATE.DECO || state === STATE.TOY) ? W * 0.5 : W * 0.33;
+      var fl = floorY();
+      return { cx: cx, w: w, h: h, top: fl - h, floor: fl, seatRx: w * 0.52, seatRy: w * 0.17 };
+    }
+
+    // ---------- Drawing helpers ----------
+    function rr(c, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    function ellipse(c, x, y, rx, ry) {
+      c.beginPath();
+      c.save();
+      c.translate(x, y);
+      c.scale(1, ry / rx);
+      c.arc(0, 0, rx, 0, Math.PI * 2);
+      c.restore();
+      c.closePath();
+    }
+
+    function starPath(c, x, y, r) {
+      c.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var a = -Math.PI / 2 + i * Math.PI / 5;
+        var rr2 = (i % 2 === 0) ? r : r * 0.45;
+        c.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2);
+      }
+      c.closePath();
+    }
+
+    function heartPath(c, x, y, r) {
+      c.beginPath();
+      c.moveTo(x, y + r * 0.75);
+      c.bezierCurveTo(x - r * 1.3, y - r * 0.35, x - r * 0.35, y - r * 1.1, x, y - r * 0.35);
+      c.bezierCurveTo(x + r * 0.35, y - r * 1.1, x + r * 1.3, y - r * 0.35, x, y + r * 0.75);
+      c.closePath();
+    }
+
+    function drawSticker(c, kind, x, y, r) {
+      if (kind === 'eyes') {
+        for (var s = -1; s <= 1; s += 2) {
+          c.beginPath(); c.arc(x + s * r * 0.55, y, r * 0.5, 0, Math.PI * 2);
+          c.fillStyle = '#fff'; c.fill();
+          c.beginPath(); c.arc(x + s * r * 0.55, y + r * 0.1, r * 0.22, 0, Math.PI * 2);
+          c.fillStyle = '#241a3a'; c.fill();
+        }
+      } else if (kind === 'star') {
+        starPath(c, x, y, r * 0.9); c.fillStyle = '#ffd166'; c.fill();
+      } else if (kind === 'heart') {
+        heartPath(c, x, y, r * 0.85); c.fillStyle = '#ff7a9c'; c.fill();
+      } else if (kind === 'crown') {
+        c.beginPath();
+        c.moveTo(x - r, y + r * 0.6);
+        c.lineTo(x - r, y - r * 0.5); c.lineTo(x - r * 0.45, y + r * 0.05);
+        c.lineTo(x, y - r * 0.8); c.lineTo(x + r * 0.45, y + r * 0.05);
+        c.lineTo(x + r, y - r * 0.5); c.lineTo(x + r, y + r * 0.6);
+        c.closePath();
+        c.fillStyle = '#ffd166'; c.fill();
+      } else {
+        c.beginPath(); c.arc(x, y, r * 0.8, 0, Math.PI * 2);
+        c.fillStyle = '#ff6b6b'; c.fill();
+      }
+    }
+
+    function speech(text, x, y, maxW) {
+      var c = ctx;
+      var fs = Math.max(13, Math.min(H * 0.042, W * 0.052));
+      c.font = '700 ' + fs + 'px "Trebuchet MS", sans-serif';
+      // wrap
+      var words = text.split(' '), lines = [], line = '';
+      maxW = maxW || W * 0.56;
+      for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (c.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      var padX = fs * 0.7, padY = fs * 0.55, lh = fs * 1.25;
+      var bw = 0;
+      for (i = 0; i < lines.length; i++) bw = Math.max(bw, c.measureText(lines[i]).width);
+      bw += padX * 2;
+      var bh = lines.length * lh + padY * 2;
+      var bx = Math.max(8, Math.min(W - bw - 8, x - bw / 2));
+      var by = Math.max(6, y - bh);
+      rr(c, bx, by, bw, bh, fs * 0.6);
+      c.fillStyle = 'rgba(255, 250, 240, 0.96)'; c.fill();
+      // tail
+      c.beginPath();
+      var tx = Math.max(bx + fs, Math.min(bx + bw - fs, x));
+      c.moveTo(tx - fs * 0.4, by + bh - 1);
+      c.lineTo(tx + fs * 0.1, by + bh + fs * 0.7);
+      c.lineTo(tx + fs * 0.5, by + bh - 1);
+      c.closePath(); c.fill();
+      c.fillStyle = '#2a1c46';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      for (i = 0; i < lines.length; i++) {
+        c.fillText(lines[i], bx + bw / 2, by + padY + lh * i + lh / 2);
+      }
+      return by;
+    }
+
+    // ---------- The potty ----------
+    function drawPottyBack(p, ts) {
+      var c = ctx;
+      // soft shadow on the floor
+      ellipse(c, p.cx, p.floor + p.h * 0.03, p.w * 0.62, p.w * 0.14);
+      c.fillStyle = 'rgba(0,0,0,0.22)'; c.fill();
+
+      // footrest mat in front — feet flat on the floor is the whole point
+      rr(c, p.cx - p.w * 0.62, p.floor + p.h * 0.05, p.w * 1.24, p.h * 0.11, p.h * 0.05);
+      c.fillStyle = 'rgba(255, 244, 232, 0.22)'; c.fill();
+
+      // backrest
+      rr(c, p.cx - p.w * 0.34, p.top - p.h * 0.30, p.w * 0.68, p.h * 0.42, p.w * 0.16);
+      c.fillStyle = deco.colour; c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.10)';
+      rr(c, p.cx - p.w * 0.26, p.top - p.h * 0.22, p.w * 0.52, p.h * 0.2, p.w * 0.1); c.fill();
+
+      // pot body
+      c.beginPath();
+      c.moveTo(p.cx - p.w * 0.5, p.top + p.h * 0.06);
+      c.quadraticCurveTo(p.cx - p.w * 0.58, p.floor, p.cx - p.w * 0.34, p.floor);
+      c.lineTo(p.cx + p.w * 0.34, p.floor);
+      c.quadraticCurveTo(p.cx + p.w * 0.58, p.floor, p.cx + p.w * 0.5, p.top + p.h * 0.06);
+      c.closePath();
+      c.fillStyle = deco.colour; c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.20)';
+      ellipse(c, p.cx - p.w * 0.22, p.top + p.h * 0.4, p.w * 0.08, p.h * 0.18); c.fill();
+
+      // stickers Finley stuck on
+      for (var i = 0; i < deco.stickers.length; i++) {
+        var s = deco.stickers[i];
+        drawSticker(c, s.k, p.cx + s.x * p.w, p.top + s.y * p.h, p.w * 0.13);
+      }
+
+      // seat ring + dark bowl opening
+      ellipse(c, p.cx, p.top + p.h * 0.06, p.seatRx, p.seatRy);
+      c.fillStyle = '#fffaf0'; c.fill();
+      ellipse(c, p.cx, p.top + p.h * 0.07, p.seatRx * 0.66, p.seatRy * 0.62);
+      c.fillStyle = '#3b2b5c'; c.fill();
+      // a little friendly water
+      ellipse(c, p.cx, p.top + p.h * 0.08, p.seatRx * 0.5, p.seatRy * 0.42);
+      c.fillStyle = 'rgba(127, 216, 232, 0.75)'; c.fill();
+    }
+
+    function drawPottyFront(p) {
+      var c = ctx;
+      // front half of the seat ring, drawn over a seated friend's legs
+      c.save();
+      c.beginPath();
+      c.rect(p.cx - p.seatRx - 2, p.top + p.h * 0.06, (p.seatRx + 2) * 2, p.seatRy + 4);
+      c.clip();
+      ellipse(c, p.cx, p.top + p.h * 0.06, p.seatRx, p.seatRy);
+      c.fillStyle = '#fffaf0'; c.fill();
+      c.restore();
+    }
+
+    // ---------- Sink ----------
+    function sink() {
+      var w = Math.min(W * 0.19, H * 0.19);
+      return { cx: W * 0.90, w: w, top: floorY() - H * 0.25 };
+    }
+    function drawSink(running, ts) {
+      var s = sink(), c = ctx;
+      // pedestal
+      rr(c, s.cx - s.w * 0.16, s.top + s.w * 0.3, s.w * 0.32, floorY() - s.top - s.w * 0.3, s.w * 0.08);
+      c.fillStyle = 'rgba(255, 250, 240, 0.55)'; c.fill();
+      // basin
+      rr(c, s.cx - s.w * 0.5, s.top, s.w, s.w * 0.34, s.w * 0.12);
+      c.fillStyle = '#fffaf0'; c.fill();
+      // tap
+      c.strokeStyle = '#cbd6e8';
+      c.lineWidth = Math.max(3, s.w * 0.07);
+      c.beginPath();
+      c.moveTo(s.cx, s.top - s.w * 0.02);
+      c.lineTo(s.cx, s.top - s.w * 0.26);
+      c.quadraticCurveTo(s.cx, s.top - s.w * 0.36, s.cx - s.w * 0.16, s.top - s.w * 0.34);
+      c.stroke();
+      // running water
+      if (running) {
+        c.strokeStyle = 'rgba(127, 216, 232, 0.8)';
+        c.lineWidth = Math.max(3, s.w * 0.08);
+        for (var i = 0; i < 3; i++) {
+          var off = ((ts / 4 + i * 40) % 120) / 120;
+          c.beginPath();
+          c.moveTo(s.cx - s.w * 0.18, s.top - s.w * 0.3 + off * s.w * 0.3);
+          c.lineTo(s.cx - s.w * 0.18, s.top - s.w * 0.22 + off * s.w * 0.3);
+          c.stroke();
+        }
+      }
+    }
+
+    // ---------- The crew ----------
+    function drawEars(c, f, s, hx, hy, hr) {
+      c.fillStyle = f.accent;
+      if (f.ear === 'floppy') {
+        ellipse(c, hx - hr * 0.95, hy + hr * 0.25, hr * 0.3, hr * 0.55); c.fill();
+        ellipse(c, hx + hr * 0.95, hy + hr * 0.25, hr * 0.3, hr * 0.55); c.fill();
+      } else if (f.ear === 'point') {
+        for (var d = -1; d <= 1; d += 2) {
+          c.beginPath();
+          c.moveTo(hx + d * hr * 0.30, hy - hr * 0.78);
+          c.lineTo(hx + d * hr * 0.86, hy - hr * 1.26);
+          c.lineTo(hx + d * hr * 0.92, hy - hr * 0.52);
+          c.closePath(); c.fill();
+        }
+      } else if (f.ear === 'long') {
+        ellipse(c, hx - hr * 0.42, hy - hr * 1.15, hr * 0.2, hr * 0.62); c.fill();
+        ellipse(c, hx + hr * 0.42, hy - hr * 1.2, hr * 0.2, hr * 0.62); c.fill();
+      } else if (f.ear === 'spike') {
+        for (var i = -1; i <= 1; i++) {
+          c.beginPath();
+          c.moveTo(hx + i * hr * 0.5 - hr * 0.18, hy - hr * 0.86);
+          c.lineTo(hx + i * hr * 0.5, hy - hr * 1.3);
+          c.lineTo(hx + i * hr * 0.5 + hr * 0.18, hy - hr * 0.86);
+          c.closePath(); c.fill();
+        }
+      } else if (f.ear === 'antenna') {
+        c.strokeStyle = f.accent;
+        c.lineWidth = Math.max(2, hr * 0.14);
+        c.beginPath(); c.moveTo(hx, hy - hr * 0.9); c.lineTo(hx, hy - hr * 1.4); c.stroke();
+        c.beginPath(); c.arc(hx, hy - hr * 1.5, hr * 0.18, 0, Math.PI * 2);
+        c.fillStyle = '#ffd166'; c.fill();
+      } else if (f.ear === 'hair') {
+        c.beginPath();
+        c.arc(hx, hy - hr * 0.22, hr * 1.02, Math.PI * 1.06, Math.PI * 1.94);
+        c.closePath();
+        c.fillStyle = '#5b3a26'; c.fill();
+      }
+    }
+
+    function drawFace(c, f, hx, hy, hr, mood) {
+      // eyes — closed-and-happy when relaxed, wide when wiggly
+      c.fillStyle = '#241a3a';
+      if (mood === 'relaxed') {
+        c.strokeStyle = '#241a3a';
+        c.lineWidth = Math.max(2, hr * 0.1);
+        for (var d = -1; d <= 1; d += 2) {
+          c.beginPath();
+          c.arc(hx + d * hr * 0.34, hy - hr * 0.06, hr * 0.2, Math.PI * 1.15, Math.PI * 1.85);
+          c.stroke();
+        }
+      } else {
+        for (var e = -1; e <= 1; e += 2) {
+          c.beginPath(); c.arc(hx + e * hr * 0.34, hy - hr * 0.1, hr * 0.19, 0, Math.PI * 2);
+          c.fillStyle = '#fff'; c.fill();
+          c.beginPath(); c.arc(hx + e * hr * 0.34, hy - hr * 0.06, hr * 0.1, 0, Math.PI * 2);
+          c.fillStyle = '#241a3a'; c.fill();
+        }
+      }
+      // smile
+      c.strokeStyle = '#241a3a';
+      c.lineWidth = Math.max(2, hr * 0.1);
+      c.beginPath();
+      c.arc(hx, hy + hr * 0.18, hr * 0.34, Math.PI * 0.16, Math.PI * 0.84);
+      c.stroke();
+      // rosy cheeks
+      c.fillStyle = 'rgba(255,120,140,0.28)';
+      c.beginPath(); c.arc(hx - hr * 0.62, hy + hr * 0.16, hr * 0.16, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(hx + hr * 0.62, hy + hr * 0.16, hr * 0.16, 0, Math.PI * 2); c.fill();
+    }
+
+    // pose: walk | wiggle | held | sit | wash | dance
+    function drawFriend(f, cx, footY, s, pose, ts) {
+      var c = ctx;
+      var bw = s * 0.52, bh = s * 0.44;
+      var hr = s * 0.25;
+      var legH = s * 0.13;
+      var bob = 0, tilt = 0, swing = 0;
+
+      if (pose === 'walk') { bob = Math.abs(Math.sin(ts / 130)) * s * 0.03; swing = Math.sin(ts / 130); }
+      else if (pose === 'wiggle') { tilt = Math.sin(ts / 95) * 0.11; bob = Math.abs(Math.sin(ts / 95)) * s * 0.04; }
+      else if (pose === 'held') { tilt = Math.sin(ts / 160) * 0.14; }
+      else if (pose === 'dance') { bob = Math.abs(Math.sin(ts / 150)) * s * 0.1; tilt = Math.sin(ts / 150) * 0.14; }
+      else if (pose === 'wash') { tilt = Math.sin(ts / 110) * 0.05; }
+
+      c.save();
+      c.translate(cx, footY - bob);
+      c.rotate(tilt);
+
+      var bodyBottom = -legH;
+      var bodyTop = bodyBottom - bh;
+      var headY = bodyTop - hr * 0.72;
+
+      // shadow
+      c.fillStyle = 'rgba(0,0,0,0.18)';
+      if (pose !== 'sit') { ellipse(c, 0, legH * 0.2, bw * 0.6, bw * 0.14); c.fill(); }
+
+      // legs / feet
+      c.fillStyle = f.accent;
+      if (pose === 'sit') {
+        // knees forward, feet down on the footrest — the secure sit
+        rr(c, -bw * 0.44, bodyBottom - legH * 0.2, bw * 0.36, legH * 2.1, legH * 0.4); c.fill();
+        rr(c, bw * 0.08, bodyBottom - legH * 0.2, bw * 0.36, legH * 2.1, legH * 0.4); c.fill();
+      } else if (pose === 'held') {
+        rr(c, -bw * 0.36, bodyBottom, bw * 0.28, legH * 1.4, legH * 0.4); c.fill();
+        rr(c, bw * 0.08, bodyBottom, bw * 0.28, legH * 1.4, legH * 0.4); c.fill();
+      } else {
+        rr(c, -bw * 0.36 + swing * bw * 0.1, bodyBottom, bw * 0.28, legH * 1.05, legH * 0.4); c.fill();
+        rr(c, bw * 0.08 - swing * bw * 0.1, bodyBottom, bw * 0.28, legH * 1.05, legH * 0.4); c.fill();
+      }
+
+      // arms — washing hands puts them out in FRONT of the body, scrubbing
+      function drawArms() {
+        c.fillStyle = f.accent;
+        if (pose === 'dance') {
+          c.save(); c.translate(-bw * 0.5, bodyTop + bh * 0.2); c.rotate(-0.9);
+          rr(c, -bw * 0.1, -bh * 0.5, bw * 0.2, bh * 0.55, bw * 0.09); c.fill(); c.restore();
+          c.save(); c.translate(bw * 0.5, bodyTop + bh * 0.2); c.rotate(0.9);
+          rr(c, -bw * 0.1, -bh * 0.5, bw * 0.2, bh * 0.55, bw * 0.09); c.fill(); c.restore();
+        } else if (pose === 'wash') {
+          var rub = Math.sin(ts / 110) * bw * 0.07;
+          c.save(); c.translate(bw * 0.05 + rub, bodyTop - bh * 0.02); c.rotate(-0.55);
+          rr(c, -bw * 0.11, 0, bw * 0.22, bh * 0.62, bw * 0.1); c.fill(); c.restore();
+          c.save(); c.translate(bw * 0.34 - rub, bodyTop + bh * 0.02); c.rotate(-0.95);
+          rr(c, -bw * 0.11, 0, bw * 0.22, bh * 0.62, bw * 0.1); c.fill(); c.restore();
+        } else {
+          rr(c, -bw * 0.62, bodyTop + bh * 0.18, bw * 0.2, bh * 0.6, bw * 0.09); c.fill();
+          rr(c, bw * 0.42, bodyTop + bh * 0.18, bw * 0.2, bh * 0.6, bw * 0.09); c.fill();
+        }
+      }
+      if (pose !== 'wash') drawArms();
+
+      // body
+      c.fillStyle = f.body;
+      rr(c, -bw / 2, bodyTop, bw, bh, bw * 0.26); c.fill();
+      c.fillStyle = f.belly;
+      ellipse(c, 0, bodyTop + bh * 0.6, bw * 0.28, bh * 0.28); c.fill();
+
+      // head
+      c.fillStyle = f.head || f.body;
+      c.beginPath(); c.arc(0, headY, hr, 0, Math.PI * 2); c.fill();
+      drawEars(c, f, s, 0, headY, hr);
+      drawFace(c, f, 0, headY, hr, (pose === 'sit' || pose === 'dance') ? 'relaxed' : 'wide');
+      if (pose === 'wash') drawArms();
+
+      c.restore();
+    }
+
+    // Small head-only version for the roster buttons
+    function drawFriendFace(c, f, size) {
+      c.clearRect(0, 0, size, size);
+      var hr = size * 0.30;
+      var hx = size / 2, hy = size * 0.56;
+      drawEars(c, f, size, hx, hy, hr);
+      c.fillStyle = f.head || f.body;
+      c.beginPath(); c.arc(hx, hy, hr, 0, Math.PI * 2); c.fill();
+      drawEars(c, f, size, hx, hy, hr);
+      drawFace(c, f, hx, hy, hr, 'wide');
+    }
+
+    // ---------- The wee/poo character: smiles, waves, then swirls away ----------
+    var blob = null;   // { kind, x, y, t, phase }
+
+    function drawBlob(b, p, ts) {
+      var c = ctx;
+      var r = p.w * 0.26;
+      c.save();
+      c.translate(b.x, b.y);
+      c.rotate(b.spin || 0);
+      c.scale(b.scale || 1, b.scale || 1);
+
+      if (b.kind === 'wee') {
+        // a cheery yellow droplet
+        c.beginPath();
+        c.moveTo(0, -r * 1.25);
+        c.quadraticCurveTo(r * 1.05, r * 0.15, 0, r);
+        c.quadraticCurveTo(-r * 1.05, r * 0.15, 0, -r * 1.25);
+        c.closePath();
+        c.fillStyle = '#ffe066'; c.fill();
+        c.strokeStyle = 'rgba(0,0,0,0.12)'; c.lineWidth = 2; c.stroke();
+      } else {
+        // a friendly little swirl (drawn, never an emoji)
+        c.fillStyle = '#a3703f';
+        ellipse(c, 0, r * 0.72, r * 0.95, r * 0.34); c.fill();
+        ellipse(c, 0, r * 0.16, r * 0.72, r * 0.3); c.fill();
+        ellipse(c, 0, -r * 0.34, r * 0.5, r * 0.26); c.fill();
+        c.beginPath(); c.arc(0, -r * 0.72, r * 0.22, 0, Math.PI * 2); c.fill();
+      }
+
+      // face — big and friendly, so it reads at a glance
+      var fy2 = b.kind === 'wee' ? -r * 0.05 : r * 0.14;
+      for (var d = -1; d <= 1; d += 2) {
+        c.beginPath(); c.arc(d * r * 0.3, fy2, r * 0.2, 0, Math.PI * 2);
+        c.fillStyle = '#fff'; c.fill();
+        c.beginPath(); c.arc(d * r * 0.3, fy2 + r * 0.04, r * 0.1, 0, Math.PI * 2);
+        c.fillStyle = '#3b2b5c'; c.fill();
+      }
+      c.strokeStyle = '#3b2b5c'; c.lineWidth = Math.max(2, r * 0.09);
+      c.lineCap = 'round';
+      c.beginPath(); c.arc(0, fy2 + r * 0.26, r * 0.26, Math.PI * 0.15, Math.PI * 0.85); c.stroke();
+
+      // waving arm
+      var wave = Math.sin(ts / 90) * 0.7;
+      c.save();
+      c.translate(r * (b.kind === 'wee' ? 0.4 : 0.8), fy2 + r * 0.1);
+      c.rotate(-0.5 + wave);
+      c.strokeStyle = b.kind === 'wee' ? '#e0b400' : '#7d5127';
+      c.lineWidth = Math.max(3, r * 0.16);
+      c.lineCap = 'round';
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(r * 0.6, -r * 0.2); c.stroke();
+      c.restore();
+
+      c.restore();
+    }
+
+    // ---------- Bubbles & confetti ----------
+    var bits = [];
+    function spawnBits(x, y, n, colours, up) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2;
+        var sp = H * (0.12 + Math.random() * 0.4);
+        bits.push({
+          x: x, y: y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp - (up ? H * 0.35 : 0),
+          r: H * (0.008 + Math.random() * 0.016),
+          col: colours[Math.floor(Math.random() * colours.length)],
+          a: 1, g: up ? H * 1.1 : H * 0.5
+        });
+      }
+    }
+    function updateBits(dt) {
+      for (var i = bits.length - 1; i >= 0; i--) {
+        var b = bits[i];
+        b.x += b.vx * dt; b.y += b.vy * dt; b.vy += b.g * dt;
+        b.a -= dt * 0.8;
+        if (b.a <= 0) bits.splice(i, 1);
+      }
+    }
+    function drawBits() {
+      for (var i = 0; i < bits.length; i++) {
+        var b = bits[i];
+        ctx.globalAlpha = Math.max(0, b.a);
+        ctx.fillStyle = b.col;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    var CONFETTI = ['#ffd166', '#63d9c0', '#ff7a9c', '#a8d4ff', '#c4a6ff'];
+    var BUBBLES = ['rgba(255,255,255,0.85)', 'rgba(168,212,255,0.85)', 'rgba(99,217,192,0.8)'];
+
+    // ---------- Scene background ----------
+    function drawScene(ts) {
+      var c = ctx;
+      if (drawScene._h !== H) {
+        var g = c.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#4b3273'); g.addColorStop(0.7, '#33245a'); g.addColorStop(1, '#241a3a');
+        drawScene._g = g; drawScene._h = H;
+      }
+      c.fillStyle = drawScene._g;
+      c.fillRect(0, 0, W, H);
+
+      // wall tiles
+      c.strokeStyle = 'rgba(255,244,232,0.06)';
+      c.lineWidth = 2;
+      var t = H * 0.11;
+      for (var y = t; y < floorY(); y += t) {
+        c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+      }
+      for (var x = t; x < W; x += t) {
+        c.beginPath(); c.moveTo(x, 0); c.lineTo(x, floorY()); c.stroke();
+      }
+
+      // floor
+      c.fillStyle = '#3d2b63';
+      c.fillRect(0, floorY(), W, H - floorY());
+      c.fillStyle = 'rgba(255,244,232,0.07)';
+      c.fillRect(0, floorY(), W, Math.max(3, H * 0.008));
+    }
+
+    // ---------- Step machine ----------
+    function setStep(s) {
+      step = s;
+      stepT = 0;
+      if (s === STEP.ARRIVE) { friendPose = 'walk'; fx = W * 1.15; fy = floorY(); }
+      if (s === STEP.WAIT_DRAG) { friendPose = 'wiggle'; }
+      if (s === STEP.SITTING) { friendPose = 'sit'; sndTinkle(); }
+      if (s === STEP.HOP_OFF) { friendPose = 'walk'; sndBoing(); }
+      if (s === STEP.READY_FLUSH) {
+        friendPose = 'wiggle';
+        var p = potty();
+        blob = { kind: friend.wee ? 'wee' : 'poo', x: p.cx, y: p.top + p.h * 0.06, t: 0, scale: 0.2, spin: 0 };
+        sndPop();
+      }
+      if (s === STEP.FLUSHING) {
+        FLUSH_SOUNDS[0]();
+        var pp = potty();
+        spawnBits(pp.cx, pp.top, 16, BUBBLES, true);
+      }
+      if (s === STEP.WASH) { friendPose = 'wash'; washTaps = 0; }
+      if (s === STEP.CHEER) { friendPose = 'dance'; sndCheer(); spawnBits(W * 0.5, H * 0.4, 34, CONFETTI, true); }
+      updateAction();
+    }
+
+    var washTaps = 0;
+
+    function seatFriend() {
+      if (step !== STEP.WAIT_DRAG) return;
+      var p = potty();
+      fx = p.cx;
+      fy = p.top + p.h * 0.06;
+      drag = null;
+      setStep(STEP.SITTING);
+    }
+
+    function updatePlay(dt, ts) {
+      stepT += dt;
+      var p = potty();
+
+      if (step === STEP.ARRIVE) {
+        var target = standX();
+        fx += (target - fx) * Math.min(1, dt * 4.5);
+        if (stepT > 0.25 && !updatePlay._st) { sndStep(); updatePlay._st = 1; }
+        if (Math.abs(fx - target) < W * 0.01) { updatePlay._st = 0; setStep(STEP.WAIT_DRAG); }
+      } else if (step === STEP.SITTING) {
+        if (stepT > 2.6) setStep(STEP.HOP_OFF);
+      } else if (step === STEP.HOP_OFF) {
+        var tx = standX();
+        fx += (tx - fx) * Math.min(1, dt * 6);
+        fy += (floorY() - fy) * Math.min(1, dt * 6);
+        if (stepT > 0.7) setStep(STEP.READY_FLUSH);
+      } else if (step === STEP.READY_FLUSH) {
+        // the little one pops up out of the bowl and waves hello
+        blob.t += dt;
+        blob.scale = Math.min(1, blob.t * 3);
+        var rise = p.h * 0.42;
+        blob.y = (p.top + p.h * 0.06) - rise * Math.min(1, blob.t * 2.4) + Math.sin(ts / 260) * H * 0.008;
+      } else if (step === STEP.FLUSHING) {
+        var tt = Math.min(1, stepT / 1.7);
+        // swirl down the spiral, waving all the way
+        var ang = tt * Math.PI * 7;
+        var rad = p.seatRx * 0.7 * (1 - tt);
+        blob.x = p.cx + Math.cos(ang) * rad;
+        blob.y = (p.top - p.h * 0.36) + (p.h * 0.44) * tt + Math.sin(ang) * p.seatRy * 0.4 * (1 - tt);
+        blob.scale = Math.max(0.05, 1 - tt * 0.95);
+        blob.spin = ang * 0.25;
+        if (stepT > 2.0) { blob = null; setStep(STEP.WASH); }
+      } else if (step === STEP.WASH) {
+        var s = sink();
+        fx += (s.cx - s.w * 0.62 - fx) * Math.min(1, dt * 4);
+        if (stepT > 1.0 && Math.random() < dt * 5) spawnBits(fx + friendSize() * 0.16, s.top - H * 0.01, 2, BUBBLES, true);
+        if (stepT > 6.5) setStep(STEP.CHEER);
+      }
+
+      // drag overrides position
+      if (drag) { fx = drag.x; fy = drag.y; }
+    }
+
+    function renderPlay(ts) {
+      var p = potty();
+      var s = friendSize();
+      drawScene(ts);
+      drawSink(step === STEP.WASH, ts);
+      drawPottyBack(p, ts);
+
+      if (step === STEP.SITTING) {
+        drawFriend(friend, p.cx, p.top + p.h * 0.06 + s * 0.30, s, 'sit', ts);
+        drawPottyFront(p);
+      } else {
+        drawFriend(friend, fx, fy, s, drag ? 'held' : friendPose, ts);
+      }
+
+      if (blob) drawBlob(blob, p, ts);
+      drawBits();
+
+      // hint arrow: after a few seconds, show where to take them
+      if (step === STEP.WAIT_DRAG && stepT > 1.6 && !drag) {
+        // arcs over the friend's head down onto the potty seat
+        var c = ctx;
+        var pull = Math.sin(ts / 320) * H * 0.012;
+        var ax = fx - s * 0.1, ay = fy - s * 1.15 + pull;
+        var bx = p.cx, by = p.top - p.h * 0.34 + pull;
+        c.strokeStyle = 'rgba(255,209,102,0.9)';
+        c.lineWidth = Math.max(4, H * 0.012);
+        c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(ax, ay);
+        c.quadraticCurveTo((ax + bx) / 2, Math.min(ay, by) - H * 0.09, bx, by);
+        c.stroke();
+        // arrow head pointing down at the seat
+        c.fillStyle = 'rgba(255,209,102,0.95)';
+        c.beginPath();
+        c.moveTo(bx - H * 0.022, by - H * 0.014);
+        c.lineTo(bx + H * 0.022, by - H * 0.014);
+        c.lineTo(bx, by + H * 0.022);
+        c.closePath(); c.fill();
+      }
+
+      // speech
+      var headTop = fy - s * 0.92;
+      if (step === STEP.ARRIVE || step === STEP.WAIT_DRAG) {
+        if (stepT > 0.3 || step === STEP.WAIT_DRAG) speech(friend.says, Math.min(W - W * 0.2, fx), headTop);
+      } else if (step === STEP.SITTING) {
+        if (stepT > 0.4) speech('Aaahhh… this is comfy!', potty().cx, potty().top - friendSize() * 0.55);
+      } else if (step === STEP.HOP_OFF) {
+        speech(friend.done, fx, headTop);
+      } else if (step === STEP.READY_FLUSH) {
+        speech(friend.wee ? 'Wave bye bye to the wee!' : 'Wave bye bye to the poo!', W * 0.5, H * 0.2);
+      } else if (step === STEP.FLUSHING) {
+        speech('Bye bye! Whooooosh!', W * 0.5, H * 0.2);
+      } else if (step === STEP.WASH) {
+        speech(stepT < 3 ? 'Now wash your hands — rub rub rub!' : 'Nice clean hands!', W * 0.5, H * 0.2);
+      } else if (step === STEP.CHEER) {
+        speech('That wasn’t scary at all!', fx, fy - s * 1.12);
+      }
+    }
+
+    // ---------- Flush toy ----------
+    var toyBlob = null, toySoundIdx = 0;
+
+    function toyFlush() {
+      var p = potty();
+      FLUSH_SOUNDS[toySoundIdx % FLUSH_SOUNDS.length]();
+      toySoundIdx++;
+      toyBlob = { kind: Math.random() < 0.5 ? 'wee' : 'poo', x: p.cx, y: p.top - p.h * 0.75, t: 0, scale: 1, spin: 0 };
+      spawnBits(p.cx, p.top, 18, BUBBLES, true);
+    }
+
+    function updateToy(dt) {
+      if (!toyBlob) return;
+      var p = potty();
+      toyBlob.t += dt;
+      var tt = Math.min(1, toyBlob.t / 1.5);
+      var ang = tt * Math.PI * 7;
+      var rad = p.seatRx * 0.7 * (1 - tt);
+      toyBlob.x = p.cx + Math.cos(ang) * rad;
+      toyBlob.y = (p.top - p.h * 0.75) + (p.h * 0.85) * tt;
+      toyBlob.scale = Math.max(0.05, 1 - tt * 0.95);
+      toyBlob.spin = ang * 0.25;
+      if (toyBlob.t > 1.8) toyBlob = null;
+    }
+
+    function renderToy(ts) {
+      var p = potty();
+      drawScene(ts);
+      drawPottyBack(p, ts);
+      if (toyBlob) drawBlob(toyBlob, p, ts);
+      drawBits();
+      speech('Press the button as many times as you like!', W * 0.5, H * 0.17);
+    }
+
+    // ---------- Decorate ----------
+    function renderDeco(ts) {
+      var p = potty();
+      drawScene(ts);
+      drawPottyBack(p, ts);
+      drawBits();
+    }
+
+    function placeSticker(x, y) {
+      var p = potty();
+      var nx = (x - p.cx) / p.w, ny = (y - p.top) / p.h;
+      if (nx < -0.55 || nx > 0.55 || ny < -0.35 || ny > 1.05) return;
+      // keep stickers on the pot body, not hidden under the seat ring
+      nx = Math.max(-0.42, Math.min(0.42, nx));
+      ny = Math.max(0.22, Math.min(0.92, ny));
+      deco.stickers.push({ k: stickerPick, x: nx, y: ny });
+      saveDeco();
+      sndPop();
+      spawnBits(x, y, 6, CONFETTI, true);
+    }
+
+    // ---------- Input on the canvas ----------
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+
+    function onDown(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      audio();  // unlock audio on the first touch
+      var pt = pos(e);
+
+      if (state === STATE.DECO) { placeSticker(pt.x, pt.y); return; }
+      if (state === STATE.TOY) { toyFlush(); return; }
+      if (state !== STATE.PLAY) return;
+
+      if (step === STEP.WAIT_DRAG) {
+        var s = friendSize();
+        var near = Math.abs(pt.x - fx) < s * 0.6 && pt.y > fy - s * 1.1 && pt.y < fy + s * 0.2;
+        if (near) { drag = { x: pt.x, y: pt.y }; return; }
+        // forgiving fallback: tapping the potty walks them over
+        var p = potty();
+        if (Math.abs(pt.x - p.cx) < p.w * 0.9 && pt.y > p.top - p.h * 0.5) { seatFriend(); return; }
+      } else if (step === STEP.WASH) {
+        washTaps++;
+        sndScrub(washTaps);
+        var sk = sink();
+        spawnBits(sk.cx - sk.w * 0.2, sk.top, 7, BUBBLES, true);
+      }
+    }
+
+    function onMove(e) {
+      if (!drag) return;
+      e.preventDefault();
+      var pt = pos(e);
+      drag.x = pt.x; drag.y = pt.y;
+    }
+
+    function onUp(e) {
+      if (!drag) return;
+      var p = potty();
+      var dx = drag.x - p.cx, dy = drag.y - (p.top + p.h * 0.1);
+      var hit = Math.abs(dx) < p.w * 0.95 && Math.abs(dy) < p.h * 1.1;
+      drag = null;
+      if (hit) seatFriend();
+      else { fx = standX(); fy = floorY(); }
+    }
+
+    // ---------- Action button ----------
+    function updateAction() {
+      var show = false, label = '';
+      if (state === STATE.TOY) { show = true; label = '🚽 Flush!'; }
+      else if (state === STATE.PLAY) {
+        if (step === STEP.READY_FLUSH) { show = true; label = '🚽 Flush!'; }
+        else if (step === STEP.WASH) { show = true; label = '🧼 All clean!'; }
+        else if (step === STEP.CHEER) { show = true; label = 'Who’s next? ➡️'; }
+      }
+      actionBtn.textContent = label;
+      if (show) actionBtn.classList.remove('hidden');
+      else actionBtn.classList.add('hidden');
+    }
+
+    actionBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      audio();
+      if (state === STATE.TOY) { toyFlush(); return; }
+      if (step === STEP.READY_FLUSH) setStep(STEP.FLUSHING);
+      else if (step === STEP.WASH) setStep(STEP.CHEER);
+      else if (step === STEP.CHEER) { chooseFriend(); setStep(STEP.ARRIVE); }
+    });
+
+    // ---------- Screen switching ----------
+    function goHome() {
+      state = STATE.HOME;
+      blob = null; toyBlob = null; drag = null;
+      homeOverlay.classList.remove('hidden');
+      palette.classList.add('hidden');
+      updateAction();
+    }
+    function goPlay() {
+      state = STATE.PLAY;
+      homeOverlay.classList.add('hidden');
+      palette.classList.add('hidden');
+      chooseFriend();
+      setStep(STEP.ARRIVE);
+    }
+    function goToy() {
+      state = STATE.TOY;
+      homeOverlay.classList.add('hidden');
+      palette.classList.add('hidden');
+      toyBlob = null;
+      updateAction();
+    }
+    function goDeco() {
+      state = STATE.DECO;
+      homeOverlay.classList.add('hidden');
+      palette.classList.remove('hidden');
+      updateAction();
+    }
+
+    document.getElementById('playBtn').addEventListener('click', function (e) { e.stopPropagation(); audio(); goPlay(); });
+    document.getElementById('toyBtn').addEventListener('click', function (e) { e.stopPropagation(); audio(); goToy(); });
+    document.getElementById('decoBtn').addEventListener('click', function (e) { e.stopPropagation(); audio(); goDeco(); });
+    document.getElementById('homeBtn').addEventListener('click', function (e) { e.stopPropagation(); goHome(); });
+    document.getElementById('refreshBtn').addEventListener('click', function () { location.reload(); });
+    document.getElementById('muteBtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      muted = !muted;
+      try { localStorage.setItem('bp_mute', muted ? '1' : '0'); } catch (err) {}
+      updateMuteBtn();
+    });
+
+    // ---------- Palette wiring ----------
+    (function buildPalette() {
+      var sr = document.getElementById('stickerRow');
+      for (var i = 0; i < STICKERS.length; i++) {
+        (function (k) {
+          var b = document.createElement('button');
+          b.className = 'pbtn' + (k === stickerPick ? ' sel' : '');
+          b.textContent = STICKER_LABEL[k];
+          b.setAttribute('aria-label', k);
+          b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            stickerPick = k;
+            var all = sr.querySelectorAll('.pbtn');
+            for (var j = 0; j < all.length; j++) all[j].className = 'pbtn';
+            b.className = 'pbtn sel';
+            palHint.textContent = 'Now tap the potty!';
+          });
+          sr.appendChild(b);
+        })(STICKERS[i]);
+      }
+
+      var cr = document.getElementById('colourRow');
+      for (var ci = 0; ci < POT_COLOURS.length; ci++) {
+        (function (col) {
+          var b = document.createElement('button');
+          b.className = 'pbtn swatch' + (col === deco.colour ? ' sel' : '');
+          b.style.background = col;
+          b.setAttribute('aria-label', 'Potty colour');
+          b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            deco.colour = col;
+            saveDeco();
+            var all = cr.querySelectorAll('.swatch');
+            for (var j = 0; j < all.length; j++) all[j].className = 'pbtn swatch';
+            b.className = 'pbtn swatch sel';
+            sndPop();
+          });
+          cr.appendChild(b);
+        })(POT_COLOURS[ci]);
+      }
+    })();
+
+    document.getElementById('undoSticker').addEventListener('click', function (e) {
+      e.stopPropagation();
+      deco.stickers.pop(); saveDeco();
+    });
+    document.getElementById('clearStickers').addEventListener('click', function (e) {
+      e.stopPropagation();
+      deco.stickers = []; saveDeco();
+    });
+    document.getElementById('doneDeco').addEventListener('click', function (e) {
+      e.stopPropagation();
+      sndCheer(); goHome();
+    });
+
+    // ---------- Roster ----------
+    (function buildRoster() {
+      var row = document.getElementById('roster');
+      function mark(sel) {
+        var all = row.querySelectorAll('.face');
+        for (var i = 0; i < all.length; i++) all[i].className = 'face';
+        if (sel) sel.className = 'face sel';
+      }
+      for (var i = 0; i < FRIENDS.length; i++) {
+        (function (idx) {
+          var b = document.createElement('button');
+          b.className = 'face';
+          b.setAttribute('aria-label', FRIENDS[idx].name);
+          var cv = document.createElement('canvas');
+          var px = 54, d = window.devicePixelRatio || 1;
+          cv.width = px * d; cv.height = px * d;
+          var c2 = cv.getContext('2d');
+          c2.setTransform(d, 0, 0, d, 0, 0);
+          drawFriendFace(c2, FRIENDS[idx], px);
+          b.appendChild(cv);
+          b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            pickedIdx = idx; mark(b); sndPop();
+          });
+          row.appendChild(b);
+        })(i);
+      }
+      var sb = document.createElement('button');
+      sb.className = 'pbtn';
+      sb.textContent = '🎲';
+      sb.setAttribute('aria-label', 'Surprise me');
+      sb.addEventListener('click', function (e) { e.stopPropagation(); pickedIdx = -1; mark(null); sndPop(); });
+      row.appendChild(sb);
+    })();
+
+    // ---------- Loop ----------
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+
+      if (state === STATE.PLAY) { updatePlay(dt, ts); renderPlay(ts); }
+      else if (state === STATE.TOY) { updateToy(dt); renderToy(ts); }
+      else if (state === STATE.DECO) { renderDeco(ts); }
+      else { drawScene(ts); drawPottyBack(potty(), ts); }
+      updateBits(dt);
+
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Wire up ----------
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onDown, { passive: false });
+    stage.addEventListener('touchmove', onMove, { passive: false });
+    stage.addEventListener('touchend', onUp);
+    stage.addEventListener('touchcancel', onUp);
+    stage.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) lastTs = 0; });
+    // Block page scroll / rubber-band (iOS 12 ignores touch-action + overscroll-behavior)
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // Keep links inside the iOS home-screen (standalone) app on old iOS only.
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    loadDeco();
+    updateMuteBtn();
+    resize();
+    goHome();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+  <script>
+    // Register the offline service worker (progressive enhancement; no-op where unsupported).
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>

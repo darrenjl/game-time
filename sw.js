@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var CACHE_VERSION = 'gametime-v10';
+var CACHE_VERSION = 'gametime-v11';
 
 // Everything the site is made of. All games are self-contained single HTML
 // files, so this list is just the pages plus the shared home-screen icons.
@@ -34,6 +34,7 @@ var ASSETS = [
   '/octopus-maze/index.html',
   '/peekaboo-meadow/index.html',
   '/pigeon-patrol/index.html',
+  '/potty-pals/index.html',
   '/shape-sort/index.html',
   '/simon-says/index.html',
   '/soccer/index.html',
