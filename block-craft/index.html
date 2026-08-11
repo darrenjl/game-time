@@ -201,6 +201,46 @@
     .toolbar button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.3); transform: scale(1.06); }
     .toolbar button:active { transform: scale(0.94); }
 
+    /* ---- Block swatch row (shown with the Build tool) ---- */
+    .swatches {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 92px;
+      display: flex;
+      justify-content: center;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .swatches.hidden { display: none; }
+    .swatchbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 94%;
+      padding: 6px;
+      border-radius: 18px;
+      background: rgba(36, 52, 77, 0.55);
+      border: 3px solid rgba(255, 255, 255, 0.45);
+      pointer-events: auto;
+    }
+    .swatches button {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 46px;
+      height: 46px;
+      margin: 3px;
+      padding: 0;
+      border-radius: 12px;
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      border: 3px solid rgba(255, 255, 255, 0.4);
+    }
+    .swatches button.sel { border-color: var(--gold); transform: scale(1.1); }
+    .swatches button:active { transform: scale(0.92); }
+
     .bigbtn.blue { background: linear-gradient(135deg, #8ab6ff, #6a8cff); color: #fff; }
 
     /* ---- Overlays ---- */
@@ -212,13 +252,16 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 24px;
+      padding: 18px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       background: rgba(36, 52, 77, 0.72);
       -webkit-backdrop-filter: blur(3px);
       backdrop-filter: blur(3px);
       z-index: 6;
     }
-    .overlay > * + * { margin-top: 16px; }     /* gap fallback for Safari < 14.5 */
+    .overlay > * + * { margin-top: 12px; }     /* gap fallback for Safari < 14.5 */
+    .overlay > * { flex: 0 0 auto; }           /* don't squash rows when scrolling */
     .overlay.hidden { display: none; }
     .overlay h2 {
       font-size: 2rem;
@@ -255,6 +298,22 @@
     .modepick button.sel { border-color: var(--gold); background: rgba(255,209,102,0.25); transform: scale(1.05); }
     .modepick button:active { transform: scale(0.96); }
 
+    /* Compact picker rows (character / weapon / world) */
+    .modepick.small button {
+      min-width: 70px;
+      min-height: 70px;
+      padding: 8px 6px;
+      font-size: 1.8rem;
+      border-radius: 15px;
+    }
+    .modepick.small button span { margin-top: 4px; font-size: 0.68rem; }
+    .picklabel {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+    }
+
     .bigbtn {
       min-height: 64px;
       padding: 16px 38px;
@@ -290,6 +349,8 @@
 
     <button class="actionbtn hidden" id="craftBtn">⚒️ Make Sword</button>
 
+    <div class="swatches hidden" id="swatches"><div class="swatchbar" id="swatchBar"></div></div>
+
     <div class="toolbar hidden" id="toolbar">
       <button data-tool="build">🧱<span>Build</span></button>
       <button data-tool="smash">⛏️<span>Smash</span></button>
@@ -301,13 +362,22 @@
       <h2>⛏️ Block Craft</h2>
       <p>Hi Oisín &amp; Finley! Let's build a house and be brave!</p>
       <ul class="steps">
-        <li>🌳 1. Tap trees to get wood</li>
-        <li>🧱 2. Tap rocks to get stone</li>
-        <li>🏠 3. Tap the glowing spots to build</li>
-        <li>⚔️ 4. Craft a sword</li>
-        <li>👾 5. Bonk the silly monsters!</li>
+        <li>🌳 1. Tap trees &amp; rocks to mine</li>
+        <li>🏠 2. Tap glowing spots to build</li>
+        <li>⚒️ 3. Craft your weapon</li>
+        <li>👾 4. Bonk the silly monsters!</li>
       </ul>
-      <p>Pick who's playing:</p>
+
+      <div class="picklabel">Pick your hero:</div>
+      <div class="modepick small" id="charPick"></div>
+
+      <div class="picklabel">Pick your weapon:</div>
+      <div class="modepick small" id="weapPick"></div>
+
+      <div class="picklabel">Pick your world:</div>
+      <div class="modepick small" id="worldPick"></div>
+
+      <div class="picklabel">Who's playing?</div>
       <div class="modepick" id="modePick">
         <button data-idx="0">🐣<span>Little</span></button>
         <button data-idx="1">🦖<span>Big Kid</span></button>
@@ -340,6 +410,7 @@
 
     // Sandbox (free build / smash / fire / TNT)
     var toolbar = document.getElementById('toolbar');
+    var swatchEl = document.getElementById('swatches');
     var grid = {};            // key "col_row" -> block
     var tool = 'build';
     var buildIdx = 0;
@@ -353,6 +424,57 @@
       { key: 'big', need: 3, monsters: 5 }
     ];
     var modeIdx = 0;
+
+    /* ---- Pickable heroes / weapons / worlds / blocks ---- */
+    var CHARS = [
+      { icon: '👦', name: 'Digger', head: 'plain', skin: '#f4c99a', hair: '#6b4423', shirt: '#2fb6c9', shirt2: '#279aab', legs: '#3a5ea8', boots: '#5b3a1a' },
+      { icon: '🥋', name: 'Ninja',  head: 'mask',  skin: '#f4c99a', hair: '#22262f', shirt: '#37415a', shirt2: '#2b3348', legs: '#22262f', boots: '#15181f' },
+      { icon: '🛡️', name: 'Knight', head: 'helmet', skin: '#f4c99a', hair: '#c7ccd4', shirt: '#aeb7c4', shirt2: '#98a1af', legs: '#6b7280', boots: '#4a5058' },
+      { icon: '🤖', name: 'Robot',  head: 'robot', skin: '#cfd6e0', hair: '#8f9aa8', shirt: '#7d8cff', shirt2: '#6a78e8', legs: '#5a6272', boots: '#3d434f' }
+    ];
+    var charIdx = 0;
+
+    var WEAPONS = [
+      { key: 'sword',  icon: '⚔️', name: 'Sword' },
+      { key: 'hammer', icon: '🔨', name: 'Hammer' },
+      { key: 'wand',   icon: '✨', name: 'Wand' },
+      { key: 'axe',    icon: '⛏️', name: 'Big Pick' }
+    ];
+    var weapIdx = 0;
+
+    var WORLDS = [
+      { icon: '🌳', name: 'Forest',
+        skyTop: '#aee6ff', skyBot: '#7ec0ee', dirt: '#7a5228', grass: '#5bbf4b',
+        trunk: '#8a5a2b', trunkLine: 'rgba(60,38,15,0.4)', leaf: '#4caf3f', leafHi: '#67c74f',
+        rock: '#9aa2ad', rockHi: '#b7bdc7', orb: '#ffe27a', cloud: 'rgba(255,255,255,0.9)', stump: '#7a5228' },
+      { icon: '⛄', name: 'Snow',
+        skyTop: '#e4f4ff', skyBot: '#a8d3f0', dirt: '#7c8794', grass: '#f2f8ff',
+        trunk: '#6b4a2b', trunkLine: 'rgba(40,26,10,0.4)', leaf: '#cfe6f5', leafHi: '#ffffff',
+        rock: '#aab6c2', rockHi: '#cfd9e2', orb: '#fff8d8', cloud: 'rgba(255,255,255,0.95)', stump: '#6b4a2b' },
+      { icon: '🌵', name: 'Desert',
+        skyTop: '#ffeeb8', skyBot: '#ffc46b', dirt: '#c98f4a', grass: '#e8c27a',
+        trunk: '#8a6a3b', trunkLine: 'rgba(70,50,20,0.4)', leaf: '#4f9e4a', leafHi: '#6ec25f',
+        rock: '#c2a271', rockHi: '#d8bd93', orb: '#fff2a0', cloud: 'rgba(255,255,255,0.6)', stump: '#8a6a3b' },
+      { icon: '🌙', name: 'Night',
+        skyTop: '#141c40', skyBot: '#39406f', dirt: '#4a3a26', grass: '#2f7a3f',
+        trunk: '#5c3f22', trunkLine: 'rgba(20,12,5,0.5)', leaf: '#2f6d33', leafHi: '#3f8a42',
+        rock: '#6a7280', rockHi: '#848d9c', orb: '#f3f4ff', cloud: 'rgba(200,210,255,0.35)', stump: '#5c3f22', stars: true }
+    ];
+    var worldIdx = 0;
+    function world() { return WORLDS[worldIdx]; }
+    var stars = [];
+
+    var BLOCKS = [
+      { icon: '🌈', rainbow: true },
+      { color: '#ff6b6b' },
+      { color: '#feca57' },
+      { color: '#5bbf4b' },
+      { color: '#54a0ff' },
+      { color: '#a55eea' },
+      { color: '#a9743c', mat: 'wood' },
+      { color: '#9aa2ad', mat: 'stone' }
+    ];
+    var blockIdx = 0;
 
     var W = 0, H = 0, dpr = 1, B = 40;
     var groundTop = 0;
@@ -391,7 +513,13 @@
     function sCollect() { tone(660, 0.1, 'sine', 0.25); tone(990, 0.14, 'sine', 0.22, null, 0.08); }
     function sBuild() { tone(300, 0.09, 'square', 0.25); tone(200, 0.12, 'triangle', 0.2, null, 0.04); }
     function sCraft() { tone(523, 0.1, 'triangle', 0.22); tone(659, 0.1, 'triangle', 0.22, null, 0.1); tone(784, 0.16, 'triangle', 0.24, null, 0.2); }
-    function sBonk() { tone(500, 0.16, 'square', 0.28, 120); }
+    function sBonk() {
+      var k = WEAPONS[weapIdx].key;
+      if (k === 'hammer') { tone(220, 0.2, 'square', 0.3, 70); tone(110, 0.24, 'sawtooth', 0.2, 50, 0.03); }
+      else if (k === 'wand') { tone(880, 0.12, 'sine', 0.24, 1600); tone(1320, 0.16, 'triangle', 0.2, null, 0.07); }
+      else if (k === 'axe') { tone(300, 0.18, 'square', 0.3, 90); }
+      else { tone(500, 0.16, 'square', 0.28, 120); }
+    }
     function sWin() {
       var n = [523, 659, 784, 1047];
       for (var i = 0; i < n.length; i++) tone(n[i], 0.18, 'triangle', 0.26, null, i * 0.14);
@@ -422,6 +550,14 @@
       placeResources();
       placeHouse();
       placeClouds();
+      placeStars();
+    }
+
+    function placeStars() {
+      stars = [];
+      for (var i = 0; i < 26; i++) {
+        stars.push({ x: rand(0, W), y: rand(H * 0.03, groundTop * 0.75), r: rand(1, 2.6), tw: rand(0, 6.28) });
+      }
     }
 
     function placeResources() {
@@ -513,10 +649,12 @@
         setBanner('Build a house! Tap the glowing blocks. 🏠', 'Blocks: ' + filledCount() + ' / ' + houseSlots.length);
       } else if (p === PHASE.CRAFT) {
         hero.tool = 'pick';
-        setBanner('Great house! Now craft a SWORD! ⚔️', 'Wood + Stone = Sword');
+        var wp = WEAPONS[weapIdx];
+        setBanner('Great house! Now craft your ' + wp.name.toUpperCase() + '! ' + wp.icon, 'Wood + Stone = ' + wp.name);
+        craftBtn.textContent = '⚒️ Make ' + wp.name;
         craftBtn.classList.remove('hidden');
       } else if (p === PHASE.FIGHT) {
-        hero.tool = 'sword';
+        hero.tool = 'weapon';
         setBanner('Bonk the silly monsters! 👾', 'Monsters: ' + aliveCount());
       } else if (p === PHASE.WIN) {
         win();
@@ -529,6 +667,7 @@
     /* ---------------- Game flow ---------------- */
     function newGame() {
       toolbar.classList.add('hidden');
+      swatchEl.classList.add('hidden');
       inv.wood = 0; inv.stone = 0;
       houseDone = false;
       parts = [];
@@ -562,13 +701,14 @@
     }
 
     function win() {
-      hero.tool = 'sword';
+      hero.tool = 'weapon';
       bannerEl.classList.add('hidden');
       craftBtn.classList.add('hidden');
       sWin();
       burst(hero.x, hero.footY - hero.size * 0.6, '#ffd166', 26, true);
       document.getElementById('winMsg').textContent =
-        'You mined, built a house, crafted a sword and bonked all the monsters!';
+        'You mined, built a house in the ' + world().name + ', made a ' + WEAPONS[weapIdx].name +
+        ' and bonked all the monsters!';
       document.getElementById('winOverlay').classList.remove('hidden');
     }
 
@@ -605,6 +745,15 @@
       for (var i = 0; i < btns.length; i++) {
         btns[i].className = (btns[i].getAttribute('data-tool') === t) ? 'sel' : '';
       }
+      // the block swatches only matter while building
+      if (t === 'build') swatchEl.classList.remove('hidden');
+      else swatchEl.classList.add('hidden');
+    }
+
+    function newBlock() {
+      var pick = BLOCKS[blockIdx];
+      var col = pick.rainbow ? PALETTE[buildIdx++ % PALETTE.length] : pick.color;
+      return { color: col, mat: pick.mat || null, fire: 0, tnt: false, fuse: 0 };
     }
 
     function cellCenter(c, r) {
@@ -677,7 +826,7 @@
       if (col < 0 || row < 0) return;
       var k = gkey(col, row), b = grid[k], cc = cellCenter(col, row);
       if (tool === 'build') {
-        if (!b) { grid[k] = { color: PALETTE[buildIdx++ % PALETTE.length], fire: 0, tnt: false, fuse: 0 }; sBuild(); burst(cc.x, cc.y, grid[k].color, 6); }
+        if (!b) { grid[k] = newBlock(); sBuild(); burst(cc.x, cc.y, grid[k].color, 6); }
       } else if (tool === 'smash') {
         if (b) { burst(cc.x, cc.y, b.tnt ? '#d1493f' : b.color, 10); delete grid[k]; sChop(); }
       } else if (tool === 'fire') {
@@ -784,7 +933,7 @@
       audio();
       if (phase !== PHASE.CRAFT) return;
       craftBtn.classList.add('hidden');
-      hero.tool = 'sword'; hero.swing = 0.5;
+      hero.tool = 'weapon'; hero.swing = 0.5;
       burst(hero.x, hero.footY - hero.size * 0.6, '#ffd166', 22, true);
       sCraft();
       spawnMonsters();
@@ -874,23 +1023,24 @@
     }
 
     function drawTree(t, ts) {
+      var wd = world();
       if (t.chopped) {
         // stump
-        ctx.fillStyle = '#7a5228';
+        ctx.fillStyle = wd.stump;
         rr(t.x - B * 0.22, t.y - B * 0.35, B * 0.44, B * 0.35, B * 0.08); ctx.fill();
         return;
       }
       var sway = Math.sin(ts / 500 + t.wob) * B * 0.06;
       var trunkW = B * 0.4, trunkH = B * 1.2;
       // trunk
-      ctx.fillStyle = '#8a5a2b';
+      ctx.fillStyle = wd.trunk;
       rr(t.x - trunkW / 2, t.y - trunkH, trunkW, trunkH, B * 0.08); ctx.fill();
-      ctx.strokeStyle = 'rgba(60,38,15,0.4)'; ctx.lineWidth = Math.max(1.5, B * 0.04);
+      ctx.strokeStyle = wd.trunkLine; ctx.lineWidth = Math.max(1.5, B * 0.04);
       rr(t.x - trunkW / 2, t.y - trunkH, trunkW, trunkH, B * 0.08); ctx.stroke();
       // leafy blocks (blocky canopy)
       var cy = t.y - trunkH - B * 0.55 + sway;
       var cx = t.x + sway;
-      var leaf = '#4caf3f', leafHi = '#67c74f';
+      var leaf = wd.leaf, leafHi = wd.leafHi;
       rr(cx - B * 0.85, cy - B * 0.15, B * 1.7, B * 1.15, B * 0.28); ctx.fillStyle = leaf; ctx.fill();
       rr(cx - B * 0.55, cy - B * 0.65, B * 1.1, B * 0.9, B * 0.28); ctx.fillStyle = leafHi; ctx.fill();
       // speckles
@@ -901,9 +1051,10 @@
 
     function drawRock(r, ts) {
       if (r.chopped) return;
+      var wd = world();
       var x = r.x, y = r.y - B * 0.4;
-      rr(x - B * 0.55, y - B * 0.45, B * 1.1, B * 0.9, B * 0.3); ctx.fillStyle = '#9aa2ad'; ctx.fill();
-      rr(x - B * 0.55, y - B * 0.45, B * 1.1, B * 0.35, B * 0.3); ctx.fillStyle = '#b7bdc7'; ctx.fill();
+      rr(x - B * 0.55, y - B * 0.45, B * 1.1, B * 0.9, B * 0.3); ctx.fillStyle = wd.rock; ctx.fill();
+      rr(x - B * 0.55, y - B * 0.45, B * 1.1, B * 0.35, B * 0.3); ctx.fillStyle = wd.rockHi; ctx.fill();
       ctx.fillStyle = 'rgba(70,78,90,0.4)';
       ctx.beginPath(); ctx.arc(x - B * 0.15, y + B * 0.1, B * 0.09, 0, 6.28); ctx.fill();
       ctx.beginPath(); ctx.arc(x + B * 0.2, y + B * 0.2, B * 0.07, 0, 6.28); ctx.fill();
@@ -972,6 +1123,7 @@
 
     function drawHero(ts) {
       var s = hero.size;
+      var ch = CHARS[charIdx];
       var cx = hero.x, footY = hero.footY;
       var bob = Math.sin(ts / 400) * s * 0.02;
       var cy = footY - s * 0.5 + bob;
@@ -984,52 +1136,147 @@
       ctx.beginPath(); ctx.ellipse(0, s * 0.5, s * 0.32, s * 0.08, 0, 0, 6.28); ctx.fill();
 
       // legs
-      ctx.fillStyle = '#3a5ea8';
+      ctx.fillStyle = ch.legs;
       rr(-s * 0.18, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
       rr(s * 0.03, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
       // boots
-      ctx.fillStyle = '#5b3a1a';
+      ctx.fillStyle = ch.boots;
       rr(-s * 0.2, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
       rr(s * 0.01, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
 
       // body
-      ctx.fillStyle = '#2fb6c9';
+      ctx.fillStyle = ch.shirt;
       rr(-s * 0.24, -s * 0.12, s * 0.48, s * 0.3, s * 0.08); ctx.fill();
       // belt
-      ctx.fillStyle = '#7a5228';
+      ctx.fillStyle = ch.boots;
       rr(-s * 0.24, s * 0.12, s * 0.48, s * 0.06, s * 0.02); ctx.fill();
 
       // back arm
-      ctx.fillStyle = '#279aab';
+      ctx.fillStyle = ch.shirt2;
       rr(-s * 0.2, -s * 0.08, s * 0.1, s * 0.24, s * 0.05); ctx.fill();
 
-      // head (blocky)
-      ctx.fillStyle = '#f4c99a';
-      rr(-s * 0.19, -s * 0.44, s * 0.38, s * 0.34, s * 0.09); ctx.fill();
-      // hair
-      ctx.fillStyle = '#6b4423';
-      rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.12, s * 0.06); ctx.fill();
-      // eyes
-      ctx.fillStyle = '#24344d';
-      ctx.beginPath(); ctx.arc(s * 0.0, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
-      ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
-      // smile
-      ctx.strokeStyle = '#24344d'; ctx.lineWidth = Math.max(1.5, s * 0.02);
-      ctx.beginPath(); ctx.arc(s * 0.06, -s * 0.22, s * 0.06, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+      drawHead(s, ch, ts);
 
-      // front arm + tool (swings)
+      // front arm + weapon (swings)
       var sw = -hero.swing * 1.2;
       ctx.save();
       ctx.translate(s * 0.16, -s * 0.02);
       ctx.rotate(sw);
-      ctx.fillStyle = '#f4c99a';
+      ctx.fillStyle = ch.skin;
       rr(-s * 0.06, -s * 0.02, s * 0.12, s * 0.26, s * 0.05); ctx.fill();
       // tool in hand
       ctx.translate(0, s * 0.22);
-      if (hero.tool === 'sword') drawSword(s); else drawPick(s);
+      if (hero.tool === 'weapon') drawWeapon(s, WEAPONS[weapIdx].key, ts); else drawPick(s);
       ctx.restore();
 
       ctx.restore();
+    }
+
+    function drawHead(s, ch, ts) {
+      // blocky head
+      ctx.fillStyle = ch.skin;
+      rr(-s * 0.19, -s * 0.44, s * 0.38, s * 0.34, s * 0.09); ctx.fill();
+
+      if (ch.head === 'robot') {
+        // antenna + metal plate
+        ctx.strokeStyle = ch.hair; ctx.lineWidth = Math.max(1.5, s * 0.02);
+        ctx.beginPath(); ctx.moveTo(s * 0.0, -s * 0.44); ctx.lineTo(s * 0.0, -s * 0.56); ctx.stroke();
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath(); ctx.arc(0, -s * 0.58, s * 0.04, 0, 6.28); ctx.fill();
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.09, s * 0.04); ctx.fill();
+        // glowing square eyes
+        ctx.fillStyle = '#7dffe8';
+        rr(-s * 0.04, -s * 0.31, s * 0.07, s * 0.06, s * 0.02); ctx.fill();
+        rr(s * 0.09, -s * 0.31, s * 0.07, s * 0.06, s * 0.02); ctx.fill();
+        // speaker mouth
+        ctx.fillStyle = '#24344d';
+        rr(-s * 0.02, -s * 0.21, s * 0.16, s * 0.05, s * 0.02); ctx.fill();
+        return;
+      }
+
+      if (ch.head === 'helmet') {
+        // helmet shell with a visor slit
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.21, -s * 0.47, s * 0.42, s * 0.3, s * 0.1); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        rr(-s * 0.1, -s * 0.32, s * 0.29, s * 0.05, s * 0.02); ctx.fill();
+        // plume
+        ctx.fillStyle = '#ff6b6b';
+        rr(-s * 0.02, -s * 0.6, s * 0.05, s * 0.15, s * 0.02); ctx.fill();
+        return;
+      }
+
+      if (ch.head === 'mask') {
+        // dark hood with an eye band
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.24, s * 0.08); ctx.fill();
+        ctx.fillStyle = ch.skin;
+        rr(-s * 0.06, -s * 0.33, s * 0.26, s * 0.07, s * 0.02); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        ctx.beginPath(); ctx.arc(s * 0.02, -s * 0.29, s * 0.03, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(s * 0.14, -s * 0.29, s * 0.03, 0, 6.28); ctx.fill();
+        // headband tails
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.28, -s * 0.4, s * 0.09, s * 0.04, s * 0.02); ctx.fill();
+        return;
+      }
+
+      // plain: hair + face
+      ctx.fillStyle = ch.hair;
+      rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.12, s * 0.06); ctx.fill();
+      ctx.fillStyle = '#24344d';
+      ctx.beginPath(); ctx.arc(s * 0.0, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
+      ctx.strokeStyle = '#24344d'; ctx.lineWidth = Math.max(1.5, s * 0.02);
+      ctx.beginPath(); ctx.arc(s * 0.06, -s * 0.22, s * 0.06, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+    }
+
+    function drawWeapon(s, key, ts) {
+      if (key === 'hammer') drawHammer(s);
+      else if (key === 'wand') drawWand(s, ts);
+      else if (key === 'axe') drawBigPick(s);
+      else drawSword(s);
+    }
+
+    function drawHammer(s) {
+      // handle
+      ctx.fillStyle = '#8a5a2b';
+      rr(-s * 0.035, -s * 0.02, s * 0.07, s * 0.34, s * 0.03); ctx.fill();
+      // steel head
+      ctx.fillStyle = '#aeb7c4';
+      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.14, s * 0.04); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.05, s * 0.03); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = Math.max(1, s * 0.012);
+      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.14, s * 0.04); ctx.stroke();
+    }
+
+    function drawWand(s, ts) {
+      // stick
+      ctx.fillStyle = '#6b4423';
+      rr(-s * 0.025, -s * 0.02, s * 0.05, s * 0.32, s * 0.02); ctx.fill();
+      // twinkling star tip
+      var tw = 0.85 + 0.15 * Math.sin(ts / 120);
+      ctx.fillStyle = '#ffd166';
+      drawStar(0, -s * 0.06, s * 0.11 * tw, ts / 400);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      drawStar(0, -s * 0.06, s * 0.05 * tw, -ts / 300);
+    }
+
+    function drawBigPick(s) {
+      ctx.fillStyle = '#6b4423';
+      rr(-s * 0.04, -s * 0.02, s * 0.08, s * 0.34, s * 0.03); ctx.fill();
+      ctx.strokeStyle = '#dfe6ef'; ctx.lineWidth = s * 0.09;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.22, s * 0.04);
+      ctx.quadraticCurveTo(0, -s * 0.16, s * 0.22, s * 0.04);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = s * 0.03;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.2, s * 0.02);
+      ctx.quadraticCurveTo(0, -s * 0.12, s * 0.2, s * 0.02);
+      ctx.stroke();
     }
 
     function drawPick(s) {
@@ -1064,23 +1311,44 @@
       if (shakeT > 0.1) {
         ctx.translate((Math.random() - 0.5) * shakeT, (Math.random() - 0.5) * shakeT);
       }
+      var wd = world();
       // sky (overscan a little so screen-shake never shows a gap)
       var g = ctx.createLinearGradient(0, 0, 0, groundTop);
-      g.addColorStop(0, '#aee6ff'); g.addColorStop(1, '#7ec0ee');
+      g.addColorStop(0, wd.skyTop); g.addColorStop(1, wd.skyBot);
       ctx.fillStyle = g; ctx.fillRect(-16, -16, W + 32, groundTop + 16);
 
-      // sun
+      // stars (night world only)
+      if (wd.stars) {
+        for (var st = 0; st < stars.length; st++) {
+          var sr = stars[st];
+          ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(ts / 500 + sr.tw));
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(sr.x, sr.y, sr.r, 0, 6.28); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // sun (or moon at night)
       ctx.save();
-      ctx.globalAlpha = 0.9;
       var sunX = W * 0.86, sunY = H * 0.14, sunR = B * 0.9;
-      ctx.fillStyle = '#ffe27a';
-      ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, 6.28); ctx.fill();
-      ctx.globalAlpha = 0.25;
+      // glow behind, so the moon's crescent stays crisp
+      ctx.globalAlpha = wd.stars ? 0.14 : 0.25;
+      ctx.fillStyle = wd.orb;
       ctx.beginPath(); ctx.arc(sunX, sunY, sunR * 1.5, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, 6.28); ctx.fill();
+      if (wd.stars) {
+        // bite a crescent out of the moon
+        ctx.globalAlpha = 1;
+        var mg = ctx.createLinearGradient(0, 0, 0, groundTop);
+        mg.addColorStop(0, wd.skyTop); mg.addColorStop(1, wd.skyBot);
+        ctx.fillStyle = mg;
+        ctx.beginPath(); ctx.arc(sunX + sunR * 0.42, sunY - sunR * 0.22, sunR * 0.86, 0, 6.28); ctx.fill();
+      }
       ctx.restore();
 
       // clouds
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillStyle = wd.cloud;
       for (var c = 0; c < clouds.length; c++) {
         var cl = clouds[c], cw = 70 * cl.s, ch = 26 * cl.s;
         rr(cl.x, cl.y, cw, ch, ch); ctx.fill();
@@ -1089,9 +1357,9 @@
       }
 
       // ground: grass + dirt with block seams
-      ctx.fillStyle = '#7a5228';
+      ctx.fillStyle = wd.dirt;
       ctx.fillRect(-16, groundTop, W + 32, H - groundTop + 16);
-      ctx.fillStyle = '#5bbf4b';
+      ctx.fillStyle = wd.grass;
       ctx.fillRect(-16, groundTop, W + 32, Math.min(B * 0.5, (H - groundTop) * 0.4));
       // seams
       ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 2;
@@ -1188,6 +1456,7 @@
         var pc = keys[i].split('_'), c = +pc[0], r = +pc[1];
         var cc = cellCenter(c, r), b = grid[keys[i]];
         if (b.tnt) drawTNTblock(cc.x, cc.y, B, b, ts);
+        else if (b.mat) drawBlock(cc.x, cc.y, B, b.mat);
         else drawColorBlock(cc.x, cc.y, B, b.color);
         if (b.fire > 0) drawFlames(cc.x, cc.y, B, c * 3 + r, ts);
       }
@@ -1246,6 +1515,75 @@
         });
       })(modeBtns[mi]);
     }
+
+    // Hero / weapon / world pickers (built from the data above)
+    function buildPicker(elId, items, storeKey, get, set) {
+      var host = document.getElementById(elId);
+      var saved = null;
+      try { saved = localStorage.getItem(storeKey); } catch (e) {}
+      if (saved !== null && items[+saved]) set(+saved);
+      var btns = [];
+      function mark() {
+        for (var i = 0; i < btns.length; i++) btns[i].className = (i === get()) ? 'sel' : '';
+      }
+      for (var i = 0; i < items.length; i++) {
+        (function (idx) {
+          var b = document.createElement('button');
+          b.innerHTML = items[idx].icon + '<span>' + items[idx].name + '</span>';
+          b.addEventListener('click', function (e) {
+            e.stopPropagation(); audio();
+            set(idx);
+            try { localStorage.setItem(storeKey, String(idx)); } catch (er) {}
+            mark();
+          });
+          host.appendChild(b);
+          btns.push(b);
+        })(i);
+      }
+      mark();
+    }
+    buildPicker('charPick', CHARS, 'bc_char', function () { return charIdx; }, function (v) { charIdx = v; });
+    buildPicker('weapPick', WEAPONS, 'bc_weap', function () { return weapIdx; }, function (v) { weapIdx = v; });
+    function applyWorldTheme() {
+      var wd = world();
+      document.body.style.background = 'linear-gradient(180deg,' + wd.skyTop + ' 0%,' + wd.skyBot + ' 55%,' + wd.grass + ' 100%)';
+    }
+    buildPicker('worldPick', WORLDS, 'bc_world', function () { return worldIdx; }, function (v) { worldIdx = v; applyWorldTheme(); });
+    applyWorldTheme();
+
+    // Block swatches for the sandbox Build tool
+    (function buildSwatches() {
+      var saved = null;
+      try { saved = localStorage.getItem('bc_block'); } catch (e) {}
+      if (saved !== null && BLOCKS[+saved]) blockIdx = +saved;
+      var btns = [];
+      function mark() {
+        for (var i = 0; i < btns.length; i++) btns[i].className = (i === blockIdx) ? 'sel' : '';
+      }
+      for (var i = 0; i < BLOCKS.length; i++) {
+        (function (idx) {
+          var bl = BLOCKS[idx], b = document.createElement('button');
+          if (bl.rainbow) {
+            b.textContent = bl.icon;
+            b.style.background = 'linear-gradient(135deg,#ff6b6b,#feca57,#5bbf4b,#54a0ff,#a55eea)';
+          } else {
+            b.style.background = bl.color;
+            b.setAttribute('aria-label', bl.mat || bl.color);
+          }
+          b.addEventListener('click', function (e) {
+            e.stopPropagation(); audio();
+            blockIdx = idx;
+            try { localStorage.setItem('bc_block', String(idx)); } catch (er) {}
+            mark();
+            selectTool('build');
+            tone(560 + idx * 40, 0.06, 'sine', 0.18);
+          });
+          document.getElementById('swatchBar').appendChild(b);
+          btns.push(b);
+        })(i);
+      }
+      mark();
+    })();
 
     document.getElementById('startBtn').addEventListener('click', function (e) {
       e.stopPropagation();
