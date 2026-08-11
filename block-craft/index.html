@@ -91,6 +91,20 @@
       border: 2px solid rgba(255, 255, 255, 0.6);
     }
     .refresh:active { transform: scale(0.95); }
+    .badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      color: #fff;
+      background: rgba(36, 52, 77, 0.55);
+      border: 2px solid var(--gold);
+    }
 
     /* ---- Stage / canvas ---- */
     .stage {
@@ -335,6 +349,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="title">⛏️ Block Craft</div>
     <div class="rightbtns">
+      <div class="badge" id="heroBadge" aria-label="Your hero and weapon"></div>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
   </div>
@@ -435,10 +450,10 @@
     var charIdx = 0;
 
     var WEAPONS = [
-      { key: 'sword',  icon: '⚔️', name: 'Sword' },
-      { key: 'hammer', icon: '🔨', name: 'Hammer' },
-      { key: 'wand',   icon: '✨', name: 'Wand' },
-      { key: 'axe',    icon: '⛏️', name: 'Big Pick' }
+      { key: 'sword',  icon: '⚔️', name: 'Sword',  hit: '#dfe6ef' },
+      { key: 'hammer', icon: '🔨', name: 'Hammer', hit: '#aeb7c4' },
+      { key: 'wand',   icon: '✨', name: 'Wand',   hit: '#ffd166' },
+      { key: 'zap',    icon: '⚡', name: 'Zapper', hit: '#7dffe8' }
     ];
     var weapIdx = 0;
 
@@ -475,6 +490,8 @@
       { color: '#9aa2ad', mat: 'stone' }
     ];
     var blockIdx = 0;
+    var bigBlocks = false;   // build with 2x2 mega blocks
+    var sizeBtn = null;
 
     var W = 0, H = 0, dpr = 1, B = 40;
     var groundTop = 0;
@@ -733,7 +750,9 @@
     function seedHouse() {
       // a little house sitting on the grass, made of grid blocks you can smash/burn/blow up
       var startCol = Math.max(2, Math.round((W * 0.34) / B));
-      function put(c, r, color) { grid[gkey(c, r)] = { color: color, fire: 0, tnt: false, fuse: 0 }; }
+      function put(c, r, color) {
+        placeBlock(c, r, { color: color, mat: null, fire: 0, tnt: false, fuse: 0, size: 1, ac: c, ar: r });
+      }
       put(startCol, 0, '#9aa2ad'); put(startCol + 2, 0, '#9aa2ad');        // bottom walls (door gap)
       put(startCol, 1, '#c68a4c'); put(startCol + 1, 1, '#c68a4c'); put(startCol + 2, 1, '#c68a4c'); // wood row
       put(startCol, 2, '#d1493f'); put(startCol + 1, 2, '#d1493f'); put(startCol + 2, 2, '#d1493f'); // red roof row
@@ -753,11 +772,57 @@
     function newBlock() {
       var pick = BLOCKS[blockIdx];
       var col = pick.rainbow ? PALETTE[buildIdx++ % PALETTE.length] : pick.color;
-      return { color: col, mat: pick.mat || null, fire: 0, tnt: false, fuse: 0 };
+      return { color: col, mat: pick.mat || null, fire: 0, tnt: false, fuse: 0, size: bigBlocks ? 2 : 1, ac: 0, ar: 0 };
+    }
+
+    function setBigBlocks(on) {
+      bigBlocks = !!on;
+      sizeBtn.className = bigBlocks ? 'sel' : '';
+      sizeBtn.textContent = bigBlocks ? '⬛' : '◼️';
+      try { localStorage.setItem('bc_big', bigBlocks ? '1' : '0'); } catch (e) {}
     }
 
     function cellCenter(c, r) {
       return { x: c * B + B / 2, y: groundTop - r * B - B / 2 };
+    }
+
+    // A block covers size x size cells; every covered cell points at the same object,
+    // whose anchor cell (ac, ar) is its bottom-left corner.
+    function blockCenter(b) {
+      var s = b.size || 1;
+      return { x: b.ac * B + s * B / 2, y: groundTop - b.ar * B - s * B / 2 };
+    }
+
+    function isAnchor(b, c, r) { return b.ac === c && b.ar === r; }
+
+    function spaceFree(col, row, size) {
+      if (col < 0 || row < 0) return false;
+      for (var dc = 0; dc < size; dc++) {
+        for (var dr = 0; dr < size; dr++) {
+          if (grid[gkey(col + dc, row + dr)]) return false;
+        }
+      }
+      return true;
+    }
+
+    function placeBlock(col, row, b) {
+      b.ac = col; b.ar = row;
+      var s = b.size || 1;
+      for (var dc = 0; dc < s; dc++) {
+        for (var dr = 0; dr < s; dr++) grid[gkey(col + dc, row + dr)] = b;
+      }
+      return b;
+    }
+
+    // Remove the whole block covering this cell (a big block goes in one piece).
+    function removeBlock(c, r) {
+      var b = grid[gkey(c, r)];
+      if (!b) return null;
+      var s = b.size || 1;
+      for (var dc = 0; dc < s; dc++) {
+        for (var dr = 0; dr < s; dr++) delete grid[gkey(b.ac + dc, b.ar + dr)];
+      }
+      return b;
     }
 
     function igniteBlock(b) {
@@ -775,47 +840,52 @@
       // clear a 3x3 area; chain any TNT caught in the blast
       for (var dc = -1; dc <= 1; dc++) {
         for (var dr = -1; dr <= 1; dr++) {
-          var k = gkey(col + dc, row + dr);
-          var nb = grid[k];
+          var nb = grid[gkey(col + dc, row + dr)];
           if (!nb) continue;
           if (nb.tnt && !(dc === 0 && dr === 0)) { nb.fuse = Math.min(nb.fuse, 0.12); continue; }
-          var p = cellCenter(col + dc, row + dr);
-          burst(p.x, p.y, nb.color, 8, false);
-          delete grid[k];
+          var p = blockCenter(nb);
+          burst(p.x, p.y, nb.color, 8 * (nb.size || 1), false);
+          removeBlock(col + dc, row + dr);
         }
       }
     }
 
     function updateSandbox(dt) {
       shakeT = Math.max(0, shakeT - dt * 40);
-      var keys = Object.keys(grid), i, k, b;
+      var keys = Object.keys(grid), i, k, b, pc, c, r;
       // fire: burn down + occasionally spread to a neighbour
       var toRemove = [], toIgnite = [];
       for (i = 0; i < keys.length; i++) {
         k = keys[i]; b = grid[k];
+        pc = k.split('_'); c = +pc[0]; r = +pc[1];
+        if (!isAnchor(b, c, r)) continue;    // big blocks tick once, not once per cell
         if (b.tnt) {
           b.fuse -= dt;
-          if (b.fuse <= 0) { var pc = k.split('_'); explode(+pc[0], +pc[1]); }
+          if (b.fuse <= 0) explode(c, r);
           continue;
         }
         if (b.fire > 0) {
           b.fire += dt;
-          var parts2 = k.split('_'), cc = cellCenter(+parts2[0], +parts2[1]);
-          if (Math.random() < dt * 6) burst(cc.x, cc.y - B * 0.2, '#ff9f43', 1, false);
+          var s = b.size || 1, cc = blockCenter(b);
+          if (Math.random() < dt * 6 * s) burst(cc.x, cc.y - B * 0.2, '#ff9f43', 1, false);
           if (Math.random() < dt * 0.9) {
             var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
             var d = dirs[(Math.random() * 4) | 0];
-            var nk = gkey(+parts2[0] + d[0], +parts2[1] + d[1]);
+            var off = (Math.random() * s) | 0;
+            var nk = d[0] ? gkey(c + (d[0] > 0 ? s : -1), r + off) : gkey(c + off, r + (d[1] > 0 ? s : -1));
             if (grid[nk] && !grid[nk].tnt && grid[nk].fire <= 0) toIgnite.push(nk);
           }
-          if (b.fire >= FIRE_LIFE) { toRemove.push(k); }
+          if (b.fire >= FIRE_LIFE) toRemove.push(k);
         }
       }
       for (i = 0; i < toIgnite.length; i++) igniteBlock(grid[toIgnite[i]]);
       for (i = 0; i < toRemove.length; i++) {
-        var rp = toRemove[i].split('_'), rc = cellCenter(+rp[0], +rp[1]);
-        burst(rc.x, rc.y, '#555', 6, false);
-        delete grid[toRemove[i]];
+        b = grid[toRemove[i]];
+        if (!b) continue;
+        var rc = blockCenter(b);
+        burst(rc.x, rc.y, '#555', 6 * (b.size || 1), false);
+        pc = toRemove[i].split('_');
+        removeBlock(+pc[0], +pc[1]);
       }
     }
 
@@ -824,15 +894,27 @@
       var col = Math.floor(p.x / B);
       var row = Math.floor((groundTop - p.y) / B);
       if (col < 0 || row < 0) return;
-      var k = gkey(col, row), b = grid[k], cc = cellCenter(col, row);
+      var b = grid[gkey(col, row)], cc = cellCenter(col, row);
       if (tool === 'build') {
-        if (!b) { grid[k] = newBlock(); sBuild(); burst(cc.x, cc.y, grid[k].color, 6); }
+        var nb = newBlock();
+        if (spaceFree(col, row, nb.size)) {
+          placeBlock(col, row, nb);
+          var bc = blockCenter(nb);
+          sBuild(); burst(bc.x, bc.y, nb.color, nb.size > 1 ? 12 : 6);
+        }
       } else if (tool === 'smash') {
-        if (b) { burst(cc.x, cc.y, b.tnt ? '#d1493f' : b.color, 10); delete grid[k]; sChop(); }
+        if (b) {
+          var sc = blockCenter(b);
+          burst(sc.x, sc.y, b.tnt ? '#d1493f' : b.color, (b.size || 1) > 1 ? 18 : 10);
+          removeBlock(col, row); sChop();
+        }
       } else if (tool === 'fire') {
         if (b && !b.tnt) igniteBlock(b);
       } else if (tool === 'tnt') {
-        if (!b) { grid[k] = { color: '#d1493f', fire: 0, tnt: true, fuse: 1.6 }; tone(700, 0.06, 'square', 0.2); }
+        if (!b) {
+          placeBlock(col, row, { color: '#d1493f', mat: null, fire: 0, tnt: true, fuse: 1.6, size: 1, ac: col, ar: row });
+          tone(700, 0.06, 'square', 0.2);
+        }
         else if (b.tnt) { b.fuse = 0.1; }           // tap an existing TNT to set it off now
       }
     }
@@ -918,7 +1000,7 @@
             mo.alive = false;
             hero.face = mo.x > hero.x ? 1 : -1; hero.swing = 0.5;
             burst(mo.x, mo.y, mo.color, 18, true);
-            burst(mo.x, mo.y, '#ffffff', 8, true);
+            burst(mo.x, mo.y, WEAPONS[weapIdx].hit, 10, true);
             sBonk();
             if (aliveCount() <= 0) setPhase(PHASE.WIN);
             else setBanner('Bonk the silly monsters! 👾', 'Monsters: ' + aliveCount());
@@ -1232,51 +1314,68 @@
       ctx.beginPath(); ctx.arc(s * 0.06, -s * 0.22, s * 0.06, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
     }
 
+    // The crafted weapon is held ALOFT and drawn oversized, so which one you picked is
+    // obvious against the sky. Local +y runs from the hand out to the business end.
     function drawWeapon(s, key, ts) {
+      ctx.save();
+      ctx.rotate(-2.6);
+      ctx.scale(1.4, 1.4);
       if (key === 'hammer') drawHammer(s);
       else if (key === 'wand') drawWand(s, ts);
-      else if (key === 'axe') drawBigPick(s);
+      else if (key === 'zap') drawZapper(s, ts);
       else drawSword(s);
+      ctx.restore();
     }
 
     function drawHammer(s) {
-      // handle
+      // wooden handle
       ctx.fillStyle = '#8a5a2b';
-      rr(-s * 0.035, -s * 0.02, s * 0.07, s * 0.34, s * 0.03); ctx.fill();
-      // steel head
+      rr(-s * 0.045, -s * 0.06, s * 0.09, s * 0.4, s * 0.03); ctx.fill();
+      // fat steel head at the far end
       ctx.fillStyle = '#aeb7c4';
-      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.14, s * 0.04); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.05, s * 0.03); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = Math.max(1, s * 0.012);
-      rr(-s * 0.15, -s * 0.1, s * 0.3, s * 0.14, s * 0.04); ctx.stroke();
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.2, s * 0.05); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.07, s * 0.04); ctx.fill();
+      ctx.fillStyle = 'rgba(70,78,90,0.4)';
+      rr(-s * 0.05, s * 0.28, s * 0.1, s * 0.2, s * 0.03); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = Math.max(1.5, s * 0.018);
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.2, s * 0.05); ctx.stroke();
     }
 
     function drawWand(s, ts) {
-      // stick
-      ctx.fillStyle = '#6b4423';
-      rr(-s * 0.025, -s * 0.02, s * 0.05, s * 0.32, s * 0.02); ctx.fill();
-      // twinkling star tip
+      // purple stick with stripes
+      ctx.fillStyle = '#7b4fd6';
+      rr(-s * 0.035, -s * 0.06, s * 0.07, s * 0.38, s * 0.03); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      rr(-s * 0.035, s * 0.02, s * 0.07, s * 0.04, s * 0.02); ctx.fill();
+      rr(-s * 0.035, s * 0.14, s * 0.07, s * 0.04, s * 0.02); ctx.fill();
+      // big twinkling star at the tip
       var tw = 0.85 + 0.15 * Math.sin(ts / 120);
+      ctx.fillStyle = 'rgba(255,209,102,0.35)';
+      ctx.beginPath(); ctx.arc(0, s * 0.4, s * 0.2 * tw, 0, 6.28); ctx.fill();
       ctx.fillStyle = '#ffd166';
-      drawStar(0, -s * 0.06, s * 0.11 * tw, ts / 400);
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      drawStar(0, -s * 0.06, s * 0.05 * tw, -ts / 300);
+      drawStar(0, s * 0.4, s * 0.19 * tw, ts / 400);
+      ctx.fillStyle = '#fff9d8';
+      drawStar(0, s * 0.4, s * 0.09 * tw, -ts / 300);
     }
 
-    function drawBigPick(s) {
-      ctx.fillStyle = '#6b4423';
-      rr(-s * 0.04, -s * 0.02, s * 0.08, s * 0.34, s * 0.03); ctx.fill();
-      ctx.strokeStyle = '#dfe6ef'; ctx.lineWidth = s * 0.09;
+    function drawZapper(s, ts) {
+      // dark staff
+      ctx.fillStyle = '#3a4155';
+      rr(-s * 0.04, -s * 0.06, s * 0.08, s * 0.4, s * 0.03); ctx.fill();
+      // crackling lightning bolt on the tip
+      var flick = 0.8 + 0.2 * Math.sin(ts / 70);
+      ctx.fillStyle = 'rgba(125,255,232,0.3)';
+      ctx.beginPath(); ctx.arc(0, s * 0.42, s * 0.21 * flick, 0, 6.28); ctx.fill();
+      var bolt = [[-0.06, 0.26], [0.1, 0.4], [0.02, 0.42], [0.12, 0.58], [-0.1, 0.44], [-0.01, 0.41]];
       ctx.beginPath();
-      ctx.moveTo(-s * 0.22, s * 0.04);
-      ctx.quadraticCurveTo(0, -s * 0.16, s * 0.22, s * 0.04);
-      ctx.stroke();
-      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = s * 0.03;
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.2, s * 0.02);
-      ctx.quadraticCurveTo(0, -s * 0.12, s * 0.2, s * 0.02);
-      ctx.stroke();
+      for (var i = 0; i < bolt.length; i++) {
+        var bx = bolt[i][0] * s, by = s * 0.42 + (bolt[i][1] - 0.42) * s * flick;
+        if (i === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ffe94a'; ctx.fill();
+      ctx.strokeStyle = '#7dffe8'; ctx.lineWidth = Math.max(1.5, s * 0.02); ctx.stroke();
     }
 
     function drawPick(s) {
@@ -1292,17 +1391,19 @@
     }
 
     function drawSword(s) {
-      // blade
-      ctx.fillStyle = '#dfe6ef';
-      rr(-s * 0.035, -s * 0.02, s * 0.07, s * 0.34, s * 0.03); ctx.fill();
-      ctx.strokeStyle = '#aeb7c4'; ctx.lineWidth = Math.max(1, s * 0.01);
-      rr(-s * 0.035, -s * 0.02, s * 0.07, s * 0.34, s * 0.03); ctx.stroke();
+      // grip at the hand, blade running out to the tip
+      ctx.fillStyle = '#8a5228';
+      rr(-s * 0.035, -s * 0.08, s * 0.07, s * 0.14, s * 0.02); ctx.fill();
       // guard
       ctx.fillStyle = '#ffd166';
-      rr(-s * 0.12, s * 0.28, s * 0.24, s * 0.06, s * 0.02); ctx.fill();
-      // grip
-      ctx.fillStyle = '#8a5228';
-      rr(-s * 0.035, s * 0.32, s * 0.07, s * 0.12, s * 0.02); ctx.fill();
+      rr(-s * 0.14, s * 0.05, s * 0.28, s * 0.06, s * 0.02); ctx.fill();
+      // blade
+      ctx.fillStyle = '#dfe6ef';
+      rr(-s * 0.05, s * 0.1, s * 0.1, s * 0.36, s * 0.04); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      rr(-s * 0.015, s * 0.12, s * 0.03, s * 0.32, s * 0.015); ctx.fill();
+      ctx.strokeStyle = '#98a1af'; ctx.lineWidth = Math.max(1, s * 0.012);
+      rr(-s * 0.05, s * 0.1, s * 0.1, s * 0.36, s * 0.04); ctx.stroke();
     }
 
     /* ---------------- Render ---------------- */
@@ -1454,11 +1555,13 @@
       var keys = Object.keys(grid);
       for (var i = 0; i < keys.length; i++) {
         var pc = keys[i].split('_'), c = +pc[0], r = +pc[1];
-        var cc = cellCenter(c, r), b = grid[keys[i]];
-        if (b.tnt) drawTNTblock(cc.x, cc.y, B, b, ts);
-        else if (b.mat) drawBlock(cc.x, cc.y, B, b.mat);
-        else drawColorBlock(cc.x, cc.y, B, b.color);
-        if (b.fire > 0) drawFlames(cc.x, cc.y, B, c * 3 + r, ts);
+        var b = grid[keys[i]];
+        if (!isAnchor(b, c, r)) continue;      // draw each block once, from its anchor
+        var cc = blockCenter(b), bh = B * (b.size || 1);
+        if (b.tnt) drawTNTblock(cc.x, cc.y, bh, b, ts);
+        else if (b.mat) drawBlock(cc.x, cc.y, bh, b.mat);
+        else drawColorBlock(cc.x, cc.y, bh, b.color);
+        if (b.fire > 0) drawFlames(cc.x, cc.y, bh, c * 3 + r, ts);
       }
     }
 
@@ -1542,8 +1645,12 @@
       }
       mark();
     }
-    buildPicker('charPick', CHARS, 'bc_char', function () { return charIdx; }, function (v) { charIdx = v; });
-    buildPicker('weapPick', WEAPONS, 'bc_weap', function () { return weapIdx; }, function (v) { weapIdx = v; });
+    function updateBadge() {
+      document.getElementById('heroBadge').textContent = CHARS[charIdx].icon + WEAPONS[weapIdx].icon;
+    }
+    buildPicker('charPick', CHARS, 'bc_char', function () { return charIdx; }, function (v) { charIdx = v; updateBadge(); });
+    buildPicker('weapPick', WEAPONS, 'bc_weap', function () { return weapIdx; }, function (v) { weapIdx = v; updateBadge(); });
+    updateBadge();
     function applyWorldTheme() {
       var wd = world();
       document.body.style.background = 'linear-gradient(180deg,' + wd.skyTop + ' 0%,' + wd.skyBot + ' 55%,' + wd.grass + ' 100%)';
@@ -1583,6 +1690,25 @@
         })(i);
       }
       mark();
+
+      // 2x2 mega-block toggle, sitting at the end of the swatch row
+      sizeBtn = document.createElement('button');
+      sizeBtn.className = '';
+      sizeBtn.id = 'sizeBtn';
+      sizeBtn.setAttribute('aria-label', 'Big blocks');
+      sizeBtn.style.background = 'rgba(255,255,255,0.14)';
+      sizeBtn.style.marginLeft = '12px';
+      sizeBtn.addEventListener('click', function (e) {
+        e.stopPropagation(); audio();
+        setBigBlocks(!bigBlocks);
+        selectTool('build');
+        setBanner(bigBlocks ? 'BIG blocks! ⬛' : 'Little blocks ◼️', '');
+        tone(bigBlocks ? 300 : 620, 0.1, 'square', 0.2);
+      });
+      document.getElementById('swatchBar').appendChild(sizeBtn);
+      var savedBig = null;
+      try { savedBig = localStorage.getItem('bc_big'); } catch (e) {}
+      setBigBlocks(savedBig === '1');
     })();
 
     document.getElementById('startBtn').addEventListener('click', function (e) {
