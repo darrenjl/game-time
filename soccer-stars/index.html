@@ -227,6 +227,27 @@
     }
     .speakbtn:active { transform: scale(0.96); }
     .speakbtn.hidden { display: none; }
+
+    /* How-to-play lives behind an ℹ️ button so the start screen stays uncluttered. */
+    .infobtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 56px;
+      min-height: 56px;
+      padding: 0;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      border-radius: 999px;
+    }
+    .infobtn:active { transform: scale(0.95); }
+    #infoOverlay p { text-align: left; max-width: 32ch; }
+
+    .startrow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .startrow > * + * { margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -246,8 +267,7 @@
     <div class="overlay" id="startOverlay">
       <div id="stepMode">
         <h2>🥅 Soccer Stars</h2>
-        <p>How many players on each team?</p>
-      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+        <button class="infobtn" id="infoBtn" aria-label="How to play">ℹ️</button>
         <div class="modepick">
           <button class="modebtn" data-mode="1">
             <span class="dots"><i class="dot b"></i><span class="vs">vs</span><i class="dot r"></i></span>
@@ -262,10 +282,7 @@
 
       <div id="stepTeam" style="display:none;">
         <h2 id="teamTitle">Pick your team!</h2>
-        <p id="teamHint">Tap a player to join your team.</p>
-        <p style="font-size:0.95rem;opacity:0.82;">Hold and slide anywhere to run your player. Bump into the ball to kick it — run at it hard to shoot for the net! ⚽🥅</p>
         <div class="roster" id="roster"></div>
-        <p>Match speed:</p>
         <div class="diffpick" id="diffPickStart">
           <button data-idx="0">🐢<span>Easy</span></button>
           <button data-idx="1">🙂<span>Normal</span></button>
@@ -276,7 +293,17 @@
           <button class="bigbtn" id="kickoffBtn" disabled>⚽ Kick off!</button>
         </div>
       </div>
+</div>
+    <div class="overlay hidden" id="infoOverlay">
+      <h2>ℹ️ How to play</h2>
+      <p>How many players on each team?</p>
+      <p id="teamHint">Tap a player to join your team.</p>
+      <p style="font-size:0.95rem;opacity:0.82;">Hold and slide anywhere to run your player. Bump into the ball to kick it — run at it hard to shoot for the net! ⚽🥅</p>
+      <p>Match speed:</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+      <button class="bigbtn" id="infoDone">✅ Got it</button>
     </div>
+
 
     <div class="overlay hidden" id="pauseOverlay">
       <h2>Paused</h2>
@@ -287,6 +314,7 @@
         <button data-idx="2">🐇<span>Hard</span></button>
       </div>
       <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+      <button class="bigbtn" id="pauseInfoBtn">ℹ️ How to play</button>
       <button class="linkbtn" id="newTeamsBtn">🔀 New teams</button>
     </div>
 
@@ -321,10 +349,31 @@
     }
     wireMute();
 
+    /* ---- How to play: same panel from the start screen and the pause menu ---- */
+    (function wireInfo() {
+      var panel = document.getElementById('infoOverlay');
+      if (!panel) return;
+      function open(e) { if (e) e.stopPropagation(); panel.classList.remove('hidden'); }
+      function close(e) {
+        if (e) e.stopPropagation();
+        panel.classList.add('hidden');
+        if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      }
+      var b1 = document.getElementById('infoBtn');
+      var b2 = document.getElementById('pauseInfoBtn');
+      var b3 = document.getElementById('infoDone');
+      if (b1) b1.addEventListener('click', open);
+      if (b2) b2.addEventListener('click', open);
+      if (b3) b3.addEventListener('click', close);
+      // taps on the panel must not reach the game underneath and start it
+      panel.addEventListener('touchstart', function (e) { e.stopPropagation(); }, { passive: false });
+      panel.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    })();
+
     /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
     function speakStart() {
       if (muted || !window.speechSynthesis) return;
-      var o = document.getElementById('startOverlay');
+      var o = document.getElementById('infoOverlay') || document.getElementById('startOverlay');
       if (!o) return;
       var ps = o.querySelectorAll('p'), parts = [];
       for (var i = 0; i < ps.length; i++) {

@@ -184,6 +184,27 @@
     }
     .speakbtn:active { transform: scale(0.96); }
     .speakbtn.hidden { display: none; }
+
+    /* How-to-play lives behind an ℹ️ button so the start screen stays uncluttered. */
+    .infobtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 56px;
+      min-height: 56px;
+      padding: 0;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      border-radius: 999px;
+    }
+    .infobtn:active { transform: scale(0.95); }
+    #infoOverlay p { text-align: left; max-width: 32ch; }
+
+    .startrow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .startrow > * + * { margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -202,18 +223,24 @@
 
     <div class="overlay" id="startOverlay">
       <h2>🐛 Caterpillar Hop</h2>
-      <p>Help the hungry caterpillar hop from leaf to leaf!</p>
+      <button class="infobtn" id="infoBtn" aria-label="How to play">ℹ️</button>
       <div class="tap-hint">👆</div>
-      <p><b>Tap anywhere to hop.</b> Tap again in the air for a double hop! Munch the berries.</p>
       <p>Pick a speed (or change it with ⏸️):</p>
-      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
       <div class="speedpick" id="speedPickStart">
         <button data-idx="0">🐢<span>Chill</span></button>
         <button data-idx="1">🙂<span>Normal</span></button>
         <button data-idx="2">🐇<span>Fast</span></button>
         <button data-idx="3">⚡<span>Zoom</span></button>
       </div>
+</div>
+    <div class="overlay hidden" id="infoOverlay">
+      <h2>ℹ️ How to play</h2>
+      <p>Help the hungry caterpillar hop from leaf to leaf!</p>
+      <p><b>Tap anywhere to hop.</b> Tap again in the air for a double hop! Munch the berries.</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+      <button class="bigbtn" id="infoDone">✅ Got it</button>
     </div>
+
 
     <div class="overlay hidden" id="pauseOverlay">
       <h2>Paused</h2>
@@ -225,6 +252,7 @@
         <button data-idx="3">⚡<span>Zoom</span></button>
       </div>
       <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+      <button class="bigbtn" id="pauseInfoBtn">ℹ️ How to play</button>
     </div>
 
     <div class="overlay hidden" id="overOverlay">
@@ -256,10 +284,31 @@
     }
     wireMute();
 
+    /* ---- How to play: same panel from the start screen and the pause menu ---- */
+    (function wireInfo() {
+      var panel = document.getElementById('infoOverlay');
+      if (!panel) return;
+      function open(e) { if (e) e.stopPropagation(); panel.classList.remove('hidden'); }
+      function close(e) {
+        if (e) e.stopPropagation();
+        panel.classList.add('hidden');
+        if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      }
+      var b1 = document.getElementById('infoBtn');
+      var b2 = document.getElementById('pauseInfoBtn');
+      var b3 = document.getElementById('infoDone');
+      if (b1) b1.addEventListener('click', open);
+      if (b2) b2.addEventListener('click', open);
+      if (b3) b3.addEventListener('click', close);
+      // taps on the panel must not reach the game underneath and start it
+      panel.addEventListener('touchstart', function (e) { e.stopPropagation(); }, { passive: false });
+      panel.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    })();
+
     /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
     function speakStart() {
       if (muted || !window.speechSynthesis) return;
-      var o = document.getElementById('startOverlay');
+      var o = document.getElementById('infoOverlay') || document.getElementById('startOverlay');
       if (!o) return;
       var ps = o.querySelectorAll('p'), parts = [];
       for (var i = 0; i < ps.length; i++) {
