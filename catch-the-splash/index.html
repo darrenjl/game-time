@@ -91,6 +91,12 @@
     }
     .speakbtn:active { transform: scale(0.96); }
     .speakbtn.hidden { display: none; }
+
+    /* The start screen shows a live demo behind it, so it must not be blurred. */
+    #startOverlay {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   </style>
 </head>
 <body>
@@ -513,6 +519,21 @@
       ctx.restore();
     }
 
+
+    /* ---- Silent demo loop: a ghost hand showing the move, for pre-readers ---- */
+    // Bright enough to read through the start overlay that dims the scene.
+    function drawGhostHand(x, y, press) {
+      var r = H * 0.05;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.55, 0, 6.28);
+      ctx.fillStyle = 'rgba(255,209,102,0.28)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, r * (press ? 0.86 : 1), 0, 6.28);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = Math.max(3, H * 0.007);
+      ctx.strokeStyle = '#ffd166'; ctx.stroke();
+      ctx.restore();
+    }
     function render() {
       if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a8ab0'); g.addColorStop(0.6, '#0a5a7a'); g.addColorStop(1, '#052a4a'); render._g = g; render._h = H; }
       ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
@@ -526,6 +547,15 @@
       ctx.globalAlpha = 1;
       for (i = 0; i < 3; i++) drawHeart(W * 0.06 + i * H * 0.055, H * 0.05, H * 0.019, i < lives);
       if (flash > 0) { ctx.fillStyle = 'rgba(255,80,80,' + (flash * 0.7) + ')'; ctx.fillRect(0, 0, W, H); }
+      if (state === STATE.START) drawDemo();
+    }
+
+    // slide the finger left and right along the catcher's line
+    function drawDemo() {
+      var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() / 1000 : Date.now() / 1000;
+      var t = (now % 3) / 3;
+      var e = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+      drawGhostHand(W * 0.25 + (W * 0.5) * e, catcher.y + H * 0.04, true);
     }
 
     function frame(ts) {

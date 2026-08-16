@@ -180,6 +180,12 @@
     }
     .speakbtn:active { transform: scale(0.96); }
     .speakbtn.hidden { display: none; }
+
+    /* The start screen shows a live demo behind it, so it must not be blurred. */
+    #startOverlay {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   </style>
 </head>
 <body>
@@ -666,6 +672,21 @@
       ctx.restore();
     }
 
+
+    /* ---- Silent demo loop: a ghost hand showing the move, for pre-readers ---- */
+    // Bright enough to read through the start overlay that dims the scene.
+    function drawGhostHand(x, y, press) {
+      var r = H * 0.05;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.55, 0, 6.28);
+      ctx.fillStyle = 'rgba(255,209,102,0.28)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, r * (press ? 0.86 : 1), 0, 6.28);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = Math.max(3, H * 0.007);
+      ctx.strokeStyle = '#ffd166'; ctx.stroke();
+      ctx.restore();
+    }
     function render() {
       if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#ffce8a'); g.addColorStop(0.45, '#ff8fb0'); g.addColorStop(1, '#9a6cf0'); render._g = g; render._h = H; }
       ctx.fillStyle = render._g; ctx.fillRect(0, 0, W, H);
@@ -702,6 +723,27 @@
       for (i = 0; i < 3; i++) drawHeart(W * 0.06 + i * H * 0.055, H * 0.05, H * 0.019, i < lives);
 
       if (flash > 0) { ctx.fillStyle = 'rgba(255,220,120,' + (flash * 0.8) + ')'; ctx.fillRect(0, 0, W, H); }
+      if (state === STATE.START) drawDemo();
+    }
+
+    // a swipe across the middle, with a fading trail behind it
+    function drawDemo() {
+      var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() / 1000 : Date.now() / 1000;
+      var t = (now % 2.4) / 2.4;
+      if (t > 0.75) return;
+      var k = Math.min(1, t / 0.75);
+      var x0 = W * 0.2, x1 = W * 0.8, y0 = H * 0.62, y1 = H * 0.45;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,209,102,0.85)';
+      ctx.lineWidth = Math.max(3, H * 0.008);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      var tail = Math.max(0, k - 0.25);
+      ctx.moveTo(x0 + (x1 - x0) * tail, y0 + (y1 - y0) * tail);
+      ctx.lineTo(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k);
+      ctx.stroke();
+      ctx.restore();
+      drawGhostHand(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, true);
     }
 
     function frame(ts) {
