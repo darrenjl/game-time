@@ -210,21 +210,15 @@
     <div class="overlay" id="startOverlay">
       <h2>💎 Diamond &amp; Crystal Hunt 🔮</h2>
       <p>Help the hunter dog 🐕 sniff out the diamond 💎 <b>and</b> the crystal 🔮 hidden in the cave maze!</p>
-      <p>Careful — <b>5 bumps into the walls ❤️ and you start over!</b></p>
       <button class="bigbtn" id="startBtn">🐾 Start Digging!</button>
     </div>
 
     <div class="overlay hidden" id="winOverlay">
       <h2>🎉 Both gems found! 🏆</h2>
-      <p>What a good hunter! Ready to explore a brand-new cave?</p>
+      <p id="winMsg">What a good hunter! Ready to explore a brand-new cave?</p>
       <button class="bigbtn" id="playAgainBtn">🔁 Play Again</button>
     </div>
 
-    <div class="overlay hidden" id="loseOverlay">
-      <h2>💥 Too many bumps!</h2>
-      <p>The dog bonked the walls 5 times. Let's try a fresh cave!</p>
-      <button class="bigbtn" id="loseAgainBtn">🔁 Try Again</button>
-    </div>
   </div>
 
   <div class="dpad">
@@ -263,11 +257,10 @@
     // Walls are drawn on canvas (older iOS lacks the rock/stone emoji)
 
     // ---------- State ----------
-    var STATE = { START: 0, PLAYING: 1, WON: 2, LOST: 3 };
+    var STATE = { START: 0, PLAYING: 1, WON: 2 };
     var state = STATE.START;
 
-    var MAX_LIVES = 5;             // 5 wall bumps and you start over
-    var lives = MAX_LIVES;
+    var bumps = 0;                 // counted for the well-done message, never fatal
     var flashT = 0, shakeT = 0;    // wall-bump feedback timers
     var audioCtx = null;
 
@@ -424,8 +417,7 @@
         { x: GRID - 2, y: 1,        emoji: '🔮', color: '#c79bff', got: false }
       ];
       particles = [];
-      lives = MAX_LIVES; flashT = 0; shakeT = 0;
-      document.getElementById('loseOverlay').classList.add('hidden');
+      bumps = 0; flashT = 0; shakeT = 0;
       updateHud();
       resize();
     }
@@ -472,6 +464,9 @@
 
     function win() {
       state = STATE.WON;
+      document.getElementById('winMsg').textContent = bumps === 0
+        ? 'Not a single bump! Ready for a brand-new cave?'
+        : 'What a good hunter! Ready to explore a brand-new cave?';
       // Extra celebration burst from the dog
       spawnSparkles(tileCenter(dog.cx, dog.cy), '#ffd166', 30);
       setTimeout(function () {
@@ -479,21 +474,14 @@
       }, 650);
     }
 
-    // ---------- Wall bumps / lives ----------
+    // ---------- Wall bumps ----------
+    // A bump is how a small child reads a maze, so it costs nothing but a bonk.
     function crash() {
       if (state !== STATE.PLAYING) return;
-      lives--;
-      flashT = 0.35; shakeT = 0.3;
+      bumps++;
+      flashT = 0.22; shakeT = 0.24;
       ensureAudio(); thud();
-      spawnSparkles(tileCenter(dog.cx, dog.cy), '#ff6b6b', 8);
-      if (lives <= 0) lose();
-    }
-
-    function lose() {
-      state = STATE.LOST;
-      setTimeout(function () {
-        document.getElementById('loseOverlay').classList.remove('hidden');
-      }, 450);
+      spawnSparkles(tileCenter(dog.cx, dog.cy), '#ff6b6b', 6);
     }
 
     function ensureAudio() {
@@ -587,13 +575,6 @@
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
       ctx.restore();
     }
-    function drawLives() {
-      var r = tile * 0.26, x0 = tile * 0.62, y0 = tile * 0.56, gap = tile * 0.72;
-      roundRectPath(ctx, tile * 0.22, tile * 0.16, gap * (MAX_LIVES - 1) + r * 2 + tile * 0.4, tile * 0.78, tile * 0.18);
-      ctx.fillStyle = 'rgba(10, 6, 18, 0.55)'; ctx.fill();
-      for (var i = 0; i < MAX_LIVES; i++) drawHeart(x0 + i * gap, y0, r, i < lives);
-    }
-
     // ---------- Main loop ----------
     function easeOut(t) { return 1 - (1 - t) * (1 - t); }
 
@@ -654,9 +635,8 @@
       drawParticles();
       ctx.restore();
 
-      // Wall-bump red flash + lives HUD (drawn un-shaken, on top of the board)
+      // Wall-bump red flash (drawn un-shaken, on top of the board)
       if (flashT > 0) { ctx.fillStyle = 'rgba(255, 70, 70, ' + (flashT * 0.9) + ')'; ctx.fillRect(0, 0, boardPx, boardPx); }
-      drawLives();
 
       requestAnimationFrame(frame);
     }
@@ -715,11 +695,6 @@
     });
     document.getElementById('playAgainBtn').addEventListener('click', function () {
       document.getElementById('winOverlay').classList.add('hidden');
-      newGame();
-      state = STATE.PLAYING;
-    });
-    document.getElementById('loseAgainBtn').addEventListener('click', function () {
-      document.getElementById('loseOverlay').classList.add('hidden');
       newGame();
       state = STATE.PLAYING;
     });
