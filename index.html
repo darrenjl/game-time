@@ -66,7 +66,7 @@
       100% { transform: translateY(-110vh) translateX(20px); opacity: 0; }
     }
 
-    header, main, footer { position: relative; z-index: 1; width: 100%; }
+    header, main, footer, .favs { position: relative; z-index: 1; width: 100%; }
 
     .refresh {
       -webkit-appearance: none;
@@ -203,7 +203,7 @@
       appearance: none;
       position: absolute;
       top: 8px;
-      right: 8px;
+      left: 8px;              /* left, so it never lands under the fixed 🔄 button */
       z-index: 2;
       display: flex;
       align-items: center;
