@@ -1,0 +1,2504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#7ec0ee">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Building Blocks">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+  <title>Building Blocks</title>
+  <style>
+    :root {
+      --sky: #7ec0ee;
+      --grass: #5bbf4b;
+      --wood: #a9743c;
+      --stone: #9aa2ad;
+      --ink: #24344d;
+      --gold: #ffd166;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;          /* fallback for Safari < 15.4 (e.g. iPad mini 2) */
+      height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #afe3ff 0%, #7ec0ee 55%, #5bbf4b 100%);
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(8px, env(safe-area-inset-top)) 12px 6px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: #fff;
+      background: rgba(36, 52, 77, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
+    .back:active { transform: scale(0.95); }
+    .title {
+      font-size: 1.3rem;
+      font-size: clamp(1.1rem, 5vw, 1.6rem);
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 0 rgba(36,52,77,0.5);
+    }
+    .rightbtns { display: flex; align-items: center; }
+    .rightbtns > * + * { margin-left: 8px; }   /* gap fallback for Safari < 14.5 */
+    .refresh {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(36, 52, 77, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
+    .refresh:active { transform: scale(0.95); }
+    .badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      color: #fff;
+      background: rgba(36, 52, 77, 0.55);
+      border: 2px solid var(--gold);
+    }
+    .badge.clock { border-color: rgba(255,255,255,0.6); }
+    .badge.hidden { display: none; }
+
+    /* ---- Stage / canvas ---- */
+    .stage {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    canvas#game { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* ---- Instruction banner (over the top of the stage) ---- */
+    .banner {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      max-width: 92%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 18px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.92);
+      border: 3px solid var(--ink);
+      box-shadow: 0 6px 0 rgba(36,52,77,0.35);
+      z-index: 4;
+      pointer-events: none;
+    }
+    .banner.hidden { display: none; }
+    .banner .say {
+      font-size: 1.05rem;
+      font-size: clamp(0.95rem, 4.2vw, 1.35rem);
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .banner .prog {
+      margin-top: 3px;
+      font-size: 0.95rem;
+      font-size: clamp(0.85rem, 3.6vw, 1.1rem);
+      font-weight: 800;
+      color: #2e7d32;
+    }
+
+    /* ---- Tool bar ---- */
+    .toolbar {
+      position: absolute;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 96%;
+      padding: 6px;
+      border-radius: 22px;
+      background: rgba(36, 52, 77, 0.6);
+      border: 3px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 6px 0 rgba(36,52,77,0.35);
+      z-index: 5;
+    }
+    .toolbar.hidden { display: none; }
+    .toolbar button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      min-height: 58px;
+      margin: 3px;
+      padding: 5px 7px;
+      border-radius: 16px;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.28);
+    }
+    .toolbar button span { display: block; margin-top: 3px; font-size: 0.6rem; font-weight: 800; }
+    .toolbar button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.3); transform: scale(1.06); }
+    .toolbar button:active { transform: scale(0.94); }
+    .toolbar button.hidden { display: none; }
+
+    /* ---- Block swatch row (shown with the Build tool) ---- */
+    .swatches {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 104px;          /* clears the 82px toolbar sitting 10px off the bottom */
+      bottom: calc(104px + env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: center;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .swatches.hidden { display: none; }
+    .swatchbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 94%;
+      padding: 5px;
+      border-radius: 18px;
+      background: rgba(36, 52, 77, 0.55);
+      border: 3px solid rgba(255, 255, 255, 0.45);
+      pointer-events: auto;
+    }
+    .swatches button {
+      -webkit-appearance: none;
+      appearance: none;
+      position: relative;
+      width: 46px;
+      height: 46px;
+      margin: 3px;
+      padding: 0;
+      border-radius: 12px;
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+      border: 3px solid rgba(255, 255, 255, 0.4);
+      overflow: hidden;
+    }
+    .swatches button canvas { display: block; width: 100%; height: 100%; }
+    .swatches button b {
+      position: absolute;
+      right: 1px;
+      bottom: 0;
+      font-size: 0.62rem;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 1px 2px #000, 0 0 3px #000;
+    }
+    .swatches button.sel { border-color: var(--gold); transform: scale(1.1); }
+    .swatches button.out { opacity: 0.35; }
+    .swatches button:active { transform: scale(0.92); }
+
+    .bigbtn.blue { background: linear-gradient(135deg, #8ab6ff, #6a8cff); color: #fff; }
+    .bigbtn.grey { background: linear-gradient(135deg, #c3ccd8, #9aa4b2); color: var(--ink); }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;   /* inset shorthand unsupported on Safari < 14.5 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: rgba(36, 52, 77, 0.72);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      z-index: 6;
+    }
+    .overlay > * + * { margin-top: 10px; }     /* gap fallback for Safari < 14.5 */
+    .overlay > * { flex: 0 0 auto; }           /* don't squash rows when scrolling */
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: 1.9rem;
+      font-size: clamp(1.6rem, 7.5vw, 2.8rem);
+      color: #fff;
+      text-shadow: 0 3px 0 rgba(0,0,0,0.3);
+    }
+    .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(255,255,255,0.92); max-width: 28ch; }
+    .steps { list-style: none; text-align: left; color: #fff; font-weight: 700; }
+    .steps > * + * { margin-top: 6px; }
+    .steps li { font-size: 1rem; font-size: clamp(0.9rem, 4vw, 1.15rem); }
+
+    /* Mode picker */
+    .modepick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .modepick button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 92px;
+      min-height: 92px;
+      margin: 5px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      font-size: 2.2rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255,255,255,0.16);
+      border: 3px solid rgba(255,255,255,0.45);
+    }
+    .modepick button span { display: block; margin-top: 6px; font-size: 0.8rem; font-weight: 800; }
+    .modepick button.sel { border-color: var(--gold); background: rgba(255,209,102,0.25); transform: scale(1.05); }
+    .modepick button:active { transform: scale(0.96); }
+
+    /* Compact picker rows (character / weapon / world) */
+    .modepick.small button {
+      min-width: 66px;
+      min-height: 66px;
+      margin: 4px;
+      padding: 7px 5px;
+      font-size: 1.7rem;
+      border-radius: 15px;
+    }
+    .modepick.small button span { margin-top: 3px; font-size: 0.65rem; }
+    .picklabel {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+    }
+
+    .bigbtn {
+      min-height: 60px;
+      padding: 14px 34px;
+      font-size: 1.25rem;
+      font-size: clamp(1.1rem, 5.2vw, 1.55rem);
+      font-weight: 800;
+      color: var(--ink);
+      border: 3px solid #fff;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ffd166, #ffb03d);
+      box-shadow: 0 8px 0 rgba(36,52,77,0.4);
+      cursor: pointer;
+    }
+    .bigbtn:active { transform: scale(0.96); }
+
+    /* ---- Crafting ---- */
+    #craftOverlay { background: rgba(14, 24, 42, 0.94); }
+    .invstrip {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 96%;
+      padding: 6px;
+      border-radius: 16px;
+      background: rgba(0,0,0,0.28);
+    }
+    .invstrip div {
+      display: flex;
+      align-items: center;
+      margin: 3px 5px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .invstrip canvas { display: block; width: 26px; height: 26px; margin-right: 4px; }
+
+    .recipes {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 96%;
+    }
+    .recipes button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      align-items: center;
+      margin: 5px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(10, 20, 38, 0.9);   /* opaque: the game scene shows through the overlay */
+      border: 3px solid rgba(255,255,255,0.4);
+    }
+    .recipes button.can { border-color: var(--gold); background: rgba(120, 88, 20, 0.92); }
+    .recipes button.cant { opacity: 0.55; }
+    .recipes button:active { transform: scale(0.95); }
+    .recipes canvas { display: block; width: 34px; height: 34px; }
+    .recipes .plus, .recipes .arrow {
+      margin: 0 4px;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.85);
+    }
+    .recipes .cnt { margin-left: 3px; font-size: 0.85rem; font-weight: 800; }
+    .recipes .name { margin-left: 6px; font-size: 0.85rem; font-weight: 800; }
+
+    /* ---- Photo frame ---- */
+    .photobar {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 7;
+    }
+    .photobar.hidden { display: none; }
+    .photobar .cap {
+      margin-bottom: 10px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      border: 3px solid var(--ink);
+    }
+
+    /* Spoken instructions: neither boy reads yet, so the game can read to them. */
+    .speakbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 48px;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.18);
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      border-radius: 999px;
+    }
+    .speakbtn:active { transform: scale(0.96); }
+    .speakbtn.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">⬅️ Back</a>
+    <div class="title">🧱 Building Blocks</div>
+    <div class="rightbtns">
+      <button class="refresh" id="muteBtn" aria-label="Sound on or off">🔊</button>
+      <div class="badge" id="heroBadge" aria-label="Your hero and weapon"></div>
+      <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="banner hidden" id="banner">
+      <div class="say" id="bannerSay"></div>
+      <div class="prog" id="bannerProg"></div>
+    </div>
+
+    <div class="swatches hidden" id="swatches"><div class="swatchbar" id="swatchBar"></div></div>
+
+    <div class="toolbar hidden" id="toolbar">
+      <button data-tool="mine">⛏️<span>Mine</span></button>
+      <button data-tool="build">🧱<span>Build</span></button>
+      <button data-tool="fire">🔥<span>Fire</span></button>
+      <button data-act="photo">📷<span>Photo</span></button>
+    </div>
+
+    <div class="photobar hidden" id="photobar">
+      <div class="cap">📷 Look what you made!</div>
+      <button class="bigbtn" id="photoDone">✅ Done</button>
+    </div>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🧱 Building Blocks</h2>
+      <p>Build whatever you like, then smash it up.</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+
+      <div class="picklabel">Pick your builder:</div>
+      <div class="modepick small" id="charPick"></div>
+
+      <div class="picklabel">Pick your world:</div>
+      <div class="modepick small" id="worldPick"></div>
+
+      <button class="bigbtn" id="startBtn">▶️ Start</button>
+      <button class="bigbtn grey hidden" id="newWorldBtn">✨ Start Again</button>
+    </div>
+
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
+
+    /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
+    function speakStart() {
+      if (muted || !window.speechSynthesis) return;
+      var o = document.getElementById('startOverlay');
+      if (!o) return;
+      var ps = o.querySelectorAll('p'), parts = [];
+      for (var i = 0; i < ps.length; i++) {
+        var t = (ps[i].textContent || '')
+          .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')   // emoji get read out by name
+          .replace(/\s+/g, ' ').trim();
+        if (!t || /^Pick\b/i.test(t)) continue;   // picker labels are for the grown-up
+        parts.push(t);
+      }
+      if (!parts.length) return;
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(parts.join(' '));
+        u.rate = 0.9; u.pitch = 1.1;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    (function wireSpeak() {
+      var b = document.getElementById('speakBtn');
+      if (!b) return;
+      if (!window.speechSynthesis) { b.className = 'speakbtn hidden'; return; }
+      b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+      b.addEventListener('click', function (e) { e.stopPropagation(); speakStart(); });
+      var mb = document.getElementById('muteBtn');
+      if (mb) mb.addEventListener('click', function () {
+        b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+        if (muted && window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      });
+    })();
+
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var lightCanvas = document.createElement('canvas');
+    var lctx = lightCanvas.getContext('2d');
+
+    var bannerEl = document.getElementById('banner');
+    var saySay = document.getElementById('bannerSay');
+    var sayProg = document.getElementById('bannerProg');
+    var toolbar = document.getElementById('toolbar');
+    var swatchEl = document.getElementById('swatches');
+    var swatchBar = document.getElementById('swatchBar');
+
+    var PHASE = { START: 0, PLAY: 1, PHOTO: 2, DIZZY: 3 };
+    var phase = PHASE.START;
+
+    /* ---------------- Block types ---------------- */
+    var T = {
+      AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, LOG: 4, LEAF: 5, PLANK: 6, SAND: 7,
+      GLASS: 8, WATER: 9, LADDER: 10, TORCH: 11, LAMP: 12, BED: 13, TNT: 14,
+      COAL: 15, DIAMOND: 16, WOOL: 17, BEDROCK: 18, SNOW: 19,
+      C1: 20, C2: 21, C3: 22, C4: 23, C5: 24, C6: 25, C7: 26, C8: 27, RAINBOW: 28
+    };
+
+    // solid: blocks movement. pass: you can walk through it. falls: obeys gravity.
+    // burn: catches fire. light: lights the night. drop: what mining it gives you.
+    var TYPES = {};
+    TYPES[T.GRASS]   = { name: 'Grass',   color: '#5bbf4b', solid: 1, drop: 'dirt', hard: 1 };
+    TYPES[T.DIRT]    = { name: 'Dirt',    color: '#7a5228', solid: 1, drop: 'dirt', hard: 1 };
+    TYPES[T.STONE]   = { name: 'Stone',   color: '#9aa2ad', solid: 1, drop: 'stone', hard: 1, needPick: 1 };
+    TYPES[T.LOG]     = { name: 'Wood',    color: '#8a5a2b', solid: 1, drop: 'wood', hard: 1, burn: 1 };
+    TYPES[T.LEAF]    = { name: 'Leaves',  color: '#4caf3f', solid: 1, drop: null, hard: 1, burn: 1 };
+    TYPES[T.PLANK]   = { name: 'Planks',  color: '#c68a4c', solid: 1, drop: 'plank', hard: 1, burn: 1 };
+    TYPES[T.SAND]    = { name: 'Sand',    color: '#e3c27a', solid: 1, drop: 'sand', hard: 1, falls: 1 };
+    TYPES[T.SNOW]    = { name: 'Snow',    color: '#f2f8ff', solid: 1, drop: 'dirt', hard: 1 };
+    TYPES[T.GLASS]   = { name: 'Glass',   color: '#bfe9ff', solid: 1, drop: 'glass', hard: 1, clear: 1 };
+    TYPES[T.WATER]   = { name: 'Water',   color: '#3f8fe0', pass: 1, liquid: 1, drop: null };
+    TYPES[T.LADDER]  = { name: 'Ladder',  color: '#b98a4e', pass: 1, climb: 1, drop: 'ladder' };
+    TYPES[T.TORCH]   = { name: 'Torch',   color: '#ffb03d', pass: 1, light: 3.4, drop: 'torch' };
+    TYPES[T.LAMP]    = { name: 'Lamp',    color: '#ffe9a8', solid: 1, light: 5.2, drop: 'lamp' };
+    TYPES[T.BED]     = { name: 'Bed',     color: '#e05a5a', pass: 1, drop: 'bed' };
+    TYPES[T.TNT]     = { name: 'TNT',     color: '#d1493f', solid: 1, drop: 'tnt' };
+    TYPES[T.COAL]    = { name: 'Coal',    color: '#8d97a3', solid: 1, drop: 'coal', hard: 1, needPick: 1, ore: '#2b2f36' };
+    TYPES[T.DIAMOND] = { name: 'Diamond', color: '#8d97a3', solid: 1, drop: 'diamond', hard: 1, needPick: 1, ore: '#5ef0e0' };
+    TYPES[T.WOOL]    = { name: 'Wool',    color: '#f6f2ee', solid: 1, drop: 'wool', hard: 1, burn: 1 };
+    TYPES[T.BEDROCK] = { name: 'Bedrock', color: '#5a616c', solid: 1, drop: null, tough: 1 };
+    var COLOURS = ['#ff6b6b', '#ff9f43', '#feca57', '#5bbf4b', '#54a0ff', '#a55eea', '#ff8ac2', '#ffffff'];
+    for (var ci = 0; ci < COLOURS.length; ci++) {
+      TYPES[T.C1 + ci] = { name: 'Block', color: COLOURS[ci], solid: 1, drop: null, hard: 1, paint: 1 };
+    }
+
+    function typeOf(t) { return TYPES[t] || null; }
+    function isSolid(t) { var d = typeOf(t); return !!(d && d.solid); }
+    function isAir(t) { return !t; }
+
+    /* ---------------- Heroes / weapons / worlds ---------------- */
+    var CHARS = [
+      { icon: '👦', name: 'Digger', head: 'plain', skin: '#f4c99a', hair: '#6b4423', shirt: '#2fb6c9', shirt2: '#279aab', legs: '#3a5ea8', boots: '#5b3a1a' },
+      { icon: '🥋', name: 'Ninja',  head: 'mask',  skin: '#f4c99a', hair: '#22262f', shirt: '#37415a', shirt2: '#2b3348', legs: '#22262f', boots: '#15181f' },
+      { icon: '🛡️', name: 'Knight', head: 'helmet', skin: '#f4c99a', hair: '#c7ccd4', shirt: '#aeb7c4', shirt2: '#98a1af', legs: '#6b7280', boots: '#4a5058' },
+      { icon: '🤖', name: 'Robot',  head: 'robot', skin: '#cfd6e0', hair: '#8f9aa8', shirt: '#7d8cff', shirt2: '#6a78e8', legs: '#5a6272', boots: '#3d434f' }
+    ];
+    var charIdx = 0;
+
+    var WEAPONS = [
+      { key: 'sword',  icon: '⚔️', name: 'Sword',  hit: '#dfe6ef' },
+      { key: 'hammer', icon: '🔨', name: 'Hammer', hit: '#aeb7c4' },
+      { key: 'wand',   icon: '✨', name: 'Wand',   hit: '#ffd166' },
+      { key: 'zap',    icon: '⚡', name: 'Zapper', hit: '#7dffe8' }
+    ];
+    var weapIdx = 0;
+
+    var WORLDS = [
+      { icon: '🌳', name: 'Forest', top: T.GRASS, sub: T.DIRT,
+        skyTop: '#aee6ff', skyBot: '#7ec0ee', grass: '#5bbf4b', dirt: '#7a5228',
+        leaf: '#4caf3f', trunk: '#8a5a2b', cloud: 'rgba(255,255,255,0.9)' },
+      { icon: '⛄', name: 'Snow', top: T.SNOW, sub: T.DIRT,
+        skyTop: '#e4f4ff', skyBot: '#a8d3f0', grass: '#f2f8ff', dirt: '#7c8794',
+        leaf: '#cfe6f5', trunk: '#6b4a2b', cloud: 'rgba(255,255,255,0.95)' },
+      { icon: '🌵', name: 'Desert', top: T.SAND, sub: T.SAND,
+        skyTop: '#ffeeb8', skyBot: '#ffc46b', grass: '#e8c27a', dirt: '#c98f4a',
+        leaf: '#4f9e4a', trunk: '#7d6b3b', cloud: 'rgba(255,255,255,0.6)' },
+      { icon: '🌙', name: 'Night', top: T.GRASS, sub: T.DIRT,
+        skyTop: '#2a3466', skyBot: '#4a5288', grass: '#2f7a3f', dirt: '#4a3a26',
+        leaf: '#2f6d33', trunk: '#5c3f22', cloud: 'rgba(200,210,255,0.35)', dusk: 1 }
+    ];
+    var worldIdx = 0;
+    function world() { return WORLDS[worldIdx]; }
+
+    // Building Blocks is creative only — no hearts, no night, no crafting, no monsters.
+    function creative() { return true; }
+
+    /* ---------------- World state ---------------- */
+    var COLS = 160, FLOOR = -20;
+    var seed = 1;
+    var edits = {};                 // "c_r" -> type id (0 = mined away)
+    var fireMap = {}, fuseMap = {}, waterLvl = {};
+    var placedCount = 0, bonkCount = 0, torchPlaced = false;
+    var inv = {};
+    var hasPick = false, hasWeapon = false, hasDiamondWeapon = false;
+    var dayT = 0.05;
+    var DAY_LEN = 200;              // seconds for a full day/night cycle
+    var hearts = 3, hurtT = 0, invuln = 0;
+    var spawn = { x: 0, y: 0 };
+    var mobs = [], parts = [];
+    var questIdx = 0;
+
+    var W = 0, H = 0, dpr = 1, B = 40, groundTop = 0;
+    var camX = 0, camY = 0;
+    var lastTs = 0, shakeT = 0, tickT = 0, sleepT = 0, saveT = 0, autoT = 20, dirty = false;
+    var tool = 'mine', blockSel = T.DIRT;
+    var clouds = [], stars = [];
+
+    var hero = {
+      x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0,
+      face: 1, onGround: false, swing: 0, walkPhase: 0, target: null, inWater: false
+    };
+
+    function key(c, r) { return c + '_' + r; }
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+    /* ---------------- Audio ---------------- */
+    var actx = null;
+    function audio() {
+      if (muted) return null;
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+      }
+      if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+      return actx;
+    }
+    function tone(freq, dur, type, vol, slideTo, delay) {
+      var a = audio(); if (!a) return;
+      var t0 = a.currentTime + (delay || 0);
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+    function sChop() { tone(180, 0.08, 'square', 0.22); tone(120, 0.12, 'square', 0.18, null, 0.04); }
+    function sCollect() { tone(660, 0.09, 'sine', 0.22); tone(990, 0.12, 'sine', 0.2, null, 0.07); }
+    function sBuild() { tone(300, 0.08, 'square', 0.22); tone(200, 0.11, 'triangle', 0.18, null, 0.04); }
+    function sCraft() { tone(523, 0.1, 'triangle', 0.22); tone(659, 0.1, 'triangle', 0.22, null, 0.1); tone(784, 0.16, 'triangle', 0.24, null, 0.2); }
+    function sNope() { tone(200, 0.14, 'square', 0.18, 120); }
+    function sBonk() {
+      var k = WEAPONS[weapIdx].key;
+      if (k === 'hammer') { tone(220, 0.2, 'square', 0.3, 70); tone(110, 0.24, 'sawtooth', 0.2, 50, 0.03); }
+      else if (k === 'wand') { tone(880, 0.12, 'sine', 0.24, 1600); tone(1320, 0.16, 'triangle', 0.2, null, 0.07); }
+      else if (k === 'zap') { tone(1200, 0.1, 'sawtooth', 0.22, 300); tone(600, 0.14, 'square', 0.2, 180, 0.05); }
+      else { tone(500, 0.16, 'square', 0.28, 120); }
+    }
+    function sHurt() { tone(300, 0.2, 'sawtooth', 0.26, 90); }
+    function sWin() {
+      var n = [523, 659, 784, 1047];
+      for (var i = 0; i < n.length; i++) tone(n[i], 0.18, 'triangle', 0.26, null, i * 0.14);
+    }
+    function sOink() { tone(240, 0.12, 'sawtooth', 0.16, 160); tone(180, 0.14, 'sawtooth', 0.14, 120, 0.08); }
+    function sBaa() { tone(520, 0.16, 'triangle', 0.16, 420); }
+
+    /* ---------------- Terrain generation ---------------- */
+    function h1(n) { var x = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453; return x - Math.floor(x); }
+    function surfaceRow(c) {
+      var a = Math.sin((c + seed * 7) * 0.17), b = Math.sin((c - seed * 3) * 0.061);
+      return clamp(-1 + Math.round(a * 1.3 + b * 1.7), -4, 2);
+    }
+    function caveNoise(c, r) {
+      return 0.5 + 0.25 * (Math.sin(c * 0.31 + r * 0.23 + seed * 2) + Math.sin(c * 0.17 - r * 0.41 + seed));
+    }
+    function isTrunkCol(c) {
+      if (c < 4 || c > COLS - 5) return false;
+      return h1(c * 1.7) > 0.855 && h1((c + 1) * 1.7) <= 0.855 && h1((c - 1) * 1.7) <= 0.855;
+    }
+    function treeCell(c, r, s) {
+      if (isTrunkCol(c) && r > s && r <= s + 3) return T.LOG;
+      for (var dc = -2; dc <= 2; dc++) {
+        var tc = c + dc;
+        if (!isTrunkCol(tc)) continue;
+        var ay = r - surfaceRow(tc), ad = dc < 0 ? -dc : dc;
+        if (ay >= 4 && ay <= 5 && ad <= 2 && !(ay === 5 && ad === 2)) return T.LEAF;
+        if (ay === 6 && ad <= 1) return T.LEAF;
+        if (ay === 3 && ad === 2) return T.LEAF;
+      }
+      return T.AIR;
+    }
+    function genCell(c, r) {
+      if (c < 0 || c >= COLS || r <= FLOOR) return T.BEDROCK;
+      var s = surfaceRow(c);
+      if (r > s) return treeCell(c, r, s);
+      var wd = world();
+      if (r === s) return wd.top;
+      if (r > s - 4) return wd.sub;
+      if (caveNoise(c, r) > 0.78) return T.AIR;
+      if (r < -9 && h1(c * 3.1 + r * 7.7) > 0.966) return T.DIAMOND;
+      if (r < -5 && h1(c * 5.3 + r * 2.9) > 0.935) return T.COAL;
+      return T.STONE;
+    }
+
+    function cellAt(c, r) {
+      var k = key(c, r);
+      if (edits.hasOwnProperty(k)) return edits[k];
+      return genCell(c, r);
+    }
+    function setCell(c, r, t) {
+      var k = key(c, r);
+      edits[k] = t;
+      if (t !== T.WATER) delete waterLvl[k];
+      if (t !== T.TNT) delete fuseMap[k];
+      if (!t || t !== cellAt(c, r)) delete fireMap[k];
+      dirty = true; saveT = 1.5;
+    }
+    function colAt(wx) { return Math.floor(wx / B); }
+    function rowAt(wy) { return Math.floor(-wy / B); }
+    function cellX(c) { return c * B; }
+    function cellY(r) { return -(r + 1) * B; }
+
+    /* ---------------- Save / load ---------------- */
+    function saveKey() { return 'blk_w' + worldIdx; }
+    function hasSave() {
+      try { return !!localStorage.getItem(saveKey()); } catch (e) { return false; }
+    }
+    function saveWorld() {
+      if (phase === PHASE.START) return;
+      var data = {
+        v: 2, seed: seed, edits: edits, water: waterLvl, inv: inv,
+        hx: hero.x, hy: hero.y, day: dayT, spawn: spawn,
+        pick: hasPick ? 1 : 0, weap: hasWeapon ? 1 : 0, dia: hasDiamondWeapon ? 1 : 0,
+        placed: placedCount, bonks: bonkCount, torch: torchPlaced ? 1 : 0, quest: questIdx
+      };
+      try { localStorage.setItem(saveKey(), JSON.stringify(data)); } catch (e) {}
+      dirty = false;
+    }
+    function loadWorld() {
+      var raw = null;
+      try { raw = localStorage.getItem(saveKey()); } catch (e) {}
+      if (!raw) return false;
+      var d = null;
+      try { d = JSON.parse(raw); } catch (e) { return false; }
+      if (!d || d.v !== 2) return false;
+      seed = d.seed;
+      edits = d.edits || {};
+      waterLvl = d.water || {};
+      inv = d.inv || {};
+      hasPick = !!d.pick; hasWeapon = !!d.weap; hasDiamondWeapon = !!d.dia;
+      placedCount = d.placed || 0; bonkCount = d.bonks || 0; torchPlaced = !!d.torch;
+      questIdx = d.quest || 0;
+      dayT = typeof d.day === 'number' ? d.day : 0.05;
+      spawn = d.spawn || { x: 0, y: 0 };
+      hero.x = d.hx; hero.y = d.hy;
+      return true;
+    }
+    function wipeSave() {
+      try { localStorage.removeItem(saveKey()); } catch (e) {}
+    }
+
+    /* ---------------- Layout / camera ---------------- */
+    function resize() {
+      var rect = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(240, Math.floor(rect.width));
+      H = Math.max(240, Math.floor(rect.height));
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lightCanvas.width = Math.round(W * dpr);
+      lightCanvas.height = Math.round(H * dpr);
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layout();
+    }
+    function layout() {
+      B = Math.round(clamp(Math.min(W / 12, H / 8.5), 26, 64));
+      groundTop = Math.round(H * 0.48);
+      hero.w = B * 0.66;
+      hero.h = B * 1.55;
+      placeClouds();
+      placeStars();
+      centreCamera();
+    }
+    function placeClouds() {
+      clouds = [];
+      for (var i = 0; i < 8; i++) {
+        clouds.push({ x: rand(0, COLS * B), y: rand(-H * 0.9, -H * 0.25), sp: rand(3, 9), s: rand(0.7, 1.5) });
+      }
+    }
+    function placeStars() {
+      stars = [];
+      for (var i = 0; i < 40; i++) {
+        stars.push({ x: rand(0, W), y: rand(0, H * 0.6), r: rand(1, 2.4), tw: rand(0, 6.28) });
+      }
+    }
+    function camLimits() {
+      return {
+        xMin: 0, xMax: Math.max(0, COLS * B - W),
+        yMin: -groundTop - B * 3, yMax: (-FLOOR + 1) * B - H + B
+      };
+    }
+    function centreCamera() {
+      var l = camLimits();
+      camX = clamp(hero.x - W * 0.5, l.xMin, l.xMax);
+      camY = clamp(hero.y - H * 0.55, l.yMin, l.yMax);
+    }
+    function followCamera(dt) {
+      var l = camLimits();
+      var tx = clamp(hero.x - W * 0.5, l.xMin, l.xMax);
+      var ty = clamp(hero.y - H * 0.55, l.yMin, l.yMax);
+      var k = Math.min(1, dt * 6);
+      camX = lerp(camX, tx, k);
+      camY = lerp(camY, ty, k);
+    }
+    function sx(wx) { return wx - camX; }
+    function sy(wy) { return wy - camY; }
+
+    /* ---------------- Inventory ---------------- */
+    var ITEM_BLOCK = {
+      dirt: T.DIRT, stone: T.STONE, wood: T.LOG, plank: T.PLANK, sand: T.SAND,
+      glass: T.GLASS, wool: T.WOOL, torch: T.TORCH, lamp: T.LAMP, bed: T.BED,
+      tnt: T.TNT, ladder: T.LADDER, water: T.WATER, coal: T.COAL, diamond: T.DIAMOND
+    };
+    var ITEM_NAME = {
+      dirt: 'Dirt', stone: 'Stone', wood: 'Wood', plank: 'Planks', sand: 'Sand',
+      glass: 'Glass', wool: 'Wool', torch: 'Torch', lamp: 'Lamp', bed: 'Bed',
+      tnt: 'TNT', ladder: 'Ladder', water: 'Water', coal: 'Coal', diamond: 'Diamond'
+    };
+    function have(item) { return inv[item] || 0; }
+    function give(item, n) {
+      if (!item) return;
+      inv[item] = have(item) + (n || 1);
+      dirty = true; saveT = 1.5;
+      refreshSwatches();
+    }
+    function take(item, n) {
+      inv[item] = Math.max(0, have(item) - (n || 1));
+      dirty = true; saveT = 1.5;
+      refreshSwatches();
+    }
+
+    /* ---------------- Recipes ---------------- */
+    var RECIPES = [
+      { need: [['wood', 2]], out: ['plank', 4], name: 'Planks' },
+      { need: [['plank', 3]], out: ['pick', 1], name: 'Pickaxe' },
+      { need: [['plank', 1], ['stone', 2]], out: ['weapon', 1], name: 'Weapon' },
+      { need: [['wood', 1]], out: ['torch', 4], name: 'Torch' },
+      { need: [['sand', 2]], out: ['glass', 2], name: 'Glass' },
+      { need: [['plank', 2]], out: ['ladder', 3], name: 'Ladder' },
+      { need: [['plank', 3], ['wool', 2]], out: ['bed', 1], name: 'Bed' },
+      { need: [['sand', 2], ['coal', 1]], out: ['tnt', 1], name: 'TNT' },
+      { need: [['glass', 1], ['coal', 2]], out: ['lamp', 2], name: 'Lamp' },
+      { need: [['diamond', 2], ['plank', 1]], out: ['diamond_weapon', 1], name: 'Diamond!' }
+    ];
+    function canCraft(r) {
+      if (r.out[0] === 'pick' && hasPick) return false;
+      if (r.out[0] === 'weapon' && hasWeapon) return false;
+      if (r.out[0] === 'diamond_weapon' && (hasDiamondWeapon || !hasWeapon)) return false;
+      for (var i = 0; i < r.need.length; i++) {
+        if (have(r.need[i][0]) < r.need[i][1]) return false;
+      }
+      return true;
+    }
+    function doCraft(r) {
+      if (!canCraft(r)) { sNope(); return; }
+      for (var i = 0; i < r.need.length; i++) take(r.need[i][0], r.need[i][1]);
+      var out = r.out[0];
+      if (out === 'pick') { hasPick = true; }
+      else if (out === 'weapon') { hasWeapon = true; }
+      else if (out === 'diamond_weapon') { hasDiamondWeapon = true; }
+      else give(out, r.out[1]);
+      sCraft();
+      dirty = true; saveT = 0.6;
+      buildRecipeList();
+      checkQuest();
+    }
+
+    /* ---------------- Quests ---------------- */
+    var QUESTS = [
+      { say: 'Tap a tree to get WOOD! 🌳', prog: function () { return 'Wood: ' + have('wood') + ' / 3'; }, done: function () { return have('wood') >= 3; } },
+      { say: 'Tap ⚒️ and make PLANKS!', prog: function () { return 'Planks: ' + have('plank') + ' / 4'; }, done: function () { return have('plank') >= 4; } },
+      { say: 'Craft a PICKAXE in ⚒️', prog: function () { return 'Needs 3 planks'; }, done: function () { return hasPick; } },
+      { say: 'Dig DOWN and get STONE! ⛏️', prog: function () { return 'Stone: ' + have('stone') + ' / 3'; }, done: function () { return have('stone') >= 3; } },
+      { say: 'Build a house — place 10 blocks 🧱', prog: function () { return 'Blocks: ' + placedCount + ' / 10'; }, done: function () { return placedCount >= 10; } },
+      { say: 'Craft your weapon in ⚒️', prog: function () { return WEAPONS[weapIdx].name + ' = 1 plank + 2 stone'; }, done: function () { return hasWeapon; } },
+      { say: 'Make a TORCH and put it up 🔥', prog: function () { return 'Torches: ' + have('torch'); }, done: function () { return torchPlaced; } },
+      { say: 'Night is coming — bonk a monster! 👾', prog: function () { return 'Bonks: ' + bonkCount; }, done: function () { return bonkCount >= 1; } }
+    ];
+    function setBanner(say, prog) {
+      saySay.textContent = say;
+      sayProg.textContent = prog || '';
+      sayProg.style.display = prog ? 'block' : 'none';
+      bannerEl.classList.remove('hidden');
+    }
+    function showQuest() {
+      if (creative() || questIdx >= QUESTS.length) { bannerEl.classList.add('hidden'); return; }
+      var q = QUESTS[questIdx];
+      setBanner(q.say, q.prog());
+    }
+    function checkQuest() {
+      if (creative() || questIdx >= QUESTS.length) return;
+      while (questIdx < QUESTS.length && QUESTS[questIdx].done()) {
+        questIdx++;
+        sWin();
+        dirty = true; saveT = 0.5;
+      }
+      if (questIdx >= QUESTS.length) {
+        setBanner('🎉 You did it all! Now build whatever you like.', '');
+        setTimeout(function () { if (questIdx >= QUESTS.length) bannerEl.classList.add('hidden'); }, 5000);
+      } else showQuest();
+    }
+
+    /* ---------------- Physics ---------------- */
+    function solidRect(x, y, w, h) {
+      var c0 = colAt(x - w / 2), c1 = colAt(x + w / 2 - 0.01);
+      var r1 = rowAt(y - h), r0 = rowAt(y - 0.01);
+      for (var c = c0; c <= c1; c++) {
+        for (var r = r0; r <= r1; r++) {
+          if (isSolid(cellAt(c, r))) return true;
+        }
+      }
+      return false;
+    }
+    function cellTypeAtPoint(x, y) { return cellAt(colAt(x), rowAt(y)); }
+
+    // Nothing may stay buried: leaves, falling sand or a block placed on top of you
+    // would otherwise trap an entity in a hop-and-bonk loop it can never escape.
+    function unstick(e) {
+      for (var i = 0; i < 5 && solidRect(e.x, e.y, e.w, e.h); i++) {
+        e.y -= B;
+        e.vy = 0;
+      }
+    }
+
+    function moveEntity(e, dt) {
+      unstick(e);
+      var head = e.y - e.h * 0.5;
+      var t = cellTypeAtPoint(e.x, head);
+      e.inWater = (t === T.WATER);
+      var climbing = (cellTypeAtPoint(e.x, e.y - e.h * 0.5) === T.LADDER);
+
+      var g = e.inWater ? B * 5 : B * 34;
+      e.vy += g * dt;
+      if (e.inWater) e.vy = Math.min(e.vy, B * 2.6);
+      if (climbing) { e.vy = clamp(e.vy, -B * 4, B * 3); }
+
+      // horizontal
+      var nx = e.x + e.vx * dt;
+      if (solidRect(nx, e.y, e.w, e.h)) {
+        // try a one-block step up
+        if (e.onGround && !solidRect(nx, e.y - B, e.w, e.h)) {
+          e.y -= B * 0.98;
+          e.x = nx;
+        } else {
+          if (e.onGround) e.vy = -B * 15;    // hop over the obstacle
+          e.vx = 0;
+        }
+      } else e.x = nx;
+
+      // vertical
+      var ny = e.y + e.vy * dt;
+      if (solidRect(e.x, ny, e.w, e.h)) {
+        if (e.vy > 0) {
+          e.y = Math.floor(ny / B) * B - 0.01;    // rest on top of the block, not inside it
+          e.onGround = true;
+        } else {
+          e.y = Math.floor((ny - e.h) / B) * B + e.h + B + 0.01;
+        }
+        e.vy = 0;
+      } else {
+        e.y = ny;
+        e.onGround = false;
+      }
+      e.x = clamp(e.x, B * 0.5, COLS * B - B * 0.5);
+      if (e.y > (-FLOOR + 3) * B) { e.y = 0; e.vy = 0; }
+    }
+
+    /* ---------------- Hero ---------------- */
+    function heroSpeed() { return B * (hero.inWater ? 2.6 : 5.2); }
+    function updateHero(dt) {
+      if (hero.swing > 0) hero.swing = Math.max(0, hero.swing - dt * 1.8);
+      if (invuln > 0) invuln -= dt;
+      if (hurtT > 0) hurtT -= dt;
+
+      if (hero.target !== null) {
+        var d = hero.target - hero.x;
+        if (Math.abs(d) < B * 0.35) { hero.target = null; hero.vx = 0; }
+        else {
+          hero.vx = (d > 0 ? 1 : -1) * heroSpeed();
+          hero.face = d > 0 ? 1 : -1;
+          hero.walkPhase += dt * 11;
+        }
+      } else hero.vx = 0;
+
+      var climbing = (cellTypeAtPoint(hero.x, hero.y - hero.h * 0.5) === T.LADDER);
+      if (climbing && hero.target !== null) hero.vy = -B * 3.2;
+
+      moveEntity(hero, dt);
+    }
+    function heroReach() { return creative() ? Infinity : B * 4.6; }
+    function inReach(wx, wy) {
+      var dx = wx - hero.x, dy = wy - (hero.y - hero.h * 0.5);
+      return Math.sqrt(dx * dx + dy * dy) <= heroReach();
+    }
+    function hurtHero(fromX) {
+      if (invuln > 0 || creative()) return;
+      hearts--;
+      invuln = 1.4; hurtT = 0.4;
+      hero.vx = 0;
+      hero.vy = -B * 11;
+      hero.x += (hero.x > fromX ? 1 : -1) * B * 0.4;
+      hero.target = null;
+      sHurt();
+      shakeT = Math.min(14, shakeT + 10);
+      if (hearts <= 0) goDizzy();
+    }
+    function goDizzy() {
+      phase = PHASE.DIZZY;
+      saveWorld();
+    }
+    function respawn() {
+      hearts = 3; invuln = 2;
+      hero.x = spawn.x; hero.y = spawn.y; hero.vx = 0; hero.vy = 0;
+      hero.target = null;
+      mobs = mobs.filter(function (m) { return m.kind !== 'monster'; });
+      centreCamera();
+      phase = PHASE.PLAY;
+    }
+
+    /* ---------------- Tools ---------------- */
+    function mineCell(c, r) {
+      var t = cellAt(c, r);
+      if (!t) return false;
+      var d = typeOf(t);
+      if (!d || d.tough) { sNope(); return false; }
+      if (!creative() && d.needPick && !hasPick) {
+        setBanner('You need a PICKAXE for that! ⛏️', 'Craft one in ⚒️');
+        sNope();
+        setTimeout(showQuest, 2200);
+        return false;
+      }
+      var cx = cellX(c) + B / 2, cy = cellY(r) + B / 2;
+      hero.face = cx > hero.x ? 1 : -1;
+      hero.swing = 0.4;
+      setCell(c, r, T.AIR);
+      burst(cx, cy, d.ore || d.color, 10);
+      sChop();
+      if (!creative() && d.drop) { give(d.drop, 1); sCollect(); }
+      settleAround(c, r);
+      checkQuest();
+      return true;
+    }
+
+    function buildCell(c, r) {
+      var t = cellAt(c, r);
+      if (t === T.BED) { sleep(); return; }
+      if (t === T.TNT) { fuseMap[key(c, r)] = 0.12; tone(700, 0.06, 'square', 0.2); return; }
+      if (t && t !== T.WATER) return;
+      if (overlapsSomeone(c, r)) { sNope(); return; }
+      var put = blockSel;
+      var item = blockItem(put);
+      if (!creative()) {
+        if (!item || have(item) <= 0) { sNope(); return; }
+        take(item, 1);
+      }
+      setCell(c, r, put);
+      if (put === T.WATER) waterLvl[key(c, r)] = 6;
+      if (put === T.TNT) fuseMap[key(c, r)] = 2.2;
+      if (put === T.TORCH) { torchPlaced = true; }
+      if (put === T.BED) { spawn.x = cellX(c) + B / 2; spawn.y = cellY(r) + B; }
+      placedCount++;
+      burst(cellX(c) + B / 2, cellY(r) + B / 2, typeOf(put).color, 6);
+      sBuild();
+      checkQuest();
+    }
+
+    function overlapsSomeone(c, r) {
+      var x0 = cellX(c), y0 = cellY(r);
+      function hits(e) {
+        return x0 < e.x + e.w / 2 && x0 + B > e.x - e.w / 2 &&
+               y0 < e.y && y0 + B > e.y - e.h;
+      }
+      if (hits(hero)) return true;
+      for (var i = 0; i < mobs.length; i++) if (hits(mobs[i])) return true;
+      return false;
+    }
+
+    function blockItem(t) {
+      for (var k in ITEM_BLOCK) {
+        if (ITEM_BLOCK.hasOwnProperty(k) && ITEM_BLOCK[k] === t) return k;
+      }
+      return null;
+    }
+
+    function igniteCell(c, r) {
+      var t = cellAt(c, r);
+      var d = typeOf(t);
+      if (t === T.TNT) { fuseMap[key(c, r)] = 0.12; return; }
+      if (!d || (!d.burn && !creative())) { sNope(); return; }
+      if (!d.burn) { sNope(); return; }
+      fireMap[key(c, r)] = 0.001;
+      tone(90, 0.18, 'sawtooth', 0.12, 200);
+    }
+
+    function explode(c, r) {
+      var cx = cellX(c) + B / 2, cy = cellY(r) + B / 2;
+      shakeT = Math.min(18, shakeT + 14);
+      burst(cx, cy, '#ffd166', 24, true);
+      burst(cx, cy, '#ff8a3d', 20, false);
+      tone(140, 0.35, 'square', 0.32, 40);
+      tone(70, 0.5, 'sawtooth', 0.28, 30, 0.02);
+      for (var dc = -2; dc <= 2; dc++) {
+        for (var dr = -2; dr <= 2; dr++) {
+          if (dc * dc + dr * dr > 5) continue;
+          var t = cellAt(c + dc, r + dr);
+          if (!t) continue;
+          var d = typeOf(t);
+          if (d && d.tough) continue;
+          if (t === T.TNT && !(dc === 0 && dr === 0)) {
+            fuseMap[key(c + dc, r + dr)] = Math.min(fuseMap[key(c + dc, r + dr)] || 9, 0.16);
+            continue;
+          }
+          burst(cellX(c + dc) + B / 2, cellY(r + dr) + B / 2, d.color, 4);
+          setCell(c + dc, r + dr, T.AIR);
+        }
+      }
+      for (var i = 0; i < mobs.length; i++) {
+        var m = mobs[i];
+        if (Math.abs(m.x - cx) < B * 3 && Math.abs(m.y - cy) < B * 3) m.dead = true;
+      }
+      if (Math.abs(hero.x - cx) < B * 2.4 && Math.abs(hero.y - cy) < B * 2.4) hurtHero(cx);
+    }
+
+    function sleep() {
+      if (sleepT > 0) return;
+      sleepT = 1.4;
+      tone(330, 0.3, 'sine', 0.18, 220);
+      tone(262, 0.4, 'sine', 0.16, 180, 0.2);
+    }
+
+    /* ---------------- World tick: falling, fire, water, TNT ---------------- */
+    function settleAround(c, r) {
+      for (var dr = 1; dr <= 6; dr++) {
+        var t = cellAt(c, r + dr);
+        var d = typeOf(t);
+        if (!t) break;
+        if (d && d.falls) fallCheck(c, r + dr);
+      }
+    }
+    function fallCheck(c, r) {
+      var t = cellAt(c, r);
+      var d = typeOf(t);
+      if (!d || !d.falls) return;
+      var below = cellAt(c, r - 1);
+      if (below === T.AIR || below === T.WATER) {
+        setCell(c, r, T.AIR);
+        setCell(c, r - 1, t);
+        burst(cellX(c) + B / 2, cellY(r) + B / 2, d.color, 3);
+      }
+    }
+
+    function visibleCellRange() {
+      var c0 = colAt(camX) - 1, c1 = colAt(camX + W) + 1;
+      var r1 = rowAt(camY) + 1, r0 = rowAt(camY + H) - 1;
+      return { c0: c0, c1: c1, r0: r0, r1: r1 };
+    }
+
+    function worldTick() {
+      var v = visibleCellRange();
+      var c, r, k, t, d;
+      // falling blocks (bottom-up so stacks settle in one pass)
+      for (r = v.r0; r <= v.r1; r++) {
+        for (c = v.c0; c <= v.c1; c++) fallCheck(c, r);
+      }
+      // TNT fuses
+      for (k in fuseMap) {
+        if (!fuseMap.hasOwnProperty(k)) continue;
+        var pc = k.split('_'); c = +pc[0]; r = +pc[1];
+        if (cellAt(c, r) !== T.TNT) { delete fuseMap[k]; continue; }
+        fuseMap[k] -= 0.1;
+        if (fuseMap[k] <= 0) { delete fuseMap[k]; setCell(c, r, T.AIR); explode(c, r); }
+      }
+      // fire: burn down, spread, put out by water
+      var spread = [];
+      for (k in fireMap) {
+        if (!fireMap.hasOwnProperty(k)) continue;
+        var fc = k.split('_'); c = +fc[0]; r = +fc[1];
+        t = cellAt(c, r); d = typeOf(t);
+        if (!d || !d.burn) { delete fireMap[k]; continue; }
+        if (nearWater(c, r)) { delete fireMap[k]; puff(cellX(c) + B / 2, cellY(r) + B / 2); continue; }
+        fireMap[k] += 0.1;
+        if (Math.random() < 0.25) {
+          var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+          var dd = dirs[(Math.random() * 4) | 0];
+          var nk = key(c + dd[0], r + dd[1]);
+          var nt = cellAt(c + dd[0], r + dd[1]);
+          var nd = typeOf(nt);
+          if (nd && nd.burn && !fireMap[nk]) spread.push(nk);
+        }
+        if (fireMap[k] >= 2.4) {
+          delete fireMap[k];
+          burst(cellX(c) + B / 2, cellY(r) + B / 2, '#555', 6);
+          setCell(c, r, T.AIR);
+        }
+      }
+      for (var s = 0; s < spread.length; s++) fireMap[spread[s]] = 0.001;
+      // water flow
+      flowWater(v);
+    }
+
+    function nearWater(c, r) {
+      return cellAt(c + 1, r) === T.WATER || cellAt(c - 1, r) === T.WATER ||
+             cellAt(c, r + 1) === T.WATER || cellAt(c, r - 1) === T.WATER;
+    }
+    function flowWater(v) {
+      var moves = [];
+      for (var k in waterLvl) {
+        if (!waterLvl.hasOwnProperty(k)) continue;
+        var pc = k.split('_'), c = +pc[0], r = +pc[1];
+        if (cellAt(c, r) !== T.WATER) { delete waterLvl[k]; continue; }
+        var lv = waterLvl[k];
+        if (lv <= 1) continue;
+        if (cellAt(c, r - 1) === T.AIR) { moves.push([c, r - 1, lv]); continue; }
+        if (cellAt(c + 1, r) === T.AIR) moves.push([c + 1, r, lv - 1]);
+        if (cellAt(c - 1, r) === T.AIR) moves.push([c - 1, r, lv - 1]);
+      }
+      for (var i = 0; i < moves.length; i++) {
+        var m = moves[i];
+        if (cellAt(m[0], m[1]) !== T.AIR) continue;
+        setCell(m[0], m[1], T.WATER);
+        waterLvl[key(m[0], m[1])] = m[2];
+        var fk = key(m[0], m[1]);
+        delete fireMap[fk];
+      }
+    }
+
+    /* ---------------- Mobs ---------------- */
+    function surfaceYAt(wx) {
+      var c = colAt(wx);
+      for (var r = 8; r > FLOOR; r--) {
+        if (isSolid(cellAt(c, r))) return cellY(r);
+      }
+      return 0;
+    }
+    function spawnAnimal() {
+      var kinds = ['pig', 'sheep', 'chick'];
+      var kind = kinds[(Math.random() * kinds.length) | 0];
+      var wx = clamp(hero.x + rand(-W, W) * 0.9, B * 2, COLS * B - B * 2);
+      var m = {
+        kind: kind, x: wx, y: surfaceYAt(wx) - B * 0.2, vx: 0, vy: 0,
+        w: B * (kind === 'chick' ? 0.5 : 0.85), h: B * (kind === 'chick' ? 0.55 : 0.8),
+        face: 1, onGround: false, t: rand(0, 6), wool: true, woolT: 0, hop: 0
+      };
+      mobs.push(m);
+    }
+    function spawnMonster() {
+      var side = Math.random() < 0.5 ? -1 : 1;
+      var wx = clamp(hero.x + side * rand(W * 0.55, W * 0.9), B * 2, COLS * B - B * 2);
+      mobs.push({
+        kind: 'monster', x: wx, y: surfaceYAt(wx) - B * 0.2, vx: 0, vy: 0,
+        w: B * 0.8, h: B * 1.1, face: 1, onGround: false, t: rand(0, 6),
+        color: ['#7ed957', '#8ab6ff', '#b98cff', '#ff8ac2'][(Math.random() * 4) | 0], burnT: 0
+      });
+    }
+    function updateMobs(dt) {
+      var night = darkness() > 0.55;
+      var monsters = 0, animals = 0, i, m;
+      for (i = 0; i < mobs.length; i++) {
+        if (mobs[i].kind === 'monster') monsters++; else animals++;
+      }
+      if (animals < 5 && Math.random() < dt * 0.4) spawnAnimal();
+      if (!creative() && night && monsters < 4 && Math.random() < dt * 0.5) spawnMonster();
+
+      for (i = mobs.length - 1; i >= 0; i--) {
+        m = mobs[i];
+        m.t += dt;
+        if (m.hop > 0) m.hop -= dt;
+        if (m.woolT > 0) { m.woolT -= dt; if (m.woolT <= 0) m.wool = true; }
+
+        if (m.kind === 'monster') {
+          if (!night) {
+            m.burnT += dt;
+            if (m.burnT > 1.2) { poofMob(m); mobs.splice(i, 1); continue; }
+          } else m.burnT = 0;
+          var d = hero.x - m.x;
+          m.vx = (d > 0 ? 1 : -1) * B * 1.9;
+          m.face = d > 0 ? 1 : -1;
+          if (Math.abs(d) < B * 0.7 && Math.abs(hero.y - m.y) < B * 1.6) hurtHero(m.x);
+        } else {
+          if (Math.random() < dt * 0.5) m.vx = rand(-1, 1) * B * 1.2;
+          if (m.vx) m.face = m.vx > 0 ? 1 : -1;
+        }
+        moveEntity(m, dt);
+        if (Math.abs(m.x - hero.x) > W * 1.6) { mobs.splice(i, 1); continue; }
+        if (m.dead) { poofMob(m); mobs.splice(i, 1); }
+      }
+    }
+    function poofMob(m) {
+      burst(m.x, m.y - m.h * 0.5, m.color || '#fff', 14, true);
+    }
+    function tapMob(wx, wy) {
+      for (var i = 0; i < mobs.length; i++) {
+        var m = mobs[i];
+        if (Math.abs(wx - m.x) > m.w * 1.1 || Math.abs(wy - (m.y - m.h * 0.5)) > m.h * 1.1) continue;
+        if (!inReach(m.x, m.y - m.h * 0.5)) { walkTo(m.x); return true; }
+        hero.face = m.x > hero.x ? 1 : -1;
+        hero.swing = 0.5;
+        if (m.kind === 'monster') {
+          if (!creative() && !hasWeapon) {
+            setBanner('Craft a weapon first! ⚒️', '');
+            sNope();
+            setTimeout(showQuest, 2000);
+            return true;
+          }
+          m.hits = (m.hits || 0) + (hasDiamondWeapon || creative() ? 3 : 1);
+          burst(m.x, m.y - m.h * 0.5, WEAPONS[weapIdx].hit, 8, true);
+          sBonk();
+          if (m.hits >= 2) {
+            poofMob(m);
+            mobs.splice(i, 1);
+            bonkCount++;
+            checkQuest();
+          }
+        } else if (m.kind === 'sheep' && m.wool && tool === 'mine') {
+          m.wool = false; m.woolT = 25;
+          if (!creative()) give('wool', 2);
+          burst(m.x, m.y - m.h * 0.6, '#fff', 12);
+          sBaa();
+        } else {
+          m.hop = 0.4;
+          m.vy = -B * 11;
+          burst(m.x, m.y - m.h, '#ff8ac2', 5, true);
+          if (m.kind === 'pig') sOink(); else sBaa();
+        }
+        return true;
+      }
+      return false;
+    }
+
+    /* ---------------- Particles ---------------- */
+    function burst(wx, wy, color, n, star) {
+      for (var i = 0; i < n; i++) {
+        var a = Math.random() * Math.PI * 2, sp = rand(B * 1.5, B * 6);
+        parts.push({
+          x: wx, y: wy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - B * 2,
+          life: 1, r: rand(B * 0.07, B * 0.18), color: color, star: !!star
+        });
+      }
+    }
+    function puff(wx, wy) {
+      for (var i = 0; i < 8; i++) {
+        parts.push({
+          x: wx + rand(-B * 0.3, B * 0.3), y: wy, vx: rand(-B, B), vy: -rand(B, B * 2.5),
+          life: 1, r: rand(B * 0.1, B * 0.22), color: 'rgba(230,230,240,0.9)', star: false
+        });
+      }
+    }
+    function updateParts(dt) {
+      for (var i = parts.length - 1; i >= 0; i--) {
+        var p = parts[i];
+        p.x += p.vx * dt; p.y += p.vy * dt; p.vy += B * 22 * dt;
+        p.life -= dt * 1.3;
+        if (p.life <= 0) parts.splice(i, 1);
+      }
+    }
+
+    /* ---------------- Day / night ---------------- */
+    function darkness() {
+      if (creative()) return 0;
+      var t = dayT;
+      if (t < 0.42) return 0;
+      if (t < 0.52) return (t - 0.42) / 0.10;
+      if (t < 0.88) return 1;
+      return 1 - (t - 0.88) / 0.12;
+    }
+    var skyStep = -1;
+    function updateClock() {
+      var d = darkness();
+      // the page background shows around the canvas, so it has to darken too
+      var step = Math.round(d * 12);
+      if (step !== skyStep) { skyStep = step; applyWorldTheme(d); }
+    }
+
+    /* ---------------- Input ---------------- */
+    function canvasPos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var pt = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      return { x: pt.clientX - rect.left, y: pt.clientY - rect.top };
+    }
+    function walkTo(wx) {
+      hero.target = clamp(wx, B * 0.6, COLS * B - B * 0.6);
+    }
+    function onTap(e) {
+      if (e && e.target && e.target.closest && e.target.closest('button, a')) return;
+      if (e) e.preventDefault();
+      audio();
+      if (phase !== PHASE.PLAY) return;
+      var p = canvasPos(e);
+      var wx = p.x + camX, wy = p.y + camY;
+      if (tapMob(wx, wy)) return;
+
+      var c = colAt(wx), r = rowAt(wy);
+      if (!inReach(cellX(c) + B / 2, cellY(r) + B / 2)) { walkTo(wx); return; }
+
+      if (tool === 'mine') {
+        if (!mineCell(c, r)) walkTo(wx);
+      } else if (tool === 'build') {
+        buildCell(c, r);
+      } else if (tool === 'fire') {
+        igniteCell(c, r);
+      }
+    }
+
+    /* ---------------- Update ---------------- */
+    function update(dt) {
+      if (phase === PHASE.DIZZY) return;
+      if (sleepT > 0) {
+        sleepT -= dt;
+        if (sleepT <= 0.7 && dayT !== 0.02) {
+          dayT = 0.02;
+          hearts = 3;
+          for (var i = mobs.length - 1; i >= 0; i--) {
+            if (mobs[i].kind === 'monster') { poofMob(mobs[i]); mobs.splice(i, 1); }
+          }
+        }
+        return;
+      }
+      shakeT = Math.max(0, shakeT - dt * 40);
+      if (!creative()) {
+        dayT = (dayT + dt / DAY_LEN) % 1;
+        updateClock();
+      }
+      updateHero(dt);
+      updateMobs(dt);
+      updateParts(dt);
+      followCamera(dt);
+
+      tickT += dt;
+      while (tickT >= 0.1) { tickT -= 0.1; worldTick(); }
+
+      for (var c = 0; c < clouds.length; c++) {
+        clouds[c].x += clouds[c].sp * dt;
+        if (clouds[c].x > COLS * B + 200) clouds[c].x = -200;
+      }
+
+      autoT -= dt;
+      if (autoT <= 0) { autoT = 20; saveWorld(); }
+      if (dirty) {
+        saveT -= dt;
+        if (saveT <= 0) saveWorld();
+      }
+    }
+
+    /* ---------------- Drawing helpers ---------------- */
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function drawStar(x, y, r, rot) {
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(rot);
+      ctx.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var ang = -Math.PI / 2 + i * Math.PI / 5;
+        var rad = (i % 2 === 0) ? r : r * 0.45;
+        ctx.lineTo(Math.cos(ang) * rad, Math.sin(ang) * rad);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    function shade(hex, amt) {
+      var n = parseInt(hex.slice(1), 16);
+      var r = clamp(((n >> 16) & 255) + amt, 0, 255);
+      var g = clamp(((n >> 8) & 255) + amt, 0, 255);
+      var b = clamp((n & 255) + amt, 0, 255);
+      return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
+    }
+    function mixHex(a, b, t) {
+      var na = parseInt(a.slice(1), 16), nb = parseInt(b.slice(1), 16);
+      var r = lerp((na >> 16) & 255, (nb >> 16) & 255, t);
+      var g = lerp((na >> 8) & 255, (nb >> 8) & 255, t);
+      var bl = lerp(na & 255, nb & 255, t);
+      return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (bl | 0) + ')';
+    }
+
+    /* ---------------- Block rendering ---------------- */
+    function drawBlockAt(t, x, y, s, ts, k) {
+      var d = typeOf(t);
+      if (!d) return;
+      var wd = world();
+      var col = d.color;
+      if (t === T.GRASS) col = wd.grass;
+      else if (t === T.DIRT) col = wd.dirt;
+      else if (t === T.LEAF) col = wd.leaf;
+      else if (t === T.LOG) col = wd.trunk;
+
+      if (t === T.WATER) { drawWater(x, y, s, ts); return; }
+      if (t === T.TORCH) { drawTorch(x, y, s, ts); return; }
+      if (t === T.LADDER) { drawLadder(x, y, s); return; }
+      if (t === T.BED) { drawBed(x, y, s); return; }
+      if (t === T.TNT) { drawTNT(x, y, s, ts, k); return; }
+      if (t === T.GLASS) { drawGlass(x, y, s); return; }
+      if (t === T.LAMP) { drawLamp(x, y, s, ts); return; }
+
+      rr(x, y, s, s, s * 0.14); ctx.fillStyle = col; ctx.fill();
+      rr(x, y, s, s * 0.3, s * 0.14); ctx.fillStyle = shade(hexOf(col), 26); ctx.fill();
+
+      if (t === T.LOG) {
+        ctx.strokeStyle = 'rgba(60,38,15,0.4)';
+        ctx.lineWidth = Math.max(1.5, s * 0.05);
+        for (var g = 1; g <= 2; g++) {
+          ctx.beginPath();
+          ctx.moveTo(x + s * 0.16, y + s * (0.28 + g * 0.24));
+          ctx.lineTo(x + s * 0.84, y + s * (0.28 + g * 0.24));
+          ctx.stroke();
+        }
+      } else if (t === T.PLANK) {
+        ctx.strokeStyle = 'rgba(120,70,20,0.4)';
+        ctx.lineWidth = Math.max(1, s * 0.04);
+        ctx.beginPath(); ctx.moveTo(x, y + s * 0.5); ctx.lineTo(x + s, y + s * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + s * 0.5, y); ctx.lineTo(x + s * 0.5, y + s * 0.5); ctx.stroke();
+      } else if (t === T.STONE || t === T.BEDROCK) {
+        ctx.fillStyle = 'rgba(70,78,90,0.35)';
+        ctx.beginPath(); ctx.arc(x + s * 0.34, y + s * 0.62, s * 0.08, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + s * 0.68, y + s * 0.74, s * 0.06, 0, 6.28); ctx.fill();
+      } else if (t === T.LEAF) {
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        ctx.beginPath(); ctx.arc(x + s * 0.3, y + s * 0.55, s * 0.1, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + s * 0.68, y + s * 0.7, s * 0.08, 0, 6.28); ctx.fill();
+      } else if (t === T.SAND) {
+        ctx.fillStyle = 'rgba(160,120,60,0.3)';
+        ctx.beginPath(); ctx.arc(x + s * 0.3, y + s * 0.6, s * 0.05, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + s * 0.62, y + s * 0.75, s * 0.045, 0, 6.28); ctx.fill();
+      } else if (t === T.WOOL) {
+        ctx.fillStyle = 'rgba(200,195,190,0.55)';
+        ctx.beginPath(); ctx.arc(x + s * 0.32, y + s * 0.58, s * 0.13, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + s * 0.66, y + s * 0.68, s * 0.11, 0, 6.28); ctx.fill();
+      } else if (d.ore) {
+        ctx.fillStyle = d.ore;
+        var pts = [[0.3, 0.4], [0.66, 0.55], [0.42, 0.74]];
+        for (var i = 0; i < pts.length; i++) {
+          ctx.beginPath();
+          ctx.arc(x + s * pts[i][0], y + s * pts[i][1], s * 0.11, 0, 6.28);
+          ctx.fill();
+        }
+        if (t === T.DIAMOND) {
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + 0.35 * Math.sin(ts / 220)) + ')';
+          ctx.beginPath(); ctx.arc(x + s * 0.42, y + s * 0.5, s * 0.05, 0, 6.28); ctx.fill();
+        }
+      }
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = Math.max(1.2, s * 0.045);
+      rr(x, y, s, s, s * 0.14); ctx.stroke();
+    }
+
+    function hexOf(c) { return c.charAt(0) === '#' ? c : '#888888'; }
+
+    function drawWater(x, y, s, ts) {
+      ctx.fillStyle = 'rgba(63,143,224,0.62)';
+      ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = 'rgba(150,215,255,0.45)';
+      var wv = Math.sin(ts / 260 + x * 0.05) * s * 0.06;
+      ctx.fillRect(x, y + wv, s, s * 0.16);
+    }
+    function drawGlass(x, y, s) {
+      ctx.fillStyle = 'rgba(191,233,255,0.35)';
+      rr(x, y, s, s, s * 0.14); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = Math.max(1.5, s * 0.06);
+      rr(x + s * 0.06, y + s * 0.06, s * 0.88, s * 0.88, s * 0.12); ctx.stroke();
+    }
+    function drawLadder(x, y, s) {
+      ctx.strokeStyle = '#b98a4e';
+      ctx.lineWidth = Math.max(2, s * 0.1);
+      ctx.beginPath(); ctx.moveTo(x + s * 0.22, y); ctx.lineTo(x + s * 0.22, y + s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + s * 0.78, y); ctx.lineTo(x + s * 0.78, y + s); ctx.stroke();
+      for (var i = 1; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + s * 0.22, y + s * i / 3);
+        ctx.lineTo(x + s * 0.78, y + s * i / 3);
+        ctx.stroke();
+      }
+    }
+    function drawTorch(x, y, s, ts) {
+      ctx.fillStyle = '#8a5a2b';
+      rr(x + s * 0.42, y + s * 0.35, s * 0.16, s * 0.62, s * 0.05); ctx.fill();
+      drawFlame(x + s * 0.5, y + s * 0.36, s * 0.55, ts, x);
+    }
+    function drawLamp(x, y, s, ts) {
+      var pulse = 0.85 + 0.15 * Math.sin(ts / 400);
+      rr(x, y, s, s, s * 0.14); ctx.fillStyle = '#ffe9a8'; ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.4 * pulse) + ')';
+      ctx.beginPath(); ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.3, 0, 6.28); ctx.fill();
+      ctx.strokeStyle = 'rgba(180,140,50,0.5)';
+      ctx.lineWidth = Math.max(1.2, s * 0.05);
+      rr(x, y, s, s, s * 0.14); ctx.stroke();
+    }
+    function drawBed(x, y, s) {
+      ctx.fillStyle = '#8a5a2b';
+      rr(x, y + s * 0.55, s, s * 0.42, s * 0.08); ctx.fill();
+      ctx.fillStyle = '#e05a5a';
+      rr(x, y + s * 0.3, s, s * 0.34, s * 0.08); ctx.fill();
+      ctx.fillStyle = '#fff';
+      rr(x + s * 0.06, y + s * 0.24, s * 0.34, s * 0.22, s * 0.06); ctx.fill();
+    }
+    function drawTNT(x, y, s, ts, k) {
+      var fuse = k ? fuseMap[k] : null;
+      var danger = fuse != null && fuse < 0.9 && (Math.floor(ts / 90) % 2 === 0);
+      rr(x, y, s, s, s * 0.14); ctx.fillStyle = danger ? '#ff8a7a' : '#d1493f'; ctx.fill();
+      ctx.fillStyle = 'rgba(40,20,20,0.55)';
+      rr(x, y + s * 0.16, s, s * 0.16, s * 0.04); ctx.fill();
+      rr(x, y + s * 0.68, s, s * 0.16, s * 0.04); ctx.fill();
+      ctx.fillStyle = '#fff6d8';
+      ctx.font = '800 ' + (s * 0.28) + 'px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('TNT', x + s * 0.5, y + s * 0.52);
+      if (fuse != null) {
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.arc(x + s * 0.8, y - s * 0.02, s * (0.08 + 0.05 * Math.sin(ts / 60)), 0, 6.28);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+      ctx.lineWidth = Math.max(1.2, s * 0.05);
+      rr(x, y, s, s, s * 0.14); ctx.stroke();
+    }
+    function drawFlame(cx, baseY, size, ts, seed2) {
+      var cols = ['#ff5236', '#ff9f2e', '#ffd54a'];
+      for (var f = 0; f < 3; f++) {
+        var flick = 0.75 + 0.25 * Math.sin(ts / 70 + seed2 * 0.3 + f);
+        var fw = size * (0.5 - f * 0.12);
+        var fh = size * (1.0 - f * 0.2) * flick;
+        var fx = cx + Math.sin(ts / 90 + seed2 * 0.2 + f) * size * 0.08;
+        ctx.beginPath();
+        ctx.moveTo(fx, baseY - fh);
+        ctx.quadraticCurveTo(fx + fw, baseY - fh * 0.4, fx + fw * 0.5, baseY);
+        ctx.quadraticCurveTo(fx, baseY + size * 0.1, fx - fw * 0.5, baseY);
+        ctx.quadraticCurveTo(fx - fw, baseY - fh * 0.4, fx, baseY - fh);
+        ctx.closePath();
+        ctx.fillStyle = cols[f]; ctx.fill();
+      }
+    }
+
+    /* ---------------- Mob rendering ---------------- */
+    function drawMob(m, ts) {
+      var x = sx(m.x), y = sy(m.y);
+      var s = m.h;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(m.face, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.ellipse(0, 0, m.w * 0.55, m.w * 0.14, 0, 0, 6.28); ctx.fill();
+      var bob = Math.sin(m.t * 6) * s * 0.04;
+
+      if (m.kind === 'monster') {
+        var bw = m.w, bh = s * 0.85;
+        rr(-bw / 2, -bh - s * 0.1 + bob, bw, bh, bw * 0.3);
+        ctx.fillStyle = m.color; ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = Math.max(1.5, s * 0.05);
+        rr(-bw / 2, -bh - s * 0.1 + bob, bw, bh, bw * 0.3); ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-bw * 0.18, -bh * 0.62 + bob, bw * 0.16, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(bw * 0.2, -bh * 0.62 + bob, bw * 0.16, 0, 6.28); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        ctx.beginPath(); ctx.arc(-bw * 0.15, -bh * 0.62 + bob, bw * 0.07, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(bw * 0.24, -bh * 0.62 + bob, bw * 0.07, 0, 6.28); ctx.fill();
+        ctx.strokeStyle = '#24344d'; ctx.lineWidth = Math.max(1.5, s * 0.05);
+        ctx.beginPath(); ctx.arc(bw * 0.02, -bh * 0.3 + bob, bw * 0.2, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+        ctx.fillStyle = m.color;
+        ctx.beginPath(); ctx.arc(-bw * 0.25, -s * 0.06, bw * 0.16, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(bw * 0.25, -s * 0.06, bw * 0.16, 0, 6.28); ctx.fill();
+      } else if (m.kind === 'chick') {
+        var cw = m.w * 1.1, chh = s * 0.8;
+        ctx.fillStyle = '#fff8e0';
+        rr(-cw / 2, -chh + bob, cw, chh, cw * 0.4); ctx.fill();
+        ctx.fillStyle = '#ffb03d';
+        ctx.beginPath();
+        ctx.moveTo(cw * 0.4, -chh * 0.62 + bob);
+        ctx.lineTo(cw * 0.72, -chh * 0.5 + bob);
+        ctx.lineTo(cw * 0.4, -chh * 0.4 + bob);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e05a5a';
+        rr(-cw * 0.1, -chh - cw * 0.16 + bob, cw * 0.3, cw * 0.2, cw * 0.08); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        ctx.beginPath(); ctx.arc(cw * 0.18, -chh * 0.68 + bob, cw * 0.07, 0, 6.28); ctx.fill();
+        ctx.fillStyle = '#ffb03d';
+        ctx.fillRect(-cw * 0.2, -cw * 0.08, cw * 0.08, cw * 0.1);
+        ctx.fillRect(cw * 0.12, -cw * 0.08, cw * 0.08, cw * 0.1);
+      } else {
+        var pw = m.w * 1.2, ph = s * 0.72;
+        var body = m.kind === 'pig' ? '#f6a5b8' : (m.wool ? '#f6f2ee' : '#f0c9b8');
+        ctx.fillStyle = body;
+        rr(-pw / 2, -ph - s * 0.12 + bob, pw, ph, pw * 0.26); ctx.fill();
+        if (m.kind === 'sheep' && m.wool) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(-pw * 0.2, -ph * 0.9 + bob, pw * 0.2, 0, 6.28); ctx.fill();
+          ctx.beginPath(); ctx.arc(pw * 0.1, -ph * 1.0 + bob, pw * 0.18, 0, 6.28); ctx.fill();
+        }
+        // head
+        var hx = pw * 0.42, hy = -ph * 0.85 + bob;
+        ctx.fillStyle = m.kind === 'pig' ? '#f9bccb' : '#3c3a3a';
+        rr(hx - pw * 0.16, hy - pw * 0.18, pw * 0.36, pw * 0.36, pw * 0.1); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        ctx.beginPath(); ctx.arc(hx + pw * 0.06, hy - pw * 0.02, pw * 0.045, 0, 6.28); ctx.fill();
+        if (m.kind === 'pig') {
+          ctx.fillStyle = '#e88ea6';
+          rr(hx + pw * 0.1, hy + pw * 0.04, pw * 0.12, pw * 0.1, pw * 0.03); ctx.fill();
+        }
+        // legs
+        ctx.fillStyle = m.kind === 'pig' ? '#e88ea6' : '#3c3a3a';
+        var lw = pw * 0.12, sw2 = Math.sin(m.t * 9) * pw * 0.06;
+        ctx.fillRect(-pw * 0.3 + sw2, -s * 0.12, lw, s * 0.14);
+        ctx.fillRect(pw * 0.18 - sw2, -s * 0.12, lw, s * 0.14);
+      }
+      ctx.restore();
+    }
+
+    /* ---------------- Hero rendering ---------------- */
+    function drawHero(ts) {
+      var s = hero.h * 1.05;
+      var ch = CHARS[charIdx];
+      var cx = sx(hero.x), footY = sy(hero.y);
+      var bob = hero.target !== null ? Math.sin(hero.walkPhase) * s * 0.02 : Math.sin(ts / 400) * s * 0.02;
+      var cy = footY - s * 0.5 + bob;
+      var walking = hero.target !== null && hero.onGround;
+      var swing = walking ? Math.sin(hero.walkPhase) : 0;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (hurtT > 0) ctx.globalAlpha = 0.55 + 0.45 * Math.sin(ts / 40);
+      else if (invuln > 0) ctx.globalAlpha = 0.75;
+      ctx.scale(hero.face, 1);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.ellipse(0, s * 0.5, s * 0.3, s * 0.07, 0, 0, 6.28); ctx.fill();
+
+      ctx.fillStyle = ch.legs;
+      rr(-s * 0.18 + swing * s * 0.05, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
+      rr(s * 0.03 - swing * s * 0.05, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
+      ctx.fillStyle = ch.boots;
+      rr(-s * 0.2 + swing * s * 0.05, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
+      rr(s * 0.01 - swing * s * 0.05, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
+
+      ctx.fillStyle = ch.shirt;
+      rr(-s * 0.24, -s * 0.12, s * 0.48, s * 0.3, s * 0.08); ctx.fill();
+      ctx.fillStyle = ch.boots;
+      rr(-s * 0.24, s * 0.12, s * 0.48, s * 0.06, s * 0.02); ctx.fill();
+      ctx.fillStyle = ch.shirt2;
+      rr(-s * 0.2, -s * 0.08, s * 0.1, s * 0.24, s * 0.05); ctx.fill();
+
+      drawHead(s, ch, ts);
+
+      ctx.save();
+      ctx.translate(s * 0.16, -s * 0.02);
+      ctx.rotate(-hero.swing * 1.2 + swing * 0.25);
+      ctx.fillStyle = ch.skin;
+      rr(-s * 0.06, -s * 0.02, s * 0.12, s * 0.26, s * 0.05); ctx.fill();
+      ctx.translate(0, s * 0.22);
+      if (tool === 'mine') drawPick(s);
+      ctx.restore();
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHead(s, ch, ts) {
+      ctx.fillStyle = ch.skin;
+      rr(-s * 0.19, -s * 0.44, s * 0.38, s * 0.34, s * 0.09); ctx.fill();
+
+      if (ch.head === 'robot') {
+        ctx.strokeStyle = ch.hair; ctx.lineWidth = Math.max(1.5, s * 0.02);
+        ctx.beginPath(); ctx.moveTo(0, -s * 0.44); ctx.lineTo(0, -s * 0.56); ctx.stroke();
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath(); ctx.arc(0, -s * 0.58, s * 0.04, 0, 6.28); ctx.fill();
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.09, s * 0.04); ctx.fill();
+        ctx.fillStyle = '#7dffe8';
+        rr(-s * 0.04, -s * 0.31, s * 0.07, s * 0.06, s * 0.02); ctx.fill();
+        rr(s * 0.09, -s * 0.31, s * 0.07, s * 0.06, s * 0.02); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        rr(-s * 0.02, -s * 0.21, s * 0.16, s * 0.05, s * 0.02); ctx.fill();
+        return;
+      }
+      if (ch.head === 'helmet') {
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.21, -s * 0.47, s * 0.42, s * 0.3, s * 0.1); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        rr(-s * 0.1, -s * 0.32, s * 0.29, s * 0.05, s * 0.02); ctx.fill();
+        ctx.fillStyle = '#ff6b6b';
+        rr(-s * 0.02, -s * 0.6, s * 0.05, s * 0.15, s * 0.02); ctx.fill();
+        return;
+      }
+      if (ch.head === 'mask') {
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.24, s * 0.08); ctx.fill();
+        ctx.fillStyle = ch.skin;
+        rr(-s * 0.06, -s * 0.33, s * 0.26, s * 0.07, s * 0.02); ctx.fill();
+        ctx.fillStyle = '#24344d';
+        ctx.beginPath(); ctx.arc(s * 0.02, -s * 0.29, s * 0.03, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(s * 0.14, -s * 0.29, s * 0.03, 0, 6.28); ctx.fill();
+        ctx.fillStyle = ch.hair;
+        rr(-s * 0.28, -s * 0.4, s * 0.09, s * 0.04, s * 0.02); ctx.fill();
+        return;
+      }
+      ctx.fillStyle = ch.hair;
+      rr(-s * 0.2, -s * 0.46, s * 0.4, s * 0.12, s * 0.06); ctx.fill();
+      ctx.fillStyle = '#24344d';
+      ctx.beginPath(); ctx.arc(0, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28, s * 0.035, 0, 6.28); ctx.fill();
+      ctx.strokeStyle = '#24344d'; ctx.lineWidth = Math.max(1.5, s * 0.02);
+      ctx.beginPath(); ctx.arc(s * 0.06, -s * 0.22, s * 0.06, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+    }
+
+    // The weapon is held aloft and drawn oversized so which one you crafted is
+    // obvious against the sky. Local +y runs from the hand out to the business end.
+    function drawWeapon(s, k, ts) {
+      ctx.save();
+      ctx.rotate(-2.6);
+      ctx.scale(1.35, 1.35);
+      if (k === 'hammer') drawHammer(s);
+      else if (k === 'wand') drawWand(s, ts);
+      else if (k === 'zap') drawZapper(s, ts);
+      else drawSword(s);
+      ctx.restore();
+    }
+    function diaTint(base) { return hasDiamondWeapon ? '#7df0e8' : base; }
+    function drawHammer(s) {
+      ctx.fillStyle = '#8a5a2b';
+      rr(-s * 0.045, -s * 0.06, s * 0.09, s * 0.4, s * 0.03); ctx.fill();
+      ctx.fillStyle = diaTint('#aeb7c4');
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.2, s * 0.05); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.07, s * 0.04); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = Math.max(1.5, s * 0.018);
+      rr(-s * 0.21, s * 0.28, s * 0.42, s * 0.2, s * 0.05); ctx.stroke();
+    }
+    function drawWand(s, ts) {
+      ctx.fillStyle = '#7b4fd6';
+      rr(-s * 0.035, -s * 0.06, s * 0.07, s * 0.38, s * 0.03); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      rr(-s * 0.035, s * 0.02, s * 0.07, s * 0.04, s * 0.02); ctx.fill();
+      rr(-s * 0.035, s * 0.14, s * 0.07, s * 0.04, s * 0.02); ctx.fill();
+      var tw = 0.85 + 0.15 * Math.sin(ts / 120);
+      ctx.fillStyle = 'rgba(255,209,102,0.35)';
+      ctx.beginPath(); ctx.arc(0, s * 0.4, s * 0.2 * tw, 0, 6.28); ctx.fill();
+      ctx.fillStyle = diaTint('#ffd166');
+      drawStar(0, s * 0.4, s * 0.19 * tw, ts / 400);
+      ctx.fillStyle = '#fff9d8';
+      drawStar(0, s * 0.4, s * 0.09 * tw, -ts / 300);
+    }
+    function drawZapper(s, ts) {
+      ctx.fillStyle = '#3a4155';
+      rr(-s * 0.04, -s * 0.06, s * 0.08, s * 0.4, s * 0.03); ctx.fill();
+      var flick = 0.8 + 0.2 * Math.sin(ts / 70);
+      ctx.fillStyle = 'rgba(125,255,232,0.3)';
+      ctx.beginPath(); ctx.arc(0, s * 0.42, s * 0.21 * flick, 0, 6.28); ctx.fill();
+      var bolt = [[-0.06, 0.26], [0.1, 0.4], [0.02, 0.42], [0.12, 0.58], [-0.1, 0.44], [-0.01, 0.41]];
+      ctx.beginPath();
+      for (var i = 0; i < bolt.length; i++) {
+        var bx = bolt[i][0] * s, by = s * 0.42 + (bolt[i][1] - 0.42) * s * flick;
+        if (i === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ffe94a'; ctx.fill();
+      ctx.strokeStyle = '#7dffe8'; ctx.lineWidth = Math.max(1.5, s * 0.02); ctx.stroke();
+    }
+    function drawPick(s) {
+      ctx.fillStyle = '#8a5a2b';
+      rr(-s * 0.03, -s * 0.02, s * 0.06, s * 0.3, s * 0.02); ctx.fill();
+      ctx.strokeStyle = diaTint('#c7ccd4'); ctx.lineWidth = s * 0.06;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.16, s * 0.02);
+      ctx.quadraticCurveTo(0, -s * 0.1, s * 0.16, s * 0.02);
+      ctx.stroke();
+    }
+    function drawSword(s) {
+      ctx.fillStyle = '#8a5228';
+      rr(-s * 0.035, -s * 0.08, s * 0.07, s * 0.14, s * 0.02); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      rr(-s * 0.14, s * 0.05, s * 0.28, s * 0.06, s * 0.02); ctx.fill();
+      ctx.fillStyle = diaTint('#dfe6ef');
+      rr(-s * 0.05, s * 0.1, s * 0.1, s * 0.36, s * 0.04); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      rr(-s * 0.015, s * 0.12, s * 0.03, s * 0.32, s * 0.015); ctx.fill();
+      ctx.strokeStyle = '#98a1af'; ctx.lineWidth = Math.max(1, s * 0.012);
+      rr(-s * 0.05, s * 0.1, s * 0.1, s * 0.36, s * 0.04); ctx.stroke();
+    }
+
+    /* ---------------- Scene rendering ---------------- */
+    function skyColours() {
+      var wd = world();
+      var d = darkness();
+      if (wd.dusk) d = Math.max(d, 0.55);
+      return {
+        top: mixHex(wd.skyTop, '#0e1430', d),
+        bot: mixHex(wd.skyBot, '#232a52', d),
+        dark: d
+      };
+    }
+
+    function render(ts) {
+      var sk = skyColours();
+      ctx.save();
+      if (shakeT > 0.1) ctx.translate((Math.random() - 0.5) * shakeT, (Math.random() - 0.5) * shakeT);
+
+      var g = ctx.createLinearGradient(0, -16, 0, H + 16);
+      g.addColorStop(0, sk.top); g.addColorStop(1, sk.bot);
+      ctx.fillStyle = g; ctx.fillRect(-16, -16, W + 32, H + 32);
+
+      if (sk.dark > 0.15) {
+        ctx.globalAlpha = sk.dark;
+        for (var st = 0; st < stars.length; st++) {
+          var s2 = stars[st];
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.5 * (0.5 + 0.5 * Math.sin(ts / 500 + s2.tw))) + ')';
+          ctx.beginPath(); ctx.arc(s2.x, s2.y, s2.r, 0, 6.28); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      drawSunMoon(sk, ts);
+
+      ctx.fillStyle = world().cloud;
+      for (var c = 0; c < clouds.length; c++) {
+        var cl = clouds[c], cw = 70 * cl.s, chh = 24 * cl.s;
+        var x = sx(cl.x) * 0.6 + W * 0.2, y = sy(cl.y) * 0.6 + H * 0.1;
+        if (x < -200 || x > W + 200) continue;
+        rr(x, y, cw, chh, chh); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + cw * 0.3, y, chh * 0.9, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + cw * 0.65, y, chh * 1.1, 0, 6.28); ctx.fill();
+      }
+
+      drawWorldCells(ts);
+
+      for (var mi = 0; mi < mobs.length; mi++) drawMob(mobs[mi], ts);
+      drawHero(ts);
+
+      for (var p = 0; p < parts.length; p++) {
+        var pt = parts[p];
+        ctx.globalAlpha = Math.max(0, pt.life);
+        ctx.fillStyle = pt.color;
+        if (pt.star) drawStar(sx(pt.x), sy(pt.y), pt.r * 1.6, ts / 200 + p);
+        else { ctx.beginPath(); ctx.arc(sx(pt.x), sy(pt.y), pt.r, 0, 6.28); ctx.fill(); }
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      if (sk.dark > 0.05 || camY > B * 2) drawLightMask(sk.dark);
+      if (!creative() && phase !== PHASE.PHOTO) drawHearts();
+      if (phase === PHASE.PHOTO) drawPhotoFrame(ts);
+      if (sleepT > 0) drawSleep();
+    }
+
+    function drawSunMoon(sk, ts) {
+      var a = (dayT - 0.05) * Math.PI * 2;
+      var cx = W * 0.5 - Math.cos(a) * W * 0.45;
+      var cy = H * 0.42 - Math.sin(a) * H * 0.42;
+      var night = sk.dark > 0.5;
+      var r = B * 0.85;
+      ctx.save();
+      ctx.globalAlpha = night ? 0.16 : 0.28;
+      ctx.fillStyle = night ? '#f3f4ff' : '#fff3b0';
+      ctx.beginPath(); ctx.arc(cx, cy, r * 1.6, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.28); ctx.fill();
+      if (night) {
+        ctx.globalAlpha = 1;
+        var g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, sk.top); g.addColorStop(1, sk.bot);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(cx + r * 0.4, cy - r * 0.22, r * 0.86, 0, 6.28); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawWorldCells(ts) {
+      var v = visibleCellRange();
+      for (var r = v.r1; r >= v.r0; r--) {
+        for (var c = v.c0; c <= v.c1; c++) {
+          var t = cellAt(c, r);
+          if (!t) continue;
+          var x = sx(cellX(c)), y = sy(cellY(r));
+          var k = key(c, r);
+          drawBlockAt(t, x, y, B, ts, k);
+          if (fireMap[k]) drawFlame(x + B * 0.5, y + B * 0.1, B * 0.9, ts, c * 3 + r);
+        }
+      }
+    }
+
+    function drawLightMask(dark) {
+      var v = visibleCellRange();
+      var undergroundDim = clamp((camY + H * 0.4) / (B * 8), 0, 0.72);
+      var d = Math.max(dark * 0.78, undergroundDim);
+      if (d <= 0.03) return;
+      lctx.clearRect(0, 0, W, H);
+      lctx.fillStyle = 'rgba(8,12,32,' + d + ')';
+      lctx.fillRect(0, 0, W, H);
+      lctx.globalCompositeOperation = 'destination-out';
+      for (var r = v.r0; r <= v.r1; r++) {
+        for (var c = v.c0; c <= v.c1; c++) {
+          var t = cellAt(c, r);
+          var td = typeOf(t);
+          if (!td || !td.light) continue;
+          punchLight(sx(cellX(c)) + B / 2, sy(cellY(r)) + B / 2, B * td.light);
+        }
+      }
+      for (var k in fireMap) {
+        if (!fireMap.hasOwnProperty(k)) continue;
+        var pc = k.split('_');
+        punchLight(sx(cellX(+pc[0])) + B / 2, sy(cellY(+pc[1])) + B / 2, B * 3);
+      }
+      punchLight(sx(hero.x), sy(hero.y) - hero.h * 0.5, B * 2.6);
+      lctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(lightCanvas, 0, 0, W, H);
+    }
+    function punchLight(x, y, r) {
+      if (x < -r || x > W + r || y < -r || y > H + r) return;
+      var g = lctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(0.55, 'rgba(0,0,0,0.65)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = g;
+      lctx.beginPath(); lctx.arc(x, y, r, 0, 6.28); lctx.fill();
+    }
+
+    function drawHearts() {
+      var s = Math.max(16, B * 0.42);
+      for (var i = 0; i < 3; i++) {
+        var x = 12 + i * (s * 1.5), y = 12;
+        drawHeart(x, y, s, i < hearts);
+      }
+    }
+    function drawHeart(x, y, s, full) {
+      ctx.save();
+      ctx.translate(x + s / 2, y + s / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.32);
+      ctx.bezierCurveTo(-s * 0.8, -s * 0.2, -s * 0.28, -s * 0.6, 0, -s * 0.18);
+      ctx.bezierCurveTo(s * 0.28, -s * 0.6, s * 0.8, -s * 0.2, 0, s * 0.32);
+      ctx.closePath();
+      ctx.fillStyle = full ? '#ff5d5d' : 'rgba(255,255,255,0.22)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = Math.max(1.5, s * 0.09);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPhotoFrame(ts) {
+      var pad = Math.max(10, B * 0.25);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = pad;
+      ctx.strokeRect(pad / 2, pad / 2, W - pad, H - pad);
+      ctx.strokeStyle = 'rgba(36,52,77,0.45)';
+      ctx.lineWidth = Math.max(2, pad * 0.2);
+      ctx.strokeRect(pad, pad, W - pad * 2, H - pad * 2);
+      for (var i = 0; i < 5; i++) {
+        var a = ts / 500 + i * 1.4;
+        ctx.fillStyle = ['#ffd166', '#ff8ac2', '#7dffe8', '#a55eea', '#5bbf4b'][i];
+        drawStar(W * (0.12 + 0.19 * i), pad * 1.6 + Math.sin(a) * 10, B * 0.24, a);
+      }
+    }
+
+    function drawSleep() {
+      var a = sleepT > 0.7 ? (1.4 - sleepT) / 0.7 : sleepT / 0.7;
+      ctx.fillStyle = 'rgba(6,10,30,' + clamp(a, 0, 1) * 0.92 + ')';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,' + clamp(a, 0, 1) + ')';
+      ctx.font = '800 ' + Math.round(B * 0.9) + 'px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('💤', W / 2, H / 2);
+    }
+
+    /* ---------------- Icons for the DOM (drawn with the same block art) ---------------- */
+    function iconCanvas(drawFn, px) {
+      var cv = document.createElement('canvas');
+      var r = window.devicePixelRatio || 1;
+      cv.width = px * r; cv.height = px * r;
+      cv.style.width = px + 'px'; cv.style.height = px + 'px';
+      var g = cv.getContext('2d');
+      g.setTransform(r, 0, 0, r, 0, 0);
+      var save = ctx;
+      ctx = g;
+      drawFn(px);
+      ctx = save;
+      return cv;
+    }
+    function blockIcon(t, px) {
+      return iconCanvas(function (p) { drawBlockAt(t, p * 0.08, p * 0.08, p * 0.84, 0, null); }, px);
+    }
+    function itemIcon(item, px) {
+      if (item === 'pick') {
+        return iconCanvas(function (p) {
+          ctx.save(); ctx.translate(p * 0.5, p * 0.28); ctx.rotate(0.4); drawPick(p * 1.5); ctx.restore();
+        }, px);
+      }
+      if (item === 'weapon' || item === 'diamond_weapon') {
+        return iconCanvas(function (p) {
+          ctx.save(); ctx.translate(p * 0.5, p * 0.2); ctx.scale(0.62, 0.62);
+          drawWeaponIcon(p * 1.5, WEAPONS[weapIdx].key);
+          ctx.restore();
+        }, px);
+      }
+      return blockIcon(ITEM_BLOCK[item] || T.DIRT, px);
+    }
+    function drawWeaponIcon(s, k) {
+      if (k === 'hammer') drawHammer(s);
+      else if (k === 'wand') drawWand(s, 0);
+      else if (k === 'zap') drawZapper(s, 0);
+      else drawSword(s);
+    }
+
+    /* ---------------- Palette / swatches ---------------- */
+    var CREATIVE_BLOCKS = [
+      T.GRASS, T.DIRT, T.STONE, T.LOG, T.PLANK, T.SAND, T.GLASS, T.WATER,
+      T.LADDER, T.TORCH, T.LAMP, T.BED, T.TNT, T.WOOL,
+      T.C1, T.C2, T.C3, T.C4, T.C5, T.C6, T.C7, T.C8
+    ];
+    var SURVIVAL_ITEMS = ['dirt', 'stone', 'wood', 'plank', 'sand', 'glass', 'wool', 'ladder', 'torch', 'lamp', 'bed', 'tnt', 'coal', 'diamond'];
+    var swatchBtns = [];
+
+    function buildSwatches() {
+      swatchBar.innerHTML = '';
+      swatchBtns = [];
+      var list = creative() ? CREATIVE_BLOCKS : SURVIVAL_ITEMS.map(function (it) { return ITEM_BLOCK[it]; });
+      var items = creative() ? null : SURVIVAL_ITEMS;
+      for (var i = 0; i < list.length; i++) {
+        (function (idx) {
+          var t = list[idx];
+          var b = document.createElement('button');
+          b.appendChild(blockIcon(t, 40));
+          if (items) {
+            var cnt = document.createElement('b');
+            cnt.textContent = '0';
+            b.appendChild(cnt);
+            b.cnt = cnt;
+            b.item = items[idx];
+          }
+          b.blockType = t;
+          b.setAttribute('aria-label', typeOf(t).name);
+          b.addEventListener('click', function (e) {
+            e.stopPropagation(); audio();
+            blockSel = t;
+            selectTool('build');
+            markSwatches();
+            tone(560 + idx * 25, 0.06, 'sine', 0.16);
+          });
+          swatchBar.appendChild(b);
+          swatchBtns.push(b);
+        })(i);
+      }
+      if (!creative()) blockSel = ITEM_BLOCK.dirt;
+      markSwatches();
+      refreshSwatches();
+    }
+    function markSwatches() {
+      for (var i = 0; i < swatchBtns.length; i++) {
+        var b = swatchBtns[i];
+        var cls = (b.blockType === blockSel) ? 'sel' : '';
+        if (b.item && have(b.item) <= 0) cls += ' out';
+        b.className = cls;
+      }
+    }
+    function refreshSwatches() {
+      for (var i = 0; i < swatchBtns.length; i++) {
+        var b = swatchBtns[i];
+        if (!b.item) continue;
+        b.cnt.textContent = String(have(b.item));
+      }
+      markSwatches();
+    }
+
+    function selectTool(t) {
+      tool = t;
+      var btns = toolbar.querySelectorAll('button');
+      for (var i = 0; i < btns.length; i++) {
+        var dt = btns[i].getAttribute('data-tool');
+        btns[i].className = (dt && dt === t) ? 'sel' : '';
+      }
+      if (t === 'build') swatchEl.classList.remove('hidden');
+      else swatchEl.classList.add('hidden');
+    }
+
+    /* ---------------- Crafting UI ---------------- */
+    function buildRecipeList() {
+      var host = document.getElementById('recipeList');
+      host.innerHTML = '';
+      for (var i = 0; i < RECIPES.length; i++) {
+        (function (r) {
+          var ok = canCraft(r);
+          var b = document.createElement('button');
+          b.className = ok ? 'can' : 'cant';
+          for (var n = 0; n < r.need.length; n++) {
+            if (n > 0) {
+              var plus = document.createElement('span');
+              plus.className = 'plus'; plus.textContent = '+';
+              b.appendChild(plus);
+            }
+            b.appendChild(itemIcon(r.need[n][0], 34));
+            var c = document.createElement('span');
+            c.className = 'cnt'; c.textContent = 'x' + r.need[n][1];
+            b.appendChild(c);
+          }
+          var ar = document.createElement('span');
+          ar.className = 'arrow'; ar.textContent = '➡️';
+          b.appendChild(ar);
+          b.appendChild(itemIcon(r.out[0], 34));
+          var nm = document.createElement('span');
+          nm.className = 'name';
+          nm.textContent = r.name + (r.out[1] > 1 ? ' x' + r.out[1] : '');
+          b.appendChild(nm);
+          b.addEventListener('click', function (e) { e.stopPropagation(); audio(); doCraft(r); });
+          host.appendChild(b);
+        })(RECIPES[i]);
+      }
+      buildInvStrip();
+    }
+    function buildInvStrip() {
+      var host = document.getElementById('invStrip');
+      host.innerHTML = '';
+      var any = false;
+      for (var i = 0; i < SURVIVAL_ITEMS.length; i++) {
+        var it = SURVIVAL_ITEMS[i];
+        if (have(it) <= 0) continue;
+        any = true;
+        var d = document.createElement('div');
+        d.appendChild(blockIcon(ITEM_BLOCK[it], 26));
+        d.appendChild(document.createTextNode(String(have(it))));
+        host.appendChild(d);
+      }
+      if (!any) {
+        var e = document.createElement('div');
+        e.textContent = 'Your bag is empty — go mine some blocks! ⛏️';
+        host.appendChild(e);
+      }
+    }
+    function openCraft() {
+      if (creative()) return;
+      buildRecipeList();
+      document.getElementById('craftOverlay').classList.remove('hidden');
+    }
+
+    /* ---------------- Photo mode ---------------- */
+    function enterPhoto() {
+      phase = PHASE.PHOTO;
+      toolbar.classList.add('hidden');
+      swatchEl.classList.add('hidden');
+      bannerEl.classList.add('hidden');
+      document.getElementById('photobar').classList.remove('hidden');
+      burst(hero.x, hero.y - hero.h, '#ffd166', 22, true);
+      sWin();
+    }
+    function exitPhoto() {
+      phase = PHASE.PLAY;
+      document.getElementById('photobar').classList.add('hidden');
+      toolbar.classList.remove('hidden');
+      selectTool(tool);
+      showQuest();
+    }
+
+    /* ---------------- Start / new world ---------------- */
+    function findSpawn() {
+      var c = Math.round(COLS / 2);
+      for (var i = 0; i < 40; i++) {
+        var s = surfaceRow(c + i);
+        if (cellAt(c + i, s + 1) === T.AIR && cellAt(c + i, s + 2) === T.AIR) {
+          return { x: cellX(c + i) + B / 2, y: cellY(s) };
+        }
+      }
+      return { x: cellX(c) + B / 2, y: cellY(surfaceRow(c)) };
+    }
+    function freshWorld() {
+      seed = Math.floor(Math.random() * 9999) + 1;
+      edits = {}; fireMap = {}; fuseMap = {}; waterLvl = {};
+      inv = {}; hasPick = false; hasWeapon = false; hasDiamondWeapon = false;
+      placedCount = 0; bonkCount = 0; torchPlaced = false; questIdx = 0;
+      dayT = 0.05; hearts = 3; mobs = []; parts = [];
+      var sp = findSpawn();
+      hero.x = sp.x; hero.y = sp.y;
+      spawn = { x: sp.x, y: sp.y };
+      if (creative()) {
+        // a little starter house so there's something to smash and extend
+        var c0 = colAt(hero.x) + 3, s = surfaceRow(c0);
+        for (var dc = 0; dc < 3; dc++) {
+          for (var dr = 1; dr <= 3; dr++) {
+            if (dr === 1 && dc === 1) continue;
+            setCell(c0 + dc, s + dr, dr === 3 ? T.PLANK : (dr === 1 ? T.STONE : T.PLANK));
+          }
+        }
+      }
+    }
+    function startGame(fresh) {
+      phase = PHASE.PLAY;
+      hero.vx = 0; hero.vy = 0; hero.target = null; hero.swing = 0;
+      mobs = []; parts = [];
+      layout();
+      if (fresh || !loadWorld()) freshWorld();
+      hearts = 3;
+      centreCamera();
+      document.getElementById('startOverlay').classList.add('hidden');
+      toolbar.classList.remove('hidden');
+      updateClock();
+      buildSwatches();
+      selectTool('mine');
+      if (creative()) {
+        setBanner('Tap far away to walk 👆  Mine ⛏️ Build 🧱 Burn 🔥', '');
+        setTimeout(function () { if (phase === PHASE.PLAY) bannerEl.classList.add('hidden'); }, 6000);
+      } else showQuest();
+      lastTs = 0;
+      saveWorld();
+    }
+
+    /* ---------------- Loop ---------------- */
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      var dt = Math.min(0.045, (ts - lastTs) / 1000);
+      lastTs = ts;
+      if (phase !== PHASE.START) update(dt);
+      if (phase === PHASE.START) renderStartBackdrop(ts); else render(ts);
+      requestAnimationFrame(frame);
+    }
+    function renderStartBackdrop(ts) {
+      var wd = world();
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, wd.skyTop); g.addColorStop(1, wd.grass);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+
+    /* ---------------- Wire up ---------------- */
+    var stage = document.querySelector('.stage');
+    stage.addEventListener('touchstart', onTap, { passive: false });
+    stage.addEventListener('mousedown', onTap);
+
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+      if (phase !== PHASE.START) saveWorld();
+      location.reload();
+    });
+
+    updateStartButtons();
+
+    function updateStartButtons() {
+      var has = hasSave();
+      document.getElementById('startBtn').textContent = has ? '▶️ Continue' : '▶️ Start';
+      document.getElementById('newWorldBtn').className = has ? 'bigbtn grey' : 'bigbtn grey hidden';
+    }
+
+    function buildPicker(elId, items, storeKey, get, set) {
+      var host = document.getElementById(elId);
+      var saved = null;
+      try { saved = localStorage.getItem(storeKey); } catch (e) {}
+      if (saved !== null && items[+saved]) set(+saved);
+      var btns = [];
+      function mark() {
+        for (var i = 0; i < btns.length; i++) btns[i].className = (i === get()) ? 'sel' : '';
+      }
+      for (var i = 0; i < items.length; i++) {
+        (function (idx) {
+          var b = document.createElement('button');
+          b.innerHTML = items[idx].icon + '<span>' + items[idx].name + '</span>';
+          b.addEventListener('click', function (e) {
+            e.stopPropagation(); audio();
+            set(idx);
+            try { localStorage.setItem(storeKey, String(idx)); } catch (er) {}
+            mark();
+          });
+          host.appendChild(b);
+          btns.push(b);
+        })(i);
+      }
+      mark();
+    }
+    function updateBadge() {
+      document.getElementById('heroBadge').textContent = CHARS[charIdx].icon + '🧱';
+    }
+    buildPicker('charPick', CHARS, 'blk_char', function () { return charIdx; }, function (v) { charIdx = v; updateBadge(); });
+    updateBadge();
+    function applyWorldTheme(dark) {
+      var wd = world();
+      var d = dark || 0;
+      if (wd.dusk) d = Math.max(d, 0.55);
+      document.body.style.background = 'linear-gradient(180deg,' +
+        mixHex(wd.skyTop, '#0e1430', d) + ' 0%,' +
+        mixHex(wd.skyBot, '#232a52', d) + ' 55%,' +
+        mixHex(wd.grass, '#16301c', d) + ' 100%)';
+    }
+    buildPicker('worldPick', WORLDS, 'blk_world', function () {
+      return worldIdx;
+    }, function (v) {
+      worldIdx = v;
+      skyStep = -1;
+      applyWorldTheme();
+      updateStartButtons();
+    });
+    applyWorldTheme();
+
+    document.getElementById('startBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio(); startGame(false);
+    });
+    document.getElementById('newWorldBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio(); wipeSave(); startGame(true);
+    });
+    document.getElementById('photoDone').addEventListener('click', function (e) {
+      e.stopPropagation(); audio(); exitPhoto();
+    });
+
+    var toolBtns = toolbar.querySelectorAll('button');
+    for (var ti = 0; ti < toolBtns.length; ti++) {
+      (function (b) {
+        b.addEventListener('click', function (e) {
+          e.stopPropagation(); audio();
+          var act = b.getAttribute('data-act');
+          if (act === 'craft') openCraft();
+          else if (act === 'photo') enterPhoto();
+          else selectTool(b.getAttribute('data-tool'));
+        });
+      })(toolBtns[ti]);
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) saveWorld();
+      else lastTs = 0;
+    });
+    window.addEventListener('pagehide', function () { saveWorld(); });
+    // Block page scroll/rubber-band during play (single- or multi-finger).
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // Keep links inside the iOS home-screen (standalone) app on OLD iOS (<13) only.
+    var _iosMajor = +((navigator.userAgent.match(/ OS (\d+)_/) || [])[1] || 0);
+    if (navigator.standalone && _iosMajor > 0 && _iosMajor < 13) {
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n.nodeName !== 'A') n = n.parentNode;
+        if (n && n.getAttribute('href') && n.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          location.href = n.getAttribute('href');
+        }
+      }, false);
+    }
+
+    // ---------- Boot ----------
+    resize();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>

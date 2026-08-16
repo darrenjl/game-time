@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var CACHE_VERSION = 'gametime-v13';
+var CACHE_VERSION = 'gametime-v14';
 
 // Everything the site is made of. All games are self-contained single HTML
 // files, so this list is just the pages plus the shared home-screen icons.
@@ -20,7 +20,9 @@ var ASSETS = [
   '/icon-512.png',
   '/animal-band/index.html',
   '/asteroids/index.html',
+  '/block-craft/index.html',
   '/bubble-pop/index.html',
+  '/building-blocks/index.html',
   '/build-a-buddy/index.html',
   '/catch-the-splash/index.html',
   '/caterpillar-hop/index.html',
