@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var CACHE_VERSION = 'gametime-v12';
+var CACHE_VERSION = 'gametime-v13';
 
 // Everything the site is made of. All games are self-contained single HTML
 // files, so this list is just the pages plus the shared home-screen icons.
@@ -27,7 +27,6 @@ var ASSETS = [
   '/crystal-hunt/index.html',
   '/doodle/index.html',
   '/fruit-splash/index.html',
-  '/high-five-foxes/index.html',
   '/jumping-adventure/index.html',
   '/lane-runner/index.html',
   '/ocean-memory-match/index.html',

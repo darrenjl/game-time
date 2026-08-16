@@ -91,10 +91,10 @@
     }
     .refresh:active, .pause:active { transform: scale(0.95); }
 
-    /* Difficulty picker inside the pause menu */
-    .speedpick { display: flex; flex-wrap: wrap; justify-content: center; }
-    .speedpick > * + * { margin-left: 10px; }  /* gap fallback for Safari < 14.5 */
-    .speedpick button {
+    /* Difficulty picker inside the pause menu (and the cast picker) */
+    .speedpick, .castpick { display: flex; flex-wrap: wrap; justify-content: center; }
+    .speedpick > * + *, .castpick > * + * { margin-left: 10px; }  /* gap fallback for Safari < 14.5 */
+    .speedpick button, .castpick button {
       -webkit-appearance: none;
       appearance: none;
       display: flex;
@@ -111,9 +111,9 @@
       background: rgba(255, 255, 255, 0.16);
       border: 2px solid rgba(255, 255, 255, 0.35);
     }
-    .speedpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
-    .speedpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.28); transform: scale(1.05); }
-    .speedpick button:active { transform: scale(0.95); }
+    .speedpick button span, .castpick button span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
+    .speedpick button.sel, .castpick button.sel { border-color: var(--gold); background: rgba(255, 209, 102, 0.28); transform: scale(1.05); }
+    .speedpick button:active, .castpick button:active { transform: scale(0.95); }
 
     /* ---- Stage / canvas ---- */
     .stage {
@@ -184,9 +184,14 @@
 
     <div class="overlay" id="startOverlay">
       <h2>🌼 Peekaboo Meadow</h2>
-      <p>Ozzie the mole, Finn the frog and friends peek out of the burrows!</p>
+      <p id="castLine">Ozzie the mole, Finn the frog and friends peek out of the burrows!</p>
       <div class="tap-hint">👆</div>
-      <p><b>Tap a friend to give them a high-five.</b> Don't tap the grumpy bee!</p>
+      <p><b>Tap a friend to give them a high-five.</b> Don't tap the grumpy one!</p>
+      <p>Pick your friends:</p>
+      <div class="castpick" id="castPick">
+        <button data-cast="0">🐰<span>Meadow</span></button>
+        <button data-cast="1">🦊<span>Den</span></button>
+      </div>
       <p>Pick a speed (or change it with ⏸️):</p>
       <div class="speedpick" id="speedPickStart">
         <button data-idx="0">🐢<span>Chill</span></button>
@@ -283,7 +288,22 @@
     var speedIdx = 1;
 
     var RISE_TIME = 0.20, DUCK_TIME = 0.18;
-    var HEROES = ['mole', 'frog', 'bunny', 'chick'];
+    var FOX_COATS = ['#e8722c', '#f0913f', '#d95f2a'];
+    var CASTS = [
+      { key: 'meadow', icon: '\ud83d\udc30', name: 'Meadow', heroes: ['mole', 'frog', 'bunny', 'chick'], villain: 'bee',
+        title: '\ud83c\udf3c Peekaboo Meadow', over: '\ud83d\udc1d Buzzed out!',
+        line: 'Ozzie the mole, Finn the frog and friends peek out of the burrows!',
+        sky: ['#7ec8ff', '#4fb0f7', '#8fd0ff'], ground: ['#6ed07f', '#3fa15a'],
+        page: 'linear-gradient(180deg,#7ec8ff 0%,#4fb0f7 45%,#57c785 100%)' },
+      { key: 'den',    icon: '\ud83e\udd8a', name: 'Den',    heroes: ['fox'], villain: 'rat',
+        title: '\ud83e\udd8a High-Five Den', over: '\ud83d\udc00 Rat trouble!',
+        line: 'The foxes are popping out of their dens — watch out for sneaky rats!',
+        sky: ['#ffd9a0', '#ffb36b', '#ffd7a8'], ground: ['#c99a5b', '#8c6337'],
+        page: 'linear-gradient(180deg,#ffd9a0 0%,#ffb36b 45%,#c99a5b 100%)' }
+    ];
+    var castIdx = 0;
+    try { var _c = localStorage.getItem('pm_cast'); if (_c !== null && CASTS[+_c]) castIdx = +_c; } catch (e) {}
+    function cast() { return CASTS[castIdx]; }
 
     var burrows = [];   // {cx, cy, rx, ry, critter}
     var sparks = [];
@@ -359,9 +379,11 @@
       if (!empty.length) return;
       var b = burrows[empty[randInt(empty.length)]];
       var L = lvl();
+      var C = cast();
       var isBee = Math.random() < L.bee;
       b.critter = {
-        type: isBee ? 'bee' : HEROES[randInt(HEROES.length)],
+        type: isBee ? C.villain : C.heroes[randInt(C.heroes.length)],
+        coat: FOX_COATS[randInt(FOX_COATS.length)],
         bee: isBee,
         phase: 'rise',
         t: 0,
@@ -649,6 +671,98 @@
       ctx.stroke();
     }
 
+    function drawFox(cx, feetY, s, coat) {
+      var bx = cx, by = feetY - s * 0.5;
+      // body
+      ctx.fillStyle = coat || '#e8722c';
+      ellipse(bx, by, s * 0.44, s * 0.5); ctx.fill();
+      // white chest / belly
+      ctx.fillStyle = '#fbf3e6';
+      ellipse(bx, by + s * 0.16, s * 0.26, s * 0.3); ctx.fill();
+      // ears (behind head)
+      ctx.fillStyle = coat || '#e8722c';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.34, by - s * 0.34);
+      ctx.lineTo(bx - s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx - s * 0.06, by - s * 0.28);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + s * 0.34, by - s * 0.34);
+      ctx.lineTo(bx + s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx + s * 0.06, by - s * 0.28);
+      ctx.closePath(); ctx.fill();
+      // dark ear tips
+      ctx.fillStyle = '#3a2416';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.2, by - s * 0.44);
+      ctx.lineTo(bx - s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx - s * 0.11, by - s * 0.4);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + s * 0.2, by - s * 0.44);
+      ctx.lineTo(bx + s * 0.12, by - s * 0.52);
+      ctx.lineTo(bx + s * 0.11, by - s * 0.4);
+      ctx.closePath(); ctx.fill();
+      // white cheeks / muzzle
+      ctx.fillStyle = '#fbf3e6';
+      ellipse(bx - s * 0.13, by + s * 0.08, s * 0.16, s * 0.2); ctx.fill();
+      ellipse(bx + s * 0.13, by + s * 0.08, s * 0.16, s * 0.2); ctx.fill();
+      // eyes
+      ctx.fillStyle = '#2a1a10';
+      circle(bx - s * 0.15, by - s * 0.1, s * 0.06); ctx.fill();
+      circle(bx + s * 0.15, by - s * 0.1, s * 0.06); ctx.fill();
+      ctx.fillStyle = '#fff';
+      circle(bx - s * 0.13, by - s * 0.12, s * 0.02); ctx.fill();
+      circle(bx + s * 0.17, by - s * 0.12, s * 0.02); ctx.fill();
+      // nose
+      ctx.fillStyle = '#2a1a10';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.06, by + s * 0.1);
+      ctx.lineTo(bx + s * 0.06, by + s * 0.1);
+      ctx.lineTo(bx, by + s * 0.19);
+      ctx.closePath(); ctx.fill();
+    }
+
+    function drawRat(cx, feetY, s) {
+      var bx = cx, by = feetY - s * 0.46;
+      // round ears (behind)
+      ctx.fillStyle = '#9aa0a6';
+      circle(bx - s * 0.3, by - s * 0.26, s * 0.17); ctx.fill();
+      circle(bx + s * 0.3, by - s * 0.26, s * 0.17); ctx.fill();
+      ctx.fillStyle = '#ffbcd0';
+      circle(bx - s * 0.3, by - s * 0.26, s * 0.09); ctx.fill();
+      circle(bx + s * 0.3, by - s * 0.26, s * 0.09); ctx.fill();
+      // body/head
+      ctx.fillStyle = '#a7adb4';
+      ellipse(bx, by, s * 0.42, s * 0.46); ctx.fill();
+      // lighter muzzle
+      ctx.fillStyle = '#c3c8ce';
+      ellipse(bx, by + s * 0.14, s * 0.24, s * 0.24); ctx.fill();
+      // whiskers
+      ctx.strokeStyle = 'rgba(60,60,70,0.7)';
+      ctx.lineWidth = Math.max(1.5, s * 0.02); ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.06, by + s * 0.16); ctx.lineTo(bx - s * 0.34, by + s * 0.1);
+      ctx.moveTo(bx - s * 0.06, by + s * 0.19); ctx.lineTo(bx - s * 0.34, by + s * 0.22);
+      ctx.moveTo(bx + s * 0.06, by + s * 0.16); ctx.lineTo(bx + s * 0.34, by + s * 0.1);
+      ctx.moveTo(bx + s * 0.06, by + s * 0.19); ctx.lineTo(bx + s * 0.34, by + s * 0.22);
+      ctx.stroke();
+      // beady eyes
+      ctx.fillStyle = '#1c1c22';
+      circle(bx - s * 0.14, by - s * 0.06, s * 0.055); ctx.fill();
+      circle(bx + s * 0.14, by - s * 0.06, s * 0.055); ctx.fill();
+      // sneaky brows
+      ctx.strokeStyle = '#5a5f66';
+      ctx.lineWidth = Math.max(2, s * 0.04); ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx - s * 0.22, by - s * 0.2); ctx.lineTo(bx - s * 0.06, by - s * 0.13);
+      ctx.moveTo(bx + s * 0.22, by - s * 0.2); ctx.lineTo(bx + s * 0.06, by - s * 0.13);
+      ctx.stroke();
+      // pink nose
+      ctx.fillStyle = '#ff7eb6';
+      circle(bx, by + s * 0.16, s * 0.05); ctx.fill();
+    }
+
     function drawCritter(b, ts) {
       var c = b.critter, s = b.rx * 1.9;
       var feetY = critterFeetY(b);
@@ -667,6 +781,8 @@
       else if (c.type === 'frog') drawFrog(b.cx, feetY, s);
       else if (c.type === 'bunny') drawBunny(b.cx, feetY, s);
       else if (c.type === 'chick') drawChick(b.cx, feetY, s);
+      else if (c.type === 'fox') drawFox(b.cx, feetY, s, c.coat);
+      else if (c.type === 'rat') drawRat(b.cx, feetY, s);
       else drawBee(b.cx, feetY, s, ts);
       ctx.restore();
     }
@@ -721,7 +837,12 @@
     // ---------- Render ----------
     function render(ts) {
       // sky
-      if (render._h !== H) { var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7ec8ff'); g.addColorStop(0.5, '#4fb0f7'); g.addColorStop(0.62, '#8fd0ff'); render._g = g; render._h = H; }
+      if (render._h !== H || render._cast !== castIdx) {
+        var sk = cast().sky;
+        var g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, sk[0]); g.addColorStop(0.5, sk[1]); g.addColorStop(0.62, sk[2]);
+        render._g = g; render._h = H; render._cast = castIdx;
+      }
       ctx.fillStyle = render._g;
       ctx.fillRect(0, 0, W, H);
 
@@ -744,7 +865,7 @@
       // grass ground
       var gy = H * 0.36;
       var gg = ctx.createLinearGradient(0, gy, 0, H);
-      gg.addColorStop(0, '#6ed07f'); gg.addColorStop(1, '#3fa15a');
+      gg.addColorStop(0, cast().ground[0]); gg.addColorStop(1, cast().ground[1]);
       ctx.fillStyle = gg;
       ctx.beginPath();
       ctx.moveTo(0, gy + H * 0.04);
@@ -811,6 +932,38 @@
     var stage = document.querySelector('.stage');
     stage.addEventListener('touchstart', onTap, { passive: false });
     stage.addEventListener('mousedown', onTap);
+
+    function applyCastTheme() {
+      var C = cast();
+      document.body.style.background = C.page;
+      document.querySelector('#startOverlay h2').textContent = C.title;
+      document.querySelector('#overOverlay h2').textContent = C.over;
+      document.getElementById('castLine').textContent = C.line;
+      document.title = C.title.replace(/^\S+\s/, '');
+    }
+
+    (function initCastPick() {
+      var btns = document.querySelectorAll('#castPick button');
+      function mark() {
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].className = (+btns[i].getAttribute('data-cast') === castIdx) ? 'sel' : '';
+        }
+      }
+      for (var i = 0; i < btns.length; i++) {
+        (function (b) {
+          b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            castIdx = +b.getAttribute('data-cast');
+            try { localStorage.setItem('pm_cast', String(castIdx)); } catch (er) {}
+            mark();
+            applyCastTheme();
+            sPop();
+          });
+        })(btns[i]);
+      }
+      mark();
+      applyCastTheme();
+    })();
 
     document.getElementById('playAgainBtn').addEventListener('click', function (e) {
       e.stopPropagation();
