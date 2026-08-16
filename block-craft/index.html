@@ -344,13 +344,14 @@
 
     /* The start screen leaves the top half clear so the hero preview shows through. */
     .startscreen {
-      justify-content: flex-end;
+      justify-content: flex-start;
       background: none;
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
     .startpanel {
+      margin-top: auto;      /* bottom-aligned but still scrollable when tall */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1301,10 +1302,14 @@
         var t = cellAt(c, r + dr);
         var d = typeOf(t);
         if (!t) break;
-        if (d && d.falls) fallCheck(c, r + dr);
+        if (d && d.falls) {
+          setCell(c, r + dr, t);        // now it counts as disturbed, so it can fall
+          fallCheck(c, r + dr);
+        }
       }
     }
     function fallCheck(c, r) {
+      if (!edits.hasOwnProperty(key(c, r))) return;   // untouched terrain stays put
       var t = cellAt(c, r);
       var d = typeOf(t);
       if (!d || !d.falls) return;
@@ -1523,7 +1528,7 @@
 
     /* ---------------- Day / night ---------------- */
     function darkness() {
-      if (creative()) return 0;
+      if (creative() || !fightMode) return 0;
       var t = dayT;
       if (t < 0.42) return 0;
       if (t < 0.52) return (t - 0.42) / 0.10;
@@ -2109,6 +2114,7 @@
 
       if (sk.dark > 0.05 || camY > B * 2) drawLightMask(sk.dark);
       if (fightMode && phase !== PHASE.PHOTO) drawHearts();
+      if (phase === PHASE.PLAY) drawQuestPointer(ts);
       if (phase === PHASE.PHOTO) drawPhotoFrame(ts);
       if (sleepT > 0) drawSleep();
     }
@@ -2151,7 +2157,7 @@
 
     function drawLightMask(dark) {
       var v = visibleCellRange();
-      var undergroundDim = clamp((camY + H * 0.4) / (B * 8), 0, 0.72);
+      var undergroundDim = clamp((camY + H * 0.4) / (B * 10), 0, 0.5);
       var d = Math.max(dark * 0.78, undergroundDim);
       if (d <= 0.03) return;
       lctx.clearRect(0, 0, W, H);
@@ -2171,7 +2177,7 @@
         var pc = k.split('_');
         punchLight(sx(cellX(+pc[0])) + B / 2, sy(cellY(+pc[1])) + B / 2, B * 3);
       }
-      punchLight(sx(hero.x), sy(hero.y) - hero.h * 0.5, B * 2.6);
+      punchLight(sx(hero.x), sy(hero.y) - hero.h * 0.5, B * 4);
       lctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(lightCanvas, 0, 0, W, H);
     }
@@ -2183,6 +2189,41 @@
       g.addColorStop(1, 'rgba(0,0,0,0)');
       lctx.fillStyle = g;
       lctx.beginPath(); lctx.arc(x, y, r, 0, 6.28); lctx.fill();
+    }
+
+    // Quest one says "tap a tree" — so point at one. A bouncing arrow teaches
+    // a child who cannot read the banner what the banner is asking for.
+    function drawQuestPointer(ts) {
+      if (creative() || questIdx !== 0) return;
+      var v = visibleCellRange(), best = null, bestD = 1e9;
+      for (var c = v.c0; c <= v.c1; c++) {
+        for (var r = v.r0; r <= v.r1; r++) {
+          if (cellAt(c, r) !== T.LOG) continue;
+          var d = Math.abs(cellX(c) - hero.x);
+          if (d < bestD) { bestD = d; best = { c: c, r: r }; }
+        }
+      }
+      if (!best) return;
+      var topR = best.r;
+      while (cellAt(best.c, topR + 1) === T.LOG) topR++;
+      var x = sx(cellX(best.c)) + B / 2;
+      var y = sy(cellY(topR)) - B * 0.5 - Math.abs(Math.sin(ts / 320)) * B * 0.35;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#ffd166';
+      ctx.strokeStyle = 'rgba(60,40,0,0.55)';
+      ctx.lineWidth = Math.max(2, B * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(x, y + B * 0.5);
+      ctx.lineTo(x - B * 0.32, y - B * 0.1);
+      ctx.lineTo(x - B * 0.13, y - B * 0.1);
+      ctx.lineTo(x - B * 0.13, y - B * 0.6);
+      ctx.lineTo(x + B * 0.13, y - B * 0.6);
+      ctx.lineTo(x + B * 0.13, y - B * 0.1);
+      ctx.lineTo(x + B * 0.32, y - B * 0.1);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
     }
 
     function drawHearts() {
@@ -2432,6 +2473,22 @@
       }
       return { x: cellX(c) + B / 2, y: cellY(surfaceRow(c)) };
     }
+    // The first quest says "tap a tree", so there had better be one in sight.
+    function plantStarterTree() {
+      var home = colAt(hero.x);
+      for (var d = 2; d <= 8; d++) {
+        if (isTrunkCol(home + d) || isTrunkCol(home - d)) return;
+      }
+      var c = home + 4, s = surfaceRow(c);
+      for (var t = 1; t <= 3; t++) setCell(c, s + t, T.LOG);
+      for (var dc = -2; dc <= 2; dc++) {
+        for (var dr = 4; dr <= 5; dr++) {
+          if (dr === 5 && (dc < -1 || dc > 1)) continue;
+          if (cellAt(c + dc, s + dr) === T.AIR) setCell(c + dc, s + dr, T.LEAF);
+        }
+      }
+    }
+
     function freshWorld() {
       seed = Math.floor(Math.random() * 9999) + 1;
       edits = {}; fireMap = {}; fuseMap = {}; waterLvl = {};
@@ -2441,6 +2498,7 @@
       var sp = findSpawn();
       hero.x = sp.x; hero.y = sp.y;
       spawn = { x: sp.x, y: sp.y };
+      plantStarterTree();
       if (creative()) {
         // a little starter house so there's something to smash and extend
         var c0 = colAt(hero.x) + 3, s = surfaceRow(c0);
@@ -2462,7 +2520,7 @@
       centreCamera();
       document.getElementById('startOverlay').classList.add('hidden');
       toolbar.classList.remove('hidden');
-      clockBadge.className = creative() ? 'badge clock hidden' : 'badge clock';
+      clockBadge.className = fightMode ? 'badge clock' : 'badge clock hidden';   // no night in Build
       updateClock();
       buildSwatches();
       selectTool('mine');
