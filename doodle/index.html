@@ -30,6 +30,24 @@
     .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(238,242,255,0.9); max-width: 26ch; }
     .tap-hint { font-size: clamp(2.4rem, 12vw, 4rem); animation: bob 1s ease-in-out infinite; }
     @keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-10px);} }
+
+    /* Spoken instructions: neither boy reads yet, so the game can read to them. */
+    .speakbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 48px;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.18);
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      border-radius: 999px;
+    }
+    .speakbtn:active { transform: scale(0.96); }
+    .speakbtn.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -48,6 +66,7 @@
     <div class="overlay" id="startOverlay">
       <h2>🎨 Doodle</h2>
       <p>A blank page for Oisín &amp; Finley!</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
       <div class="tap-hint">👆</div>
       <p><b>Drag your finger to draw.</b> Pick a colour, brush &amp; size. Bottom row sets the page colour. ↩️ undo, 🗑️ clear.</p>
     </div>
@@ -74,6 +93,41 @@
       });
     }
     wireMute();
+
+    /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
+    function speakStart() {
+      if (muted || !window.speechSynthesis) return;
+      var o = document.getElementById('startOverlay');
+      if (!o) return;
+      var ps = o.querySelectorAll('p'), parts = [];
+      for (var i = 0; i < ps.length; i++) {
+        var t = (ps[i].textContent || '')
+          .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')   // emoji get read out by name
+          .replace(/\s+/g, ' ').trim();
+        if (!t || /^Pick\b/i.test(t)) continue;   // picker labels are for the grown-up
+        parts.push(t);
+      }
+      if (!parts.length) return;
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(parts.join(' '));
+        u.rate = 0.9; u.pitch = 1.1;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    (function wireSpeak() {
+      var b = document.getElementById('speakBtn');
+      if (!b) return;
+      if (!window.speechSynthesis) { b.className = 'speakbtn hidden'; return; }
+      b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+      b.addEventListener('click', function (e) { e.stopPropagation(); speakStart(); });
+      var mb = document.getElementById('muteBtn');
+      if (mb) mb.addEventListener('click', function () {
+        b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+        if (muted && window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      });
+    })();
 
     /* ---- Audio (Web Audio only; no files) ---- */
     var actx = null;
@@ -197,6 +251,7 @@
     }
     function undo() {
       if (!history.length) return;
+      saveArt();
       var c = history.pop();
       bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0);
       bctx.clearRect(0, 0, buffer.width, buffer.height);
@@ -284,9 +339,42 @@
       lastX = p.x; lastY = y;
       needsRender = true;
     }
-    function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; bctx.globalAlpha = 1; }
+    /* ---- Keep the drawing between visits: their work shouldn't vanish ---- */
+    var ART_KEY = 'dd_art', saveTimer = null;
+    function saveArt() {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        try {
+          var out = buffer, max = 1200;
+          var scale = Math.min(1, max / Math.max(buffer.width, buffer.height));
+          if (scale < 1) {
+            out = document.createElement('canvas');
+            out.width = Math.round(buffer.width * scale);
+            out.height = Math.round(buffer.height * scale);
+            out.getContext('2d').drawImage(buffer, 0, 0, out.width, out.height);
+          }
+          localStorage.setItem(ART_KEY, out.toDataURL('image/png'));
+        } catch (e) {}    // out of quota or private browsing: just don't persist
+      }, 700);
+    }
+    function loadArt() {
+      var data = null;
+      try { data = localStorage.getItem(ART_KEY); } catch (e) {}
+      if (!data) return;
+      var img = new Image();
+      img.onload = function () {
+        bctx.save();
+        bctx.setTransform(1, 0, 0, 1, 0, 0);
+        bctx.drawImage(img, 0, 0, buffer.width, buffer.height);
+        bctx.restore();
+        needsRender = true;
+      };
+      img.src = data;
+    }
 
-    function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); needsRender = true; }
+    function onUp() { drawing = false; bctx.globalCompositeOperation = 'source-over'; bctx.globalAlpha = 1; saveArt(); }
+
+    function clearArt() { pushHistory(); bctx.save(); bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, buffer.width, buffer.height); bctx.restore(); needsRender = true; saveArt(); }
 
     // ---------- Draw ----------
     function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -371,6 +459,7 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) needsRender = true; });
 
     resize();
+    loadArt();
     requestAnimationFrame(frame);
   })();
   </script>
