@@ -342,6 +342,53 @@
     }
     .bigbtn:active { transform: scale(0.96); }
 
+    /* The start screen leaves the top half clear so the hero preview shows through. */
+    .startscreen {
+      justify-content: flex-end;
+      background: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+    .startpanel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 560px;
+      padding: 14px 16px 16px;
+      border-radius: 22px;
+      background: rgba(16, 28, 46, 0.86);
+      border: 3px solid rgba(255, 255, 255, 0.35);
+    }
+    .startpanel > * + * { margin-top: 8px; }
+    .startrow { display: flex; align-items: center; }
+    .startrow > * + * { margin-left: 10px; }
+    .infobtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 56px;
+      min-height: 56px;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      border-radius: 999px;
+    }
+    .infobtn:active { transform: scale(0.95); }
+    #infoOverlay p { max-width: 34ch; text-align: left; }
+
+    @media (max-height: 820px) {
+      .startpanel { padding: 10px 14px 12px; }
+      .startpanel > * + * { margin-top: 5px; }
+      .modepick.small button { min-width: 58px; min-height: 56px; font-size: 1.5rem; margin: 3px; }
+      .modepick.small button span { font-size: 0.6rem; }
+      .picklabel { font-size: 0.85rem; }
+      .startpanel .bigbtn { min-height: 52px; padding: 10px 26px; }
+    }
+
     /* ---- Crafting ---- */
     #craftOverlay { background: rgba(14, 24, 42, 0.94); }
     .invstrip {
@@ -442,6 +489,7 @@
     <div class="title">⛏️ Block Craft</div>
     <div class="rightbtns">
       <button class="refresh" id="muteBtn" aria-label="Sound on or off">🔊</button>
+      <button class="refresh" id="pauseBtn" aria-label="Pause">⏸️</button>
       <div class="badge clock hidden" id="clockBadge" aria-label="Time of day">☀️</div>
       <div class="badge" id="heroBadge" aria-label="Your hero and weapon"></div>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
@@ -471,33 +519,47 @@
       <button class="bigbtn" id="photoDone">✅ Done</button>
     </div>
 
-    <div class="overlay" id="startOverlay">
-      <h2>⛏️ Block Craft</h2>
-      <p>Hi Oisín &amp; Finley! Dig deep, build big, sleep safe.</p>
-      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
-      <ul class="steps">
-        <li>👆 Tap far away to walk there</li>
-        <li>⛏️ Mine blocks — dig down for 💎</li>
-        <li>⚒️ Craft planks, a pick and a weapon</li>
-        <li>🔥 Torches keep the night friendly</li>
-      </ul>
+    <div class="overlay startscreen" id="startOverlay">
+      <div class="startpanel">
+        <div class="picklabel">Pick your hero:</div>
+        <div class="modepick small" id="charPick"></div>
 
-      <div class="picklabel">Pick your hero:</div>
-      <div class="modepick small" id="charPick"></div>
+        <div class="picklabel">Pick your weapon:</div>
+        <div class="modepick small" id="weapPick"></div>
 
-      <div class="picklabel">Pick your weapon:</div>
-      <div class="modepick small" id="weapPick"></div>
+        <div class="picklabel">Pick your world:</div>
+        <div class="modepick small" id="worldPick"></div>
 
-      <div class="picklabel">Pick your world:</div>
-      <div class="modepick small" id="worldPick"></div>
+        <div class="picklabel">How do you want to play?</div>
+        <div class="modepick small" id="playPick">
+          <button data-fight="0">🧰<span>Build</span></button>
+          <button data-fight="1">⚔️<span>Fight</span></button>
+        </div>
 
-      <div class="picklabel">Who's playing?</div>
-      <div class="modepick" id="modePick">
-        <button data-idx="0">🐣<span>Little</span></button>
-        <button data-idx="1">🦖<span>Big Kid</span></button>
+        <div class="startrow">
+          <button class="bigbtn" id="startBtn">▶️ Start</button>
+          <button class="infobtn" id="infoBtn" aria-label="How to play">ℹ️</button>
+        </div>
+        <button class="bigbtn grey hidden" id="newWorldBtn">✨ New World</button>
       </div>
-      <button class="bigbtn" id="startBtn">▶️ Start</button>
-      <button class="bigbtn grey hidden" id="newWorldBtn">✨ New World</button>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>⏸️ Paused</h2>
+      <button class="bigbtn" id="resumeBtn">▶️ Keep Playing</button>
+      <button class="bigbtn grey" id="pauseInfoBtn">ℹ️ How to play</button>
+    </div>
+
+    <div class="overlay hidden" id="infoOverlay">
+      <h2>ℹ️ How to play</h2>
+      <p>Tap somewhere far away and your hero walks there.</p>
+      <p>⛏️ Mine chips away blocks. Dig down through the dirt and stone to find coal and diamonds.</p>
+      <p>⚒️ Craft turns what you mined into things: wood becomes planks, planks become a pickaxe, planks and stone become your weapon.</p>
+      <p>🧱 Build puts a block back. You can only place blocks you are carrying.</p>
+      <p>🔥 Torches light up the dark. A bed lets you skip the night.</p>
+      <p>🧰 In <b>Build</b> nothing can hurt you. In <b>⚔️ Fight</b>, monsters come out at night — a wall, a torch and a weapon keep them off.</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+      <button class="bigbtn" id="infoDone">✅ Got it</button>
     </div>
 
     <div class="overlay hidden" id="craftOverlay">
@@ -539,7 +601,7 @@
     /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
     function speakStart() {
       if (muted || !window.speechSynthesis) return;
-      var o = document.getElementById('startOverlay');
+      var o = document.getElementById('infoOverlay') || document.getElementById('startOverlay');
       if (!o) return;
       var ps = o.querySelectorAll('p'), parts = [];
       for (var i = 0; i < ps.length; i++) {
@@ -584,7 +646,7 @@
     var swatchBar = document.getElementById('swatchBar');
     var clockBadge = document.getElementById('clockBadge');
 
-    var PHASE = { START: 0, PLAY: 1, PHOTO: 2, DIZZY: 3 };
+    var PHASE = { START: 0, PLAY: 1, PHOTO: 2, DIZZY: 3, PAUSED: 4 };
     var phase = PHASE.START;
 
     /* ---------------- Block types ---------------- */
@@ -660,9 +722,12 @@
     var worldIdx = 0;
     function world() { return WORLDS[worldIdx]; }
 
-    var MODES = [{ key: 'little', creative: true }, { key: 'big', creative: false }];
-    var modeIdx = 0;
-    function creative() { return MODES[modeIdx].creative; }
+    // Block Craft is the survival game now; the free-build sandbox is Building Blocks.
+    function creative() { return false; }
+
+    // Build mode is the same world without anything that can hurt you.
+    var fightMode = false;
+    try { fightMode = localStorage.getItem('bc_fight') === '1'; } catch (e) {}
 
     /* ---------------- World state ---------------- */
     var COLS = 160, FLOOR = -20;
@@ -682,6 +747,7 @@
     var W = 0, H = 0, dpr = 1, B = 40, groundTop = 0;
     var camX = 0, camY = 0;
     var lastTs = 0, shakeT = 0, tickT = 0, sleepT = 0, saveT = 0, autoT = 20, dirty = false;
+    var giveUpT = 0, lastProgressX = 0, lastProgressY = 0;   // stop walking at somewhere he can't reach
     var tool = 'mine', blockSel = T.DIRT;
     var clouds = [], stars = [];
 
@@ -795,7 +861,7 @@
     function cellY(r) { return -(r + 1) * B; }
 
     /* ---------------- Save / load ---------------- */
-    function saveKey() { return 'bc_w' + worldIdx + '_' + modeIdx; }
+    function saveKey() { return 'bc_w' + worldIdx + '_1'; }   // _1 keeps existing saved worlds
     function hasSave() {
       try { return !!localStorage.getItem(saveKey()); } catch (e) { return false; }
     }
@@ -967,21 +1033,22 @@
       sayProg.style.display = prog ? 'block' : 'none';
       bannerEl.classList.remove('hidden');
     }
+    function questCount() { return QUESTS.length - (fightMode ? 0 : 1); }
     function showQuest() {
-      if (creative() || questIdx >= QUESTS.length) { bannerEl.classList.add('hidden'); return; }
+      if (creative() || questIdx >= questCount()) { bannerEl.classList.add('hidden'); return; }
       var q = QUESTS[questIdx];
       setBanner(q.say, q.prog());
     }
     function checkQuest() {
-      if (creative() || questIdx >= QUESTS.length) return;
-      while (questIdx < QUESTS.length && QUESTS[questIdx].done()) {
+      if (creative() || questIdx >= questCount()) return;
+      while (questIdx < questCount() && QUESTS[questIdx].done()) {
         questIdx++;
         sWin();
         dirty = true; saveT = 0.5;
       }
-      if (questIdx >= QUESTS.length) {
+      if (questIdx >= questCount()) {
         setBanner('🎉 You did it all! Now build whatever you like.', '');
-        setTimeout(function () { if (questIdx >= QUESTS.length) bannerEl.classList.add('hidden'); }, 5000);
+        setTimeout(function () { if (questIdx >= questCount()) bannerEl.classList.add('hidden'); }, 5000);
       } else showQuest();
     }
 
@@ -1026,6 +1093,11 @@
         if (e.onGround && !solidRect(nx, e.y - B, e.w, e.h)) {
           e.y -= B * 0.98;
           e.x = nx;
+        } else if (e === hero && hero.target !== null) {
+          // Scramble up anything you walk into. Without this a child who digs
+          // straight down is stuck in a hole with no way back out.
+          e.vy = -B * 3.4;
+          e.vx = 0;
         } else {
           if (e.onGround) e.vy = -B * 15;    // hop over the obstacle
           e.vx = 0;
@@ -1059,13 +1131,22 @@
 
       if (hero.target !== null) {
         var d = hero.target - hero.x;
-        if (Math.abs(d) < B * 0.35) { hero.target = null; hero.vx = 0; }
+        if (Math.abs(d) < B * 0.35) { hero.target = null; hero.vx = 0; giveUpT = 0; }
         else {
           hero.vx = (d > 0 ? 1 : -1) * heroSpeed();
           hero.face = d > 0 ? 1 : -1;
           hero.walkPhase += dt * 11;
+          // If he can't actually get there he'd hop against the wall forever,
+          // so stop trying once he's made no headway for a moment.
+          // climbing counts as headway, or he'd give up halfway up a wall
+          if (Math.abs(hero.x - lastProgressX) + Math.abs(hero.y - lastProgressY) > B * 0.25) {
+            lastProgressX = hero.x; lastProgressY = hero.y; giveUpT = 0;
+          } else {
+            giveUpT += dt;
+            if (giveUpT > 1.6) { hero.target = null; hero.vx = 0; giveUpT = 0; }
+          }
         }
-      } else hero.vx = 0;
+      } else { hero.vx = 0; lastProgressX = hero.x; lastProgressY = hero.y; giveUpT = 0; }
 
       var climbing = (cellTypeAtPoint(hero.x, hero.y - hero.h * 0.5) === T.LADDER);
       if (climbing && hero.target !== null) hero.vy = -B * 3.2;
@@ -1078,7 +1159,7 @@
       return Math.sqrt(dx * dx + dy * dy) <= heroReach();
     }
     function hurtHero(fromX) {
-      if (invuln > 0 || creative()) return;
+      if (invuln > 0 || !fightMode) return;
       hearts--;
       invuln = 1.4; hurtT = 0.4;
       hero.vx = 0;
@@ -1345,7 +1426,7 @@
         if (mobs[i].kind === 'monster') monsters++; else animals++;
       }
       if (animals < 5 && Math.random() < dt * 0.4) spawnAnimal();
-      if (!creative() && night && monsters < 4 && Math.random() < dt * 0.5) spawnMonster();
+      if (fightMode && night && monsters < 3 && Math.random() < dt * 0.35) spawnMonster();
 
       for (i = mobs.length - 1; i >= 0; i--) {
         m = mobs[i];
@@ -1359,7 +1440,7 @@
             if (m.burnT > 1.2) { poofMob(m); mobs.splice(i, 1); continue; }
           } else m.burnT = 0;
           var d = hero.x - m.x;
-          m.vx = (d > 0 ? 1 : -1) * B * 1.9;
+          m.vx = (d > 0 ? 1 : -1) * B * 1.45;
           m.face = d > 0 ? 1 : -1;
           if (Math.abs(d) < B * 0.7 && Math.abs(hero.y - m.y) < B * 1.6) hurtHero(m.x);
         } else {
@@ -1490,7 +1571,7 @@
 
     /* ---------------- Update ---------------- */
     function update(dt) {
-      if (phase === PHASE.DIZZY) return;
+      if (phase === PHASE.DIZZY || phase === PHASE.PAUSED) return;
       if (sleepT > 0) {
         sleepT -= dt;
         if (sleepT <= 0.7 && dayT !== 0.02) {
@@ -2027,7 +2108,7 @@
       ctx.restore();
 
       if (sk.dark > 0.05 || camY > B * 2) drawLightMask(sk.dark);
-      if (!creative() && phase !== PHASE.PHOTO) drawHearts();
+      if (fightMode && phase !== PHASE.PHOTO) drawHearts();
       if (phase === PHASE.PHOTO) drawPhotoFrame(ts);
       if (sleepT > 0) drawSleep();
     }
@@ -2402,11 +2483,57 @@
       if (phase === PHASE.START) renderStartBackdrop(ts); else render(ts);
       requestAnimationFrame(frame);
     }
+    // The start screen shows the hero you picked holding the weapon you picked,
+    // in the world you picked — otherwise the pickers change nothing you can see.
+    // It draws into whatever room the controls panel leaves above it.
     function renderStartBackdrop(ts) {
       var wd = world();
       var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, wd.skyTop); g.addColorStop(1, wd.grass);
+      g.addColorStop(0, wd.skyTop); g.addColorStop(0.62, wd.skyBot); g.addColorStop(1, wd.grass);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      var panel = document.querySelector('.startpanel');
+      var free = H;
+      if (panel) {
+        var pr = panel.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+        free = Math.max(0, pr.top - cr.top);
+      }
+      if (free < 90) return;                 // no room for a preview; sky only
+
+      var groundY = free - Math.max(6, free * 0.06);
+      ctx.fillStyle = wd.dirt; ctx.fillRect(0, groundY, W, H - groundY);
+      ctx.fillStyle = wd.grass; ctx.fillRect(0, groundY, W, Math.max(6, free * 0.05));
+
+      var s = Math.min(free * 0.6, W * 0.42);   // the weapon is held aloft, so leave headroom
+      ctx.save();
+      ctx.translate(W * 0.5, groundY - s * 0.5 + Math.sin(ts / 520) * s * 0.012);
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.beginPath(); ctx.ellipse(0, s * 0.5, s * 0.3, s * 0.06, 0, 0, 6.28); ctx.fill();
+
+      var ch = CHARS[charIdx];
+      ctx.fillStyle = ch.legs;
+      rr(-s * 0.18, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
+      rr(s * 0.03, s * 0.12, s * 0.15, s * 0.3, s * 0.05); ctx.fill();
+      ctx.fillStyle = ch.boots;
+      rr(-s * 0.2, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
+      rr(s * 0.01, s * 0.38, s * 0.19, s * 0.1, s * 0.03); ctx.fill();
+      ctx.fillStyle = ch.shirt;
+      rr(-s * 0.24, -s * 0.12, s * 0.48, s * 0.3, s * 0.08); ctx.fill();
+      ctx.fillStyle = ch.boots;
+      rr(-s * 0.24, s * 0.12, s * 0.48, s * 0.06, s * 0.02); ctx.fill();
+      ctx.fillStyle = ch.shirt2;
+      rr(-s * 0.2, -s * 0.08, s * 0.1, s * 0.24, s * 0.05); ctx.fill();
+      drawHead(s, ch, ts);
+
+      ctx.save();
+      ctx.translate(s * 0.16, -s * 0.02);
+      ctx.rotate(-0.35);
+      ctx.fillStyle = ch.skin;
+      rr(-s * 0.06, -s * 0.02, s * 0.12, s * 0.26, s * 0.05); ctx.fill();
+      ctx.translate(0, s * 0.22);
+      drawWeapon(s, WEAPONS[weapIdx].key, ts);
+      ctx.restore();
+      ctx.restore();
     }
 
     /* ---------------- Wire up ---------------- */
@@ -2419,29 +2546,7 @@
       location.reload();
     });
 
-    var modeBtns = document.querySelectorAll('#modePick button');
-    function updateModePick() {
-      for (var i = 0; i < modeBtns.length; i++) {
-        modeBtns[i].className = (+modeBtns[i].getAttribute('data-idx') === modeIdx) ? 'sel' : '';
-      }
-      updateStartButtons();
-    }
-    (function initMode() {
-      var saved = null;
-      try { saved = localStorage.getItem('bc_mode'); } catch (e) {}
-      if (saved !== null && MODES[+saved]) modeIdx = +saved;
-      updateModePick();
-    })();
-    for (var mi = 0; mi < modeBtns.length; mi++) {
-      (function (b) {
-        b.addEventListener('click', function (e) {
-          e.stopPropagation(); audio();
-          modeIdx = +b.getAttribute('data-idx');
-          try { localStorage.setItem('bc_mode', String(modeIdx)); } catch (er) {}
-          updateModePick();
-        });
-      })(modeBtns[mi]);
-    }
+    updateStartButtons();
 
     function updateStartButtons() {
       var has = hasSave();
@@ -2505,6 +2610,54 @@
     document.getElementById('newWorldBtn').addEventListener('click', function (e) {
       e.stopPropagation(); audio(); wipeSave(); startGame(true);
     });
+    (function initPlayPick() {
+      var btns = document.querySelectorAll('#playPick button');
+      function mark() {
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].className = ((btns[i].getAttribute('data-fight') === '1') === fightMode) ? 'sel' : '';
+        }
+      }
+      for (var i = 0; i < btns.length; i++) {
+        (function (b) {
+          b.addEventListener('click', function (e) {
+            e.stopPropagation(); audio();
+            fightMode = b.getAttribute('data-fight') === '1';
+            try { localStorage.setItem('bc_fight', fightMode ? '1' : '0'); } catch (er) {}
+            mark();
+          });
+        })(btns[i]);
+      }
+      mark();
+    })();
+
+    function showInfo() {
+      document.getElementById('infoOverlay').classList.remove('hidden');
+    }
+    document.getElementById('infoBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio(); showInfo();
+    });
+    document.getElementById('pauseInfoBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio(); showInfo();
+    });
+    document.getElementById('infoDone').addEventListener('click', function (e) {
+      e.stopPropagation(); audio();
+      document.getElementById('infoOverlay').classList.add('hidden');
+      if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+    });
+    document.getElementById('pauseBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio();
+      if (phase === PHASE.PLAY) {
+        phase = PHASE.PAUSED;
+        document.getElementById('pauseOverlay').classList.remove('hidden');
+      }
+    });
+    document.getElementById('resumeBtn').addEventListener('click', function (e) {
+      e.stopPropagation(); audio();
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      document.getElementById('infoOverlay').classList.add('hidden');
+      if (phase === PHASE.PAUSED) { phase = PHASE.PLAY; lastTs = 0; }
+    });
+
     document.getElementById('craftDone').addEventListener('click', function (e) {
       e.stopPropagation(); audio();
       document.getElementById('craftOverlay').classList.add('hidden');
