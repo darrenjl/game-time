@@ -202,7 +202,8 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 82px;
+      bottom: 104px;          /* clears the 82px toolbar sitting 10px off the bottom */
+      bottom: calc(104px + env(safe-area-inset-bottom));
       display: flex;
       justify-content: center;
       z-index: 5;
@@ -342,6 +343,7 @@
     .bigbtn:active { transform: scale(0.96); }
 
     /* ---- Crafting ---- */
+    #craftOverlay { background: rgba(14, 24, 42, 0.94); }
     .invstrip {
       display: flex;
       flex-wrap: wrap;
@@ -377,11 +379,11 @@
       border-radius: 16px;
       cursor: pointer;
       color: #fff;
-      background: rgba(255,255,255,0.14);
+      background: rgba(10, 20, 38, 0.9);   /* opaque: the game scene shows through the overlay */
       border: 3px solid rgba(255,255,255,0.4);
     }
-    .recipes button.can { border-color: var(--gold); background: rgba(255,209,102,0.22); }
-    .recipes button.cant { opacity: 0.45; }
+    .recipes button.can { border-color: var(--gold); background: rgba(120, 88, 20, 0.92); }
+    .recipes button.cant { opacity: 0.55; }
     .recipes button:active { transform: scale(0.95); }
     .recipes canvas { display: block; width: 34px; height: 34px; }
     .recipes .plus, .recipes .arrow {
@@ -1373,9 +1375,13 @@
       if (t < 0.88) return 1;
       return 1 - (t - 0.88) / 0.12;
     }
+    var skyStep = -1;
     function updateClock() {
       var d = darkness();
       clockBadge.textContent = d > 0.6 ? '🌙' : (d > 0.15 ? '🌆' : '☀️');
+      // the page background shows around the canvas, so it has to darken too
+      var step = Math.round(d * 12);
+      if (step !== skyStep) { skyStep = step; applyWorldTheme(d); }
     }
 
     /* ---------------- Input ---------------- */
@@ -2400,12 +2406,23 @@
     buildPicker('charPick', CHARS, 'bc_char', function () { return charIdx; }, function (v) { charIdx = v; updateBadge(); });
     buildPicker('weapPick', WEAPONS, 'bc_weap', function () { return weapIdx; }, function (v) { weapIdx = v; updateBadge(); });
     updateBadge();
-    function applyWorldTheme() {
+    function applyWorldTheme(dark) {
       var wd = world();
-      document.body.style.background = 'linear-gradient(180deg,' + wd.skyTop + ' 0%,' + wd.skyBot + ' 55%,' + wd.grass + ' 100%)';
-      updateStartButtons();
+      var d = dark || 0;
+      if (wd.dusk) d = Math.max(d, 0.55);
+      document.body.style.background = 'linear-gradient(180deg,' +
+        mixHex(wd.skyTop, '#0e1430', d) + ' 0%,' +
+        mixHex(wd.skyBot, '#232a52', d) + ' 55%,' +
+        mixHex(wd.grass, '#16301c', d) + ' 100%)';
     }
-    buildPicker('worldPick', WORLDS, 'bc_world', function () { return worldIdx; }, function (v) { worldIdx = v; applyWorldTheme(); });
+    buildPicker('worldPick', WORLDS, 'bc_world', function () {
+      return worldIdx;
+    }, function (v) {
+      worldIdx = v;
+      skyStep = -1;
+      applyWorldTheme();
+      updateStartButtons();
+    });
     applyWorldTheme();
 
     document.getElementById('startBtn').addEventListener('click', function (e) {
