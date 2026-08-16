@@ -168,6 +168,24 @@
       cursor: pointer;
     }
     .bigbtn:active { transform: scale(0.96); }
+
+    /* Spoken instructions: neither boy reads yet, so the game can read to them. */
+    .speakbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 48px;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.18);
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      border-radius: 999px;
+    }
+    .speakbtn:active { transform: scale(0.96); }
+    .speakbtn.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -190,6 +208,7 @@
       <div class="tap-hint">👆</div>
       <p><b>Tap anywhere to jump.</b> Tap again in the air for a rocket boost!</p>
       <p>Pick a speed (or change it with ⏸️):</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
       <div class="speedpick" id="speedPickStart">
         <button data-idx="0">🐢<span>Chill</span></button>
         <button data-idx="1">🙂<span>Normal</span></button>
@@ -238,6 +257,41 @@
       });
     }
     wireMute();
+
+    /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
+    function speakStart() {
+      if (muted || !window.speechSynthesis) return;
+      var o = document.getElementById('startOverlay');
+      if (!o) return;
+      var ps = o.querySelectorAll('p'), parts = [];
+      for (var i = 0; i < ps.length; i++) {
+        var t = (ps[i].textContent || '')
+          .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')   // emoji get read out by name
+          .replace(/\s+/g, ' ').trim();
+        if (!t || /^Pick\b/i.test(t)) continue;   // picker labels are for the grown-up
+        parts.push(t);
+      }
+      if (!parts.length) return;
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(parts.join(' '));
+        u.rate = 0.9; u.pitch = 1.1;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    (function wireSpeak() {
+      var b = document.getElementById('speakBtn');
+      if (!b) return;
+      if (!window.speechSynthesis) { b.className = 'speakbtn hidden'; return; }
+      b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+      b.addEventListener('click', function (e) { e.stopPropagation(); speakStart(); });
+      var mb = document.getElementById('muteBtn');
+      if (mb) mb.addEventListener('click', function () {
+        b.className = muted ? 'speakbtn hidden' : 'speakbtn';
+        if (muted && window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      });
+    })();
 
     /* ---- Audio (Web Audio only; no files) ---- */
     var actx = null;
