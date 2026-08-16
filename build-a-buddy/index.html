@@ -205,6 +205,25 @@
     .overlay p { font-size: 1.05rem; font-size: clamp(0.95rem, 4vw, 1.2rem); color: rgba(255, 243, 251, 0.85); max-width: 24ch; }
     .overlay .btnrow { display: flex; flex-wrap: wrap; justify-content: center; }
     .overlay .btnrow > * + * { margin-left: 12px; }
+
+    /* How-to-play lives behind an ℹ️ button in the pause menu. */
+    .speakbtn {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 48px;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.18);
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      border-radius: 999px;
+    }
+    .speakbtn:active { transform: scale(0.96); }
+    .speakbtn.hidden { display: none; }
+    #infoOverlay p { text-align: left; max-width: 32ch; }
   </style>
 </head>
 <body>
@@ -213,6 +232,7 @@
     <div class="score" id="score"></div>
     <div class="rightbtns">
       <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
+      <button class="pause" id="infoBtn" aria-label="How to play">ℹ️</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -230,6 +250,15 @@
         <button class="speedbtn" data-idx="2">🐇<span>Fast</span></button>
       </div>
       <button class="bigbtn" id="resumeBtn">▶️ Resume</button>
+      <button class="bigbtn" id="pauseInfoBtn">ℹ️ How to play</button>
+    </div>
+
+    <div class="overlay hidden" id="infoOverlay">
+      <h2>ℹ️ How to play</h2>
+      <p>Tap the pictures along the bottom to build your buddy — the animal, the colour, a hat, and the treat it likes best.</p>
+      <p><b>Then slide your finger</b> to move your buddy and catch the treats as they fall. Miss five and the round ends.</p>
+      <button class="speakbtn" id="speakBtn">🗣️ Tell me how</button>
+      <button class="bigbtn" id="infoDone">✅ Got it</button>
     </div>
 
     <div class="overlay hidden" id="overOverlay">
@@ -276,6 +305,47 @@
       });
     }
     wireMute();
+
+    /* ---- How to play + read aloud ---- */
+    function speakStart() {
+      if (muted || !window.speechSynthesis) return;
+      var o = document.getElementById('infoOverlay');
+      if (!o) return;
+      var ps = o.querySelectorAll('p'), parts = [];
+      for (var i = 0; i < ps.length; i++) {
+        var t = (ps[i].textContent || '')
+          .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')
+          .replace(/\s+/g, ' ').trim();
+        if (t) parts.push(t);
+      }
+      if (!parts.length) return;
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(parts.join(' '));
+        u.rate = 0.9; u.pitch = 1.1;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    (function wireInfo() {
+      var panel = document.getElementById('infoOverlay');
+      var sp = document.getElementById('speakBtn');
+      if (sp) {
+        if (!window.speechSynthesis) sp.className = 'speakbtn hidden';
+        else sp.addEventListener('click', function (e) { e.stopPropagation(); speakStart(); });
+      }
+      var b1 = document.getElementById('infoBtn');
+      if (b1) b1.addEventListener('click', function (e) { e.stopPropagation(); panel.classList.remove('hidden'); });
+      var b2 = document.getElementById('pauseInfoBtn'), b3 = document.getElementById('infoDone');
+      if (b2) b2.addEventListener('click', function (e) { e.stopPropagation(); panel.classList.remove('hidden'); });
+      if (b3) b3.addEventListener('click', function (e) {
+        e.stopPropagation();
+        panel.classList.add('hidden');
+        if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+      });
+      panel.addEventListener('touchstart', function (e) { e.stopPropagation(); }, { passive: false });
+      panel.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    })();
 
     /* ---- Audio (Web Audio only; no files) ---- */
     var actx = null;
