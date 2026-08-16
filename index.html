@@ -174,6 +174,63 @@
       color: var(--gold);
     }
 
+    /* ---- Favourites ---- */
+    .favs { margin-top: 10px; }
+    .favs h2 {
+      font-size: 1.35rem;
+      font-size: clamp(1.15rem, 5vw, 1.7rem);
+      letter-spacing: 0.02em;
+      color: var(--gold);
+    }
+    /* Fixed-width tracks so a single favourite doesn't stretch across the page. */
+    .favs .grid {
+      margin-top: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 210px));
+      justify-content: center;
+    }
+    .favhint {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      font-size: clamp(0.8rem, 3.4vw, 1rem);
+      color: rgba(234, 246, 255, 0.55);
+    }
+
+    /* ---- Card slot + favourite star ---- */
+    .slot { position: relative; display: flex; }
+    .slot > .card { flex: 1 1 auto; }
+    .fav {
+      -webkit-appearance: none;
+      appearance: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 46px;
+      min-height: 46px;
+      padding: 0;
+      border-radius: 999px;
+      font-size: 1.45rem;
+      line-height: 1;
+      cursor: pointer;
+      background: rgba(2, 16, 36, 0.55);
+      border: 2px solid rgba(234, 246, 255, 0.22);
+      opacity: 0.5;
+      filter: grayscale(1);
+      transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    }
+    .fav:active { transform: scale(0.86); }
+    .fav.on {
+      opacity: 1;
+      filter: none;
+      border-color: var(--gold);
+      background: rgba(255, 209, 102, 0.22);
+      box-shadow: 0 0 16px rgba(255, 209, 102, 0.45);
+    }
+    .slot.faved > .card { border-color: rgba(255, 209, 102, 0.7); }
+
     footer {
       font-size: 0.82rem;
       font-size: clamp(0.72rem, 3vw, 0.9rem);
@@ -191,6 +248,12 @@
     <h1>🐙 Oisín &amp; Finley's Arcade 🎮</h1>
     <p>Pick a game and dive in!</p>
   </header>
+
+  <section class="favs" id="favSection">
+    <h2>⭐ Favourites</h2>
+    <div class="grid" id="favGrid"></div>
+    <p class="favhint" id="favHint">Tap ⭐ on any game to put it up here.</p>
+  </section>
 
   <main>
     <div class="grid">
@@ -351,6 +414,83 @@
         b.style.animationDelay = (-Math.random() * 12) + 's';
         layer.appendChild(b);
       }
+    })();
+
+    // Favourites live on the tablet, not per player. The star sits beside the card
+    // rather than inside it, so tapping it never follows the game link.
+    (function () {
+      var FAVS_KEY = 'gt_favs';
+      var favGrid = document.getElementById('favGrid');
+      var favHint = document.getElementById('favHint');
+      var slots = {};
+
+      function favs() {
+        try { return JSON.parse(localStorage.getItem(FAVS_KEY) || '[]') || []; } catch (e) { return []; }
+      }
+      function isFav(href) { return favs().indexOf(href) >= 0; }
+      function toggleFav(href) {
+        var list = favs(), i = list.indexOf(href);
+        if (i >= 0) list.splice(i, 1); else list.push(href);
+        try { localStorage.setItem(FAVS_KEY, JSON.stringify(list)); } catch (e) {}
+        render();
+      }
+
+      function makeStar(href) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'fav';
+        b.textContent = '⭐';
+        b.setAttribute('data-href', href);
+        return b;
+      }
+
+      // Wrap every card so the star has something to sit on top of.
+      (function wrapCards() {
+        var cards = document.querySelectorAll('main .grid > a.card');
+        for (var i = 0; i < cards.length; i++) {
+          var card = cards[i];
+          var href = card.getAttribute('href');
+          var slot = document.createElement('div');
+          slot.className = 'slot';
+          card.parentNode.insertBefore(slot, card);
+          slot.appendChild(card);
+          slot.appendChild(makeStar(href));
+          slots[href] = slot;
+        }
+      })();
+
+      function render() {
+        var list = favs(), shown = 0, i;
+        favGrid.innerHTML = '';
+        for (i = 0; i < list.length; i++) {
+          var src = slots[list[i]];
+          if (!src) continue;                 // a game that has since been removed
+          favGrid.appendChild(src.cloneNode(true));
+          shown++;
+        }
+        favGrid.style.display = shown ? 'grid' : 'none';
+        favHint.style.display = shown ? 'none' : 'block';
+
+        var stars = document.querySelectorAll('.fav');
+        for (i = 0; i < stars.length; i++) {
+          var on = isFav(stars[i].getAttribute('data-href'));
+          stars[i].className = on ? 'fav on' : 'fav';
+          stars[i].setAttribute('aria-label', on ? 'Remove from favourites' : 'Add to favourites');
+          stars[i].parentNode.className = on ? 'slot faved' : 'slot';
+        }
+      }
+
+      document.addEventListener('click', function (e) {
+        var n = e.target;
+        while (n && n !== document && !(n.nodeName === 'BUTTON' && n.getAttribute('data-href'))) {
+          n = n.parentNode;
+        }
+        if (!n || n === document) return;
+        e.preventDefault();
+        toggleFav(n.getAttribute('data-href'));
+      }, false);
+
+      render();
     })();
 
     // Manual refresh so the home-screen app can pull in newly added games.
