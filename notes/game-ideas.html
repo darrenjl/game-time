@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ten Games For Oisín</title>
+<style>
+  :root {
+    --ground: #f7f7f5;
+    --surface: #ffffff;
+    --surface-2: #efefec;
+    --ink: #1c1a17;
+    --ink-soft: #57534c;
+    --ink-faint: #8a857b;
+    --rule: #ddddd7;
+    --accent: #9a5b12;
+    --accent-soft: #f6e9d6;
+    --teal: #0d6f6a;
+    --teal-soft: #dcefed;
+    --coral: #a8332f;
+    --coral-soft: #f7e2e0;
+    --shadow: 0 1px 2px rgba(28, 26, 23, .06), 0 10px 26px -18px rgba(28, 26, 23, .45);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #16150f;
+      --surface: #201e17;
+      --surface-2: #2b2820;
+      --ink: #f0ece2;
+      --ink-soft: #bab4a6;
+      --ink-faint: #8e887a;
+      --rule: #3a362c;
+      --accent: #e3a950;
+      --accent-soft: #33280f;
+      --teal: #6fd3c8;
+      --teal-soft: #10302e;
+      --coral: #f08a80;
+      --coral-soft: #331916;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 26px -18px rgba(0, 0, 0, .9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #16150f;
+    --surface: #201e17;
+    --surface-2: #2b2820;
+    --ink: #f0ece2;
+    --ink-soft: #bab4a6;
+    --ink-faint: #8e887a;
+    --rule: #3a362c;
+    --accent: #e3a950;
+    --accent-soft: #33280f;
+    --teal: #6fd3c8;
+    --teal-soft: #10302e;
+    --coral: #f08a80;
+    --coral-soft: #331916;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 26px -18px rgba(0, 0, 0, .9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 20px 90px;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .prose { max-width: 66ch; }
+  h1, h2, h3, h4, .ui { font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
+
+  header.top { padding: 56px 0 26px; border-bottom: 3px solid var(--ink); }
+  .eyebrow {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 12px; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 40px; font-size: clamp(30px, 6vw, 46px);
+    line-height: 1.08; letter-spacing: -.02em; margin: 0 0 14px; text-wrap: balance;
+  }
+  .standfirst { max-width: 62ch; margin: 0; font-size: 19px; color: var(--ink-soft); }
+
+  section { padding: 46px 0 0; }
+  h2 { font-size: 25px; letter-spacing: -.01em; margin: 0 0 6px; text-wrap: balance; }
+  h2 .num { color: var(--ink-faint); font-variant-numeric: tabular-nums; font-size: 15px; margin-right: 10px; }
+  .lede { color: var(--ink-soft); margin: 0 0 20px; max-width: 62ch; }
+  h3 { font-size: 18px; margin: 24px 0 6px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+  ul.plain { margin: 0 0 14px; padding-left: 20px; }
+  ul.plain li { margin-bottom: 7px; }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .87em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .absent {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px; margin: 20px 0 0;
+  }
+  .absent div {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .absent b {
+    display: block; font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; margin-bottom: 3px;
+  }
+  .absent span { font-size: 14.5px; color: var(--ink-soft); }
+
+  .game {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 20px 22px; margin: 0 0 16px; box-shadow: var(--shadow);
+  }
+  .game.top-pick { border-color: var(--accent); border-width: 2px; }
+  .game .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .game h3 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
+  .game .kicker {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 12.5px; color: var(--ink-faint); letter-spacing: .04em; text-transform: uppercase;
+  }
+  .game p { margin: 0 0 12px; }
+  .game p.why { color: var(--ink-soft); }
+
+  .spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+    background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+  .spec div { background: var(--surface); padding: 9px 12px; }
+  .spec dt {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 2px;
+  }
+  .spec dd {
+    margin: 0; font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.35;
+  }
+  .pill {
+    display: inline-block; font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px;
+  }
+  .pill.easy { background: var(--teal-soft); color: var(--teal); }
+  .pill.medium { background: var(--accent-soft); color: var(--accent); }
+  .pill.hard { background: var(--coral-soft); color: var(--coral); }
+  .pill.rank { background: var(--ink); color: var(--ground); }
+
+  .rankgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 18px; }
+  .rankgrid .card {
+    background: var(--surface); border: 1px solid var(--rule); border-top: 4px solid var(--accent);
+    border-radius: 10px; padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .rankgrid h4 { margin: 8px 0 6px; font-size: 17px; }
+  .rankgrid p { font-size: 15px; color: var(--ink-soft); margin: 0; }
+
+  .killed { border-left: 5px solid var(--coral); }
+  .killed h3 { margin-top: 0; }
+
+  .callout {
+    background: var(--accent-soft); border-radius: 10px; padding: 18px 20px; margin: 22px 0 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout b { font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--rule);
+    color: var(--ink-faint);
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; font-size: 13px;
+  }
+  footer a { color: var(--ink-faint); }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Proposals · What to build next</p>
+  <h1>Ten games for Oisín</h1>
+  <p class="standfirst">The arcade has twenty-three games and four verbs. These ten add the verbs a six-year-old has just grown into — planning ahead, spending something, taking a turn, living with a consequence that arrives later.</p>
+</header>
+
+<section>
+  <h2><span class="num">01</span>What's structurally missing</h2>
+  <p class="lede prose">Not "more games" — these are whole categories of children's play that the library currently has none of.</p>
+
+  <div class="absent">
+    <div><b>Plan, then execute</b><span>Every game is reactive: a thing appears, you touch it. Nothing lets a child commit to a plan and then watch it play out.</span></div>
+    <div><b>Something to spend</b><span>No currency, no limited moves, no choosing between two things you can't both have.</span></div>
+    <div><b>Turn-taking</b><span>Two brothers, one iPad, and not a single game either of them can play against the other.</span></div>
+    <div><b>Thinking time</b><span>Everything is real-time. Nothing rewards stopping to look, which is where a six-year-old's new abilities actually live.</span></div>
+    <div><b>Work that lasts</b><span>Mostly fixed: Block Craft's world, the Potty Crew's potty, Build-a-Buddy's buddy and Doodle's drawing now all survive being closed.</span></div>
+    <div><b>Aim with force</b><span>No slingshot, no throwing, no angle-and-power. A whole family of physical intuition games is absent.</span></div>
+    <div><b>Authorship</b><span>Doodle aside, nothing lets Oisín <i>make</i> something that Finley can then play with.</span></div>
+    <div><b>Rhythm</b><span>Animal Band is a toy keyboard, not a game. Nothing asks for timing to a beat.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Why six is the turning point</h2>
+  <div class="prose">
+    <p>Between six and seven a child moves from mostly concrete thinking toward the beginnings of abstract thought, and — most relevant here — becomes able to <b>form a simple plan before acting</b> rather than acting and seeing what happens (<a href="https://www.scholastic.com/parents/family-life/creativity-and-critical-thinking/development-milestones/cognitive-development-6-7-year-olds.html">Scholastic</a>). Increased memory, longer attention span and better impulse control arrive alongside, and together they support persistence on a task that isn't immediately rewarding (<a href="https://www.apa.org/act/resources/fact-sheets/development-10-years">APA</a>).</p>
+    <p>The second shift is social: six-year-olds become genuinely interested in <b>rules and fairness</b>, because they're starting to see themselves as part of a system. Rule-based games are how that gets practised — winning and losing, negotiating, taking turns (<a href="https://www.virtuallabschool.org/school-age/cognitive-development/lesson-2">Virtual Lab School</a>). This is exactly why board games aimed at six start expecting strategy, memory and planning rather than pure luck (<a href="https://thetabletopfamily.com/great-games-for-6-year-olds/">The Tabletop Family</a>).</p>
+    <p>What makes a game hold a child of this age isn't difficulty — it's <b>agency and visible mastery</b>: meaningful choices under interesting constraints, with feedback that makes the consequence of the choice legible (<a href="https://amyjokim.medium.com/what-makes-games-so-engaging-2a06ca3eadf1">Amy Jo Kim</a>; <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4628212/">Learning by Playing, PMC</a>). A high score is feedback about a reflex. A tower you placed that stopped the wave is feedback about a decision — and that's the difference between the current library and what follows.</p>
+    <p>Worth noting what this <i>doesn't</i> mean: harder reflexes, longer sessions, or more text. Quick play still suits short attention spans at this age. Depth belongs in the decision, not the duration.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The ten</h2>
+  <p class="lede prose">Every one of these fits in a single file with canvas graphics and runs on the iPad mini 2. Difficulty ratings are honest about where the work is.</p>
+
+  <article class="game top-pick">
+    <div class="head"><h3>Robot Run</h3><span class="kicker">Plan then execute · <span class="pill rank">Top pick</span></span></div>
+    <p>A robot stands on a grid with a star somewhere else on it. Down the side is an empty strip of slots. Oisín taps arrow buttons to fill the strip — forward, forward, turn, forward — then presses the big green GO and watches the robot run the whole program. If it walks into the wall, he sees exactly which step was wrong, fixes that slot, and runs it again.</p>
+    <p class="why">This is the purest form of the thing his library never asks for: commit to a plan, watch the consequence arrive, debug it. It's the Bee-Bot model used in infant classrooms for exactly this age, descended from Papert's LOGO turtle (<a href="https://www.terrapinlogo.com/beebot-ss.html">Terrapin</a>, <a href="https://www.sfusd.edu/departments/computer-science-department/computer-science-curriculum/k-2-computer-science-curriculum/k-2-computer-science-curriculum-orange/k-2-computer-science-orange-unit-2-bee-bots">SFUSD K-2 curriculum</a>). Failure costs nothing but a retry, so it invites persistence instead of punishing it.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Tap arrows to append, tap a slot to delete, big GO</dd></div>
+      <div><dt>Session</dt><dd>2–4 min per level</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> grid + queue + step animation; no physics</dd></div>
+      <div><dt>Finley</dt><dd>Yes — 3-slot levels, no walls</dd></div>
+    </dl>
+  </article>
+
+  <article class="game top-pick">
+    <div class="head"><h3>Garden Guard</h3><span class="kicker">Resource management · <span class="pill rank">Top pick</span></span></div>
+    <p>Pigeons waddle along a fixed path toward the picnic blanket. Before each wave, Oisín spends coins on defences — a sprinkler that slows them, a scarecrow that shoos them, a dog that covers a wide patch — and drags them onto the grass. Waves get bigger; surviving one pays for the next.</p>
+    <p class="why">Tower defence is the cleanest introduction to spending a limited resource on a bet about the future, and the good ones look cartoon-simple while playing deep (<a href="https://www.gamespot.com/gallery/best-tower-defense-games/2900-6140/">GameSpot</a>). It reuses the Bob the Destructor world, so the art is already designed. Crucially the decision happens between waves, at rest — no reflex required, which is why it suits six rather than sixteen.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Drag from a tray onto the grass; tap a tower to upgrade</dd></div>
+      <div><dt>Session</dt><dd>6–10 min for a full run</dd></div>
+      <div><dt>Build</dt><dd><span class="pill hard">Hard</span> waves and balance take tuning; keep the path fixed and precomputed</dd></div>
+      <div><dt>Finley</dt><dd>Sandbox mode — infinite coins, pigeons never win</dd></div>
+    </dl>
+  </article>
+
+  <article class="game top-pick">
+    <div class="head"><h3>Sandcastle Duel</h3><span class="kicker">Two players, one iPad · <span class="pill rank">Top pick</span></span></div>
+    <p>Two sandcastles, one on each side of the screen. Oisín drags back from his castle to set the angle and power of a water balloon, releases, and watches the arc. Then he hands the iPad to Finley for his turn. Hits knock blocks off the other castle; first to flatten the other wins.</p>
+    <p class="why">The only game in the library the two of them could play <i>together</i>, and it lands directly on the fairness-and-turn-taking interest that arrives at six. It also adds the aim-with-force verb that nothing else has. The handover is the whole social point: waiting for your turn is the skill.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Drag back and release; a dotted arc previews the shot</dd></div>
+      <div><dt>Session</dt><dd>3–6 min a match</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> projectile arc is trivial; keep blocks axis-aligned and topple them without rotation</dd></div>
+      <div><dt>Finley</dt><dd>Yes — this is his best route into a "real" game, with a bigger target</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Crate Cave</h3><span class="kicker">Spatial puzzle</span></div>
+    <p>Sokoban with a friendly face: push crates onto glowing pads to open the door. Push a crate into a corner and it's stuck — so you have to look before you move. An undo button and a reset make experimenting free.</p>
+    <p class="why">Pure planning with zero time pressure, and the failure state is recoverable rather than punishing. Difficulty scales enormously from two crates to genuinely hard, so it grows with him for years.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Swipe to step, or tap the square to walk to</dd></div>
+      <div><dt>Session</dt><dd>1–3 min a level</dd></div>
+      <div><dt>Build</dt><dd><span class="pill easy">Easy</span> grid logic is a few dozen lines; the work is designing levels</dd></div>
+      <div><dt>Finley</dt><dd>Two-crate levels, yes</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Scoop Shop</h3><span class="kicker">Multi-step goals</span></div>
+    <p>Customers arrive holding a picture of what they want: two scoops, strawberry on top, sprinkles. Build it in the right order before they wander off, hand it over, next customer. Every flavour and topping is on the counter from the first day — what grows is the length and awkwardness of the orders.</p>
+    <p class="why">Sequencing and working memory under mild time pressure, with the order shown as a picture so nothing needs reading. The difficulty comes from the orders themselves rather than from withholding ingredients until he's played enough — he should be able to make the ridiculous seven-scoop thing on day one if he wants to.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Tap ingredients in order; tap to serve</dd></div>
+      <div><dt>Session</dt><dd>5 min a shift</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> mostly UI and state; no physics, no pathing</dd></div>
+      <div><dt>Finley</dt><dd>Yes — one-item orders, no patience timer</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Where's the Bone?</h3><span class="kicker">Deduction</span></div>
+    <p>A grid of grass squares with a bone buried under one. Each dig tells you how close you are — the dog barks louder, or the square glows warmer. You get eight digs. Work it out.</p>
+    <p class="why">Deduction under a hard limit: the first dig is free information, every one after that should be chosen. It teaches that a move can be worth making purely to learn something, which is a genuinely new idea at six.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Tap a square to dig</dd></div>
+      <div><dt>Session</dt><dd>1–2 min a round</dd></div>
+      <div><dt>Build</dt><dd><span class="pill easy">Easy</span> the whole game is a grid and a distance function</dd></div>
+      <div><dt>Finley</dt><dd>Yes — smaller grid, hotter hints, unlimited digs</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Maze Maker</h3><span class="kicker">Authorship</span></div>
+    <p>Oisín draws a maze by dragging walls, drops in a start, a treasure and a few coins, then hits Play to test it. Saved mazes appear as tiles — including in Finley's list, so the little one plays the big one's levels.</p>
+    <p class="why">Creation is a category the library has almost none of, and building a level for your brother is a different and better motivation than beating a score. It also quietly rehabilitates the two weakest games by turning their maze engine into a toy.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Drag to paint walls; tap to place items; Play to test</dd></div>
+      <div><dt>Session</dt><dd>Open-ended</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> editor plus player plus saved-level storage</dd></div>
+      <div><dt>Finley</dt><dd>As a player of Oisín's mazes, yes</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Gem Cascade</h3><span class="kicker">Pattern and foresight</span></div>
+    <p>Swap two neighbouring gems to line up three or more; they pop, everything falls, and if the fall makes another match you get a cascade for free. Levels ask for goals — "clear 12 blue" — rather than running forever.</p>
+    <p class="why">Match-3 is the most reliably absorbing puzzle format there is for this age, and the good move is always one step of foresight away. The cascade is the hook: a small decision producing a large, delightful consequence.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Swipe a gem toward its neighbour</dd></div>
+      <div><dt>Session</dt><dd>3–5 min a level</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> match detection and gravity are fiddly to get right but well-trodden</dd></div>
+      <div><dt>Finley</dt><dd>Yes — no timer, big gems, hint after 10 seconds</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Pancake Chef</h3><span class="kicker">Timing and sequence</span></div>
+    <p>Follow a picture recipe: pour the batter, wait for the bubbles, flip at the right moment, stack, add the topping. Flip too early and it's raw; too late and it's black. Serve a stack to order.</p>
+    <p class="why">Sequencing with a timing window attached — a step you must do in the right order <i>and</i> at the right moment. That combination doesn't exist anywhere in the library, and the feedback (a golden pancake versus a burnt one) is immediate and completely readable without words.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Tap to pour, swipe up to flip, drag to plate</dd></div>
+      <div><dt>Session</dt><dd>3–5 min</dd></div>
+      <div><dt>Build</dt><dd><span class="pill easy">Easy</span> a state machine and a timer per pancake</dd></div>
+      <div><dt>Finley</dt><dd>Yes — generous windows, nothing ever burns</dd></div>
+    </dl>
+  </article>
+
+  <article class="game">
+    <div class="head"><h3>Band Practice</h3><span class="kicker">Rhythm</span></div>
+    <p>The Animal Band characters line up along the bottom. Notes drift down onto them and you tap each animal as its note lands. Get a run right and the animals start dancing and a backing track builds underneath.</p>
+    <p class="why">Turns an existing toy into a game with a skill curve, and uses the one sense the library barely exploits. Rhythm is also the most physically satisfying thing a touchscreen can do well.</p>
+    <dl class="spec">
+      <div><dt>Controls</dt><dd>Tap an animal as its note arrives</dd></div>
+      <div><dt>Session</dt><dd>90 seconds a song</dd></div>
+      <div><dt>Build</dt><dd><span class="pill medium">Medium</span> Web Audio clock for scheduling; needs generous hit windows on the old iPad</dd></div>
+      <div><dt>Finley</dt><dd>Yes — free-play mode is the existing Animal Band</dd></div>
+    </dl>
+  </article>
+
+  <div class="callout">
+    <p><b>What not to build.</b> The obvious suggestion here is a sticker album — milestones across all twenty-three games, badges, a collection to complete. Don't. That's a retention mechanic: it manufactures a reason to return that has nothing to do with whether the game is any good, and it's the pattern these games exist as an alternative to.</p>
+    <p>The honest version of the same need is much smaller. <b>Let what they make survive being closed.</b> Doodle should still have the drawing. Build-a-Buddy should still have the buddy. Maze Maker should still have the maze. Not a reward for coming back — just their own work still being there, which is the actual reason Block Craft holds them.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>If you build three</h2>
+  <div class="rankgrid">
+    <div class="card">
+      <span class="pill rank">First</span>
+      <h4>Robot Run</h4>
+      <p>Highest ratio of new-thinking to build effort. It's the single clearest instance of plan-then-consequence, it has decades of classroom evidence behind it at exactly this age, and it needs no physics, no pathfinding and no balance tuning — just a grid, a queue and a step animation.</p>
+    </div>
+    <div class="card">
+      <span class="pill rank">Second</span>
+      <h4>Garden Guard</h4>
+      <p>The biggest ceiling of anything here. It's the only proposal where Oisín can still be getting better at it in a year, and it introduces spending, trade-offs and reading a board. It's also the most work — build it second, when the first one has proved the appetite.</p>
+    </div>
+    <div class="card">
+      <span class="pill rank">Third</span>
+      <h4>Sandcastle Duel</h4>
+      <p>Chosen over the puzzles because it solves a problem none of the others touch: there are two boys and one iPad, and nothing they own lets them play each other. It's the only proposal that makes the age gap an asset rather than a design constraint.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Ideas the constraints killed</h2>
+
+  <div class="game killed">
+    <h3>Proper Angry Birds physics</h3>
+    <p>Rotating rigid bodies with stable stacking needs a real physics engine. Hand-rolling one in ES5 that doesn't jitter on an iPad mini 2 is weeks of work, not an evening. <b>Sandcastle Duel is the compromise</b>: real projectile arcs, but blocks stay axis-aligned and simply topple.</p>
+  </div>
+
+  <div class="game killed">
+    <h3>Tight-timing rhythm games</h3>
+    <p>Touch latency on iOS 12 plus repaint timing makes sub-100ms judgement unreliable — a child would be punished for the hardware. Band Practice survives only because the hit windows can be made generous; a Guitar Hero-style accuracy grade could not.</p>
+  </div>
+
+  <div class="game killed">
+    <h3>Anything with reading at its centre</h3>
+    <p>Word building, spelling, trivia, story choices. Oisín decodes slowly and Finley not at all, so text-first games would be work rather than play. <b>Worth knowing:</b> <code>speechSynthesis</code> is a browser API needing no files and works on iOS 12 — a game could speak its instructions aloud without breaking the no-assets rule. That reopens phonics and number games if you ever want them.</p>
+  </div>
+
+  <div class="game killed">
+    <h3>Anything with a lot of characters or animation</h3>
+    <p>Every frame is hand-drawn in canvas code, so cost scales with the number of distinct things on screen. An RPG, a farming sim, or anything with a cast is a content problem the single-file rule makes brutal. Block Craft is already at the practical ceiling at 2,500 lines.</p>
+  </div>
+
+  <div class="game killed">
+    <h3>Playing against each other on two iPads</h3>
+    <p>No network, no server. Same-device turn-taking is the only multiplayer available — which is why Sandcastle Duel passes the iPad back and forth rather than syncing anything.</p>
+  </div>
+</section>
+
+<footer>
+  Developmental grounding from
+  <a href="https://www.scholastic.com/parents/family-life/creativity-and-critical-thinking/development-milestones/cognitive-development-6-7-year-olds.html">Scholastic</a>,
+  <a href="https://www.apa.org/act/resources/fact-sheets/development-10-years">APA</a>,
+  <a href="https://www.virtuallabschool.org/school-age/cognitive-development/lesson-2">Virtual Lab School</a>,
+  <a href="https://thetabletopfamily.com/great-games-for-6-year-olds/">The Tabletop Family</a>,
+  <a href="https://amyjokim.medium.com/what-makes-games-so-engaging-2a06ca3eadf1">Amy Jo Kim</a>,
+  <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4628212/">Learning by Playing (PMC)</a>,
+  <a href="https://www.terrapinlogo.com/beebot-ss.html">Terrapin Bee-Bot</a> and
+  <a href="https://www.sfusd.edu/departments/computer-science-department/computer-science-curriculum/k-2-computer-science-curriculum/k-2-computer-science-curriculum-orange/k-2-computer-science-orange-unit-2-bee-bots">SFUSD's K-2 computer science curriculum</a>.
+</footer>
+
+</div>
+
+</body>
+</html>

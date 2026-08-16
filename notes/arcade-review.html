@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Time Audit</title>
+<style>
+  :root {
+    --ground: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef3f7;
+    --ink: #0d1c2b;
+    --ink-soft: #48606f;
+    --ink-faint: #7c93a3;
+    --rule: #d9e3ea;
+    --teal: #0d7d76;
+    --teal-soft: #e0f2f0;
+    --coral: #c33a5e;
+    --coral-soft: #fbe6eb;
+    --amber: #8a6212;
+    --amber-soft: #fbf0d8;
+    --shadow: 0 1px 2px rgba(13, 28, 43, .06), 0 8px 24px -16px rgba(13, 28, 43, .3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #061321;
+      --surface: #0c1d2e;
+      --surface-2: #12283c;
+      --ink: #e7f0f7;
+      --ink-soft: #a3bacb;
+      --ink-faint: #6f8899;
+      --rule: #1d374e;
+      --teal: #52d8c9;
+      --teal-soft: #0b2f30;
+      --coral: #ff8aa6;
+      --coral-soft: #35131f;
+      --amber: #f0c46a;
+      --amber-soft: #33270e;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #061321;
+    --surface: #0c1d2e;
+    --surface-2: #12283c;
+    --ink: #e7f0f7;
+    --ink-soft: #a3bacb;
+    --ink-faint: #6f8899;
+    --rule: #1d374e;
+    --teal: #52d8c9;
+    --teal-soft: #0b2f30;
+    --coral: #ff8aa6;
+    --coral-soft: #35131f;
+    --amber: #f0c46a;
+    --amber-soft: #33270e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 20px 96px;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; }
+  .prose { max-width: 66ch; }
+
+  h1, h2, h3, .ui {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  }
+
+  header.top {
+    padding: 56px 0 28px;
+    border-bottom: 3px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 40px;
+    font-size: clamp(30px, 6vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    max-width: 60ch;
+    margin: 0;
+    font-size: 19px;
+    color: var(--ink-soft);
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+    gap: 1px;
+    margin: 34px 0 0;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .fact { background: var(--surface); padding: 14px 16px; }
+  .fact b {
+    display: block;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 26px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .fact span {
+    display: block;
+    margin-top: 3px;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--ink-faint);
+  }
+
+  section { padding: 46px 0 0; }
+  h2 {
+    font-size: 25px;
+    letter-spacing: -.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  h2 .num {
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    margin-right: 10px;
+  }
+  .lede { color: var(--ink-soft); margin: 0 0 22px; max-width: 62ch; }
+  h3 {
+    font-size: 17px;
+    margin: 26px 0 6px;
+    letter-spacing: -.005em;
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--teal); }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .87em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 5px solid var(--ink-faint);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 0 0 14px;
+    box-shadow: var(--shadow);
+  }
+  .finding.sev-high { border-left-color: var(--coral); }
+  .finding.sev-med { border-left-color: var(--amber); }
+  .finding.sev-low { border-left-color: var(--teal); }
+  .finding h3 { margin: 0 0 8px; font-size: 18px; }
+  .finding p:last-child { margin-bottom: 0; }
+
+  .chip {
+    display: inline-block;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    vertical-align: 2px;
+    margin-left: 8px;
+  }
+  .chip.high { background: var(--coral-soft); color: var(--coral); }
+  .chip.med { background: var(--amber-soft); color: var(--amber); }
+  .chip.low { background: var(--teal-soft); color: var(--teal); }
+
+  .scroller { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 18px 0 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 720px;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 13.5px;
+    background: var(--surface);
+  }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    color: var(--ink-faint);
+    padding-bottom: 8px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 2px solid var(--ink);
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td { background: var(--surface-2); }
+  td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  td.game { font-weight: 700; white-space: nowrap; }
+  .dot { font-size: 15px; letter-spacing: 1px; }
+  .yes { color: var(--teal); font-weight: 700; }
+  .no { color: var(--coral); font-weight: 700; }
+  .meh { color: var(--ink-faint); font-weight: 700; }
+
+  ul.plain { margin: 0 0 14px; padding-left: 20px; }
+  ul.plain li { margin-bottom: 7px; }
+
+  .pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 18px 0 0;
+  }
+  .pair .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .pair .card h3 { margin: 0 0 4px; }
+  .pair .card p { font-size: 15px; color: var(--ink-soft); margin: 0; }
+
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 4px solid var(--teal);
+    border-radius: 10px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  ol.steps { counter-reset: s; list-style: none; margin: 18px 0 0; padding: 0; }
+  ol.steps li {
+    counter-increment: s;
+    position: relative;
+    padding: 14px 0 14px 52px;
+    border-top: 1px solid var(--rule);
+  }
+  ol.steps li::before {
+    content: counter(s);
+    position: absolute;
+    left: 0;
+    top: 13px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--ground);
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.steps b { font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
+  ol.steps .why { display: block; color: var(--ink-soft); font-size: 15.5px; }
+
+  ol.steps li.done { opacity: 0.72; }
+  ol.steps li.done::before { background: var(--teal); }
+  ol.steps li.done b { text-decoration: line-through; text-decoration-thickness: 1px; }
+  .correction {
+    background: var(--amber-soft);
+    border-left: 4px solid var(--amber);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-faint);
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Review · 22 games · fixes applied</p>
+  <h1>What's actually in the arcade</h1>
+  <p class="standfirst">Every game loaded in a real browser at iPad size, screenshotted, and measured against the others. The library is broader than it looks in the grid — and thinner than it looks in three specific places.</p>
+
+  <div class="facts">
+    <div class="fact"><b>2</b><span>pairs still the same game <i>(was 3)</i></span></div>
+    <div class="fact"><b>0</b><span>games with no sound <i>(was 13)</i></span></div>
+    <div class="fact"><b>22</b><span>games you can mute <i>(was 2)</i></span></div>
+    <div class="fact"><b>4</b><span>games with something to finish</span></div>
+    <div class="fact"><b>2</b><span>games that remember what you made</span></div>
+    <div class="fact"><b>29–48</b><span>words of unreadable text per start screen</span></div>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>The verdict</h2>
+  <div class="verdict prose">
+    <p>The craft is consistently good. Every game runs clean — no console errors anywhere, no broken layouts at either iPad orientation, a shared top bar, and a difficulty picker that behaves the same way in ten different games. That consistency is real work and it shows.</p>
+    <p>The problem isn't quality, it's <b>variety and ceiling</b>. Twenty-three games use four verbs between them: tap a target, tap to jump, swipe a direction, drag a thing. Six games are three games wearing different hats. And apart from Block Craft, nothing in the library has a goal you can finish, a reason to come back tomorrow, or anything a six-year-old can get <i>better</i> at in a way the game acknowledges.</p>
+    <p>Finley is well served — most of these are ideal for a three-year-old. Oisín is the one who has outgrown the shelf.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Duplication</h2>
+  <p class="lede">Measured by comparing every game against every other one as overlapping token sequences. A shared scaffold puts the baseline at roughly 65% — anything well above that is the same game twice.</p>
+
+  <div class="scroller">
+    <table>
+      <caption>Containment = how much of the smaller file also appears in the larger. Jaccard = overall overlap.</caption>
+      <thead>
+        <tr><th>Pair</th><th class="num">Containment</th><th class="num">Jaccard</th><th>Read</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="game">High-Five Foxes ↔ Peekaboo Meadow</td><td class="num">93.1%</td><td class="num">83.9%</td><td>The same game. Identical burrow grid, identical timing table, <code>bee</code> renamed <code>rat</code>.</td></tr>
+        <tr><td class="game">Caterpillar Hop ↔ Jumping Adventure</td><td class="num">76.0%</td><td class="num">57.9%</td><td>Same tap-to-jump engine, same double-jump, same tuning. Meadow instead of space.</td></tr>
+        <tr><td class="game">Fruit Rain ↔ Chomp!</td><td class="num">75.8%</td><td class="num">57.1%</td><td>Different verbs (catch vs slice) but the same fruit-and-bomb premise and art.</td></tr>
+        <tr><td class="game">Shootout ↔ Soccer Stars</td><td class="num">70.8%</td><td class="num">43.2%</td><td>Deliberate split, and it holds up — one is aiming, one is dribbling.</td></tr>
+        <tr><td class="game">Diamond Hunt ↔ Octopus Treasure Hunt</td><td class="num">68.8%</td><td class="num">46.0%</td><td>Same maze, same D-pad, same goal. Cave instead of reef.</td></tr>
+        <tr><td class="game">Bubble Pop ↔ everything</td><td class="num">~70%</td><td class="num">~40%</td><td>Not duplication — Bubble Pop is so small it's mostly scaffold.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pair">
+    <div class="card">
+      <h3>The clearest case</h3>
+      <p>Peekaboo Meadow and High-Five Foxes are byte-identical in their difficulty tables — <span class="mono">2.20 / 1.90</span>, <span class="mono">1.15 / 0.95</span>, <span class="mono">0.85 / 0.72</span>, <span class="mono">0.60 / 0.52</span>. Side by side on screen, only the animal in the hole differs.</p>
+    </div>
+    <div class="card">
+      <h3>Why it matters less than it sounds</h3>
+      <p>Two skins of a game a toddler loves is not a crime — Finley will happily play both. The cost is shelf space: they take two of twenty-three tiles, and neither gives Oisín anything the other didn't.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Things that are actually broken</h2>
+  <p class="lede">Two real defects, found by reading the code rather than playing.</p>
+
+  <div class="finding sev-high">
+    <h3>Copy Cat and Soccer Stars fight over the same setting<span class="chip high">Bug</span></h3>
+    <p>Both games store their difficulty in <code>localStorage</code> under the key <code>ss_diff</code>. Every game is served from the same origin, so they share one storage area — the key is not scoped per game.</p>
+    <p>Set Copy Cat to ⚡Zoom (index&nbsp;3) and Soccer Stars silently falls back to Easy, because it only has three options. Set Soccer Stars to Hard (index&nbsp;2) and Copy Cat becomes Fast. Neither crashes — both guard the lookup — so it presents as "the difficulty won't stay where I put it". Shape Sort already uses <code>ss2_*</code>, which suggests this collision was hit once before and half-fixed.</p>
+  </div>
+
+  <div class="finding sev-med">
+    <h3>Diamond &amp; Crystal Hunt punishes the way children play mazes<span class="chip med">Design</span></h3>
+    <p>Five bumps into a wall ends the run — and "Try Again" generates a <i>brand new maze</i> rather than replaying the one they were learning. Bumping into walls is how a small child reads a maze; the game treats exploration as failure, then deletes the map they'd built in their head.</p>
+    <p>In testing, eight undirected taps were enough to trigger it.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Usability, across the whole library</h2>
+
+  <div class="finding sev-high">
+    <h3>Thirteen games make no sound whatsoever<span class="chip high">Biggest cheap win</span></h3>
+    <p>Reef Rescue, Build-a-Buddy, Fruit Rain, Caterpillar Hop, Doodle, Chomp!, High-Five Foxes, Jumping Adventure, Lane Runner, Ocean Match, Octopus Treasure Hunt, Peekaboo Meadow and Shape Sort never create an <code>AudioContext</code>. A whack-a-mole with no boing, a fruit-slicer with no slice, a memory game with no chime.</p>
+    <p>For this age group sound isn't decoration — it's the feedback that tells a child the tap <i>worked</i>. The <code>tone()</code> helper in Block Craft and Copy Cat is about fifteen lines and drops straight in.</p>
+  </div>
+
+  <div class="finding sev-med">
+    <h3>Only two games can be muted<span class="chip med">Parent-facing</span></h3>
+    <p>Bob the Destructor and Potty Crew have a 🔊 toggle. The other eight noisy games have no way to quieten them — no setting, and nothing that survives to the next game. On a shared sofa that is the difference between a game being allowed and not.</p>
+  </div>
+
+  <div class="finding sev-med">
+    <h3>Every game opens with a paragraph neither boy can read<span class="chip med">Systemic</span></h3>
+    <p>Between 29 and 48 words of English prose on each start screen. "Ozzie the mole, Finn the frog and friends peek out of the burrows! Tap a friend to give them a high-five. Don't tap the grumpy bee!" Finley can't read any of it; Oisín can decode it slowly, which is not the same as reading it.</p>
+    <p>The instructions are there for you, not for them — which is fine, but it means the games are currently taught by a parent rather than by the game. A three-second animated demo loop on the start screen (a finger tapping a mole, a bee shaking its head) would teach both boys without a word.</p>
+  </div>
+
+  <div class="finding sev-low">
+    <h3>Two games still use a D-pad<span class="chip low">Consistency</span></h3>
+    <p>The two maze games are the oldest in the library and steer with four on-screen arrows. Everything built since is swipe-or-tap. They're also the only two games with no pause and no difficulty setting.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Fun and depth — the real gap</h2>
+  <p class="lede">This is where the six-year-old is underserved, and it's structural rather than a matter of polish.</p>
+
+  <h3>Nothing to finish</h3>
+  <p>Four games have a win state: the two mazes, Ocean Match, and Block Craft's quest chain. Everything else is an endless loop that stops when you lose. There is no "I completed it", no last level, no ending to reach and tell someone about.</p>
+
+  <h3>Nothing of theirs survives being closed</h3>
+  <p class="correction"><b>Correction:</b> this section first claimed Build-a-Buddy forgets the buddy. It doesn't — it stores <code>bb_body</code>, <code>bb_color</code>, <code>bb_hat</code> and <code>bb_treat</code> through a <code>save()</code> wrapper my first pass didn't match. Doodle was the only game that genuinely lost a child's work, and it now keeps the drawing.</p>
+  <p>Nineteen of the twenty-two games keep nothing but a best score. Block Craft's world, the Potty Crew's decorated potty, Build-a-Buddy's buddy and now Doodle's drawing are the places where a child's own work is still there the next day.</p>
+  <p>This is not an argument for rewards, badges or collectables — those are retention mechanics, and they belong in the apps you're building an alternative to. It's simpler than that: a six-year-old who spends ten minutes making something reasonably expects it to still exist, and losing it teaches him the opposite. Block Craft holds attention not because it pays him to return but because his house is where he left it.</p>
+
+  <h3>Nothing to plan</h3>
+  <p>Almost every game is reactive: something appears, you touch it. Nothing asks Oisín to make a choice whose consequence arrives later — no resource to spend, no route to pick, no order to do things in, no risk to weigh. That's precisely the kind of thinking that comes online around six, and the library never exercises it.</p>
+
+  <h3>Nothing that fails softly</h3>
+  <p>Losing generally means starting from zero. Nothing carries progress forward between attempts, so a hard game gets abandoned rather than practised.</p>
+
+  <div class="pair">
+    <div class="card">
+      <h3>The four verbs</h3>
+      <p>Tap a target · tap to jump · swipe a direction · drag an object. Absent: aiming with force and angle, drawing a path, sequencing moves before they run, rhythm, turn-taking, anything two-handed.</p>
+    </div>
+    <div class="card">
+      <h3>What Block Craft proves</h3>
+      <p>It's the one game with depth, choice and persistence — and it's also the biggest by a factor of two. Depth costs code. It doesn't have to cost <i>this much</i> code, but it isn't free.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Customisation</h2>
+  <p class="lede">Uneven. Ten games offer exactly the same four-speed picker and nothing else; six offer real choices; seven offer nothing at all.</p>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Games</th><th>What you can change</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="game yes">Rich</td><td>Block Craft, Build-a-Buddy, Reef Rescue, Soccer Stars, Doodle, Potty Crew</td><td>Character, weapon, world, mode, team size, colours, decorations — choices that visibly change the screen.</td></tr>
+        <tr><td class="game meh">Speed only</td><td>Jumping Adventure, Peekaboo, Chomp!, Fruit Rain, Copy Cat, Bubble Pop, Lane Runner, High-Five Foxes, Caterpillar Hop, Bob the Destructor</td><td>🐢 Chill · 🙂 Normal · 🐇 Fast · ⚡ Zoom. Identical wording and identical timings in most of them.</td></tr>
+        <tr><td class="game no">None</td><td>Octopus Treasure Hunt, Diamond Hunt, Animal Band, Surprise Eggs</td><td>Nothing. Shape Sort and Ocean Match offer a size/colour count, which is difficulty rather than choice.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:18px">The pattern worth noticing: the games with real customisation are the recent ones, and they're the ones the boys reportedly return to. A picker that visibly changes the hero is worth more than a fifth speed setting.</p>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Every game, rated</h2>
+  <p class="lede">Depth is scored for Oisín at six. "Suits Finley" is about whether a three-year-old can play it unaided.</p>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr>
+          <th>Game</th><th>What you do</th><th>Choices</th><th>Sound</th>
+          <th>Ends?</th><th class="num">Depth&nbsp;(6yo)</th><th>Suits&nbsp;Finley</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="game">Block Craft</td><td>Mine, craft, build, survive the night</td><td class="yes">Rich</td><td class="yes">Yes</td><td>Quests</td><td class="num">5</td><td class="meh">Creative mode</td></tr>
+        <tr><td class="game">Bob the Destructor</td><td>Shoo pigeons, beat the boss</td><td class="meh">Speed</td><td class="yes">Yes + mute</td><td>Boss</td><td class="num">4</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Soccer Stars</td><td>Dribble, pass, shoot</td><td class="yes">Team, size</td><td class="yes">Yes</td><td class="no">No</td><td class="num">4</td><td class="meh">Fiddly</td></tr>
+        <tr><td class="game">Reef Rescue</td><td>Swim, zap litter</td><td class="yes">Diver, litter</td><td class="no">Silent</td><td class="no">No</td><td class="num">3</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Copy Cat</td><td>Repeat the sequence</td><td class="meh">Speed</td><td class="yes">Yes</td><td class="no">Endless</td><td class="num">3</td><td class="meh">Short rounds</td></tr>
+        <tr><td class="game">Ocean Match</td><td>Flip and match pairs</td><td class="meh">Grid size</td><td class="no">Silent</td><td class="yes">Yes</td><td class="num">3</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Shootout</td><td>Tap the net past the goalie</td><td class="meh">Shooter, speed</td><td class="yes">Yes</td><td class="no">No</td><td class="num">3</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Build-a-Buddy</td><td>Dress a buddy, then catch treats</td><td class="yes">Lots</td><td class="no">Silent</td><td class="no">No</td><td class="num">3</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Chomp!</td><td>Swipe to slice fruit</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">3</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Lane Runner</td><td>Swipe between three lanes</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">3</td><td class="meh">On Chill</td></tr>
+        <tr><td class="game">Jumping Adventure</td><td>Tap to jump platforms</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">3</td><td class="meh">On Chill</td></tr>
+        <tr><td class="game">Octopus Treasure Hunt</td><td>D-pad through a maze</td><td class="no">None</td><td class="no">Silent</td><td class="yes">Yes</td><td class="num">2</td><td class="no">Too hard</td></tr>
+        <tr><td class="game">Diamond &amp; Crystal Hunt</td><td>D-pad maze, 5 bumps and out</td><td class="no">None</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="num">2</td><td class="no">Too hard</td></tr>
+        <tr><td class="game">Fruit Rain</td><td>Slide to catch falling fruit</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">2</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Caterpillar Hop</td><td>Tap to hop leaves</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">2</td><td class="meh">On Chill</td></tr>
+        <tr><td class="game">Peekaboo Meadow</td><td>Tap friends, dodge the bee</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">2</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">High-Five Foxes</td><td>Tap foxes, dodge the rats</td><td class="meh">Speed</td><td class="no">Silent</td><td class="no">No</td><td class="num">2</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Shape Sort</td><td>Drag gems to matching buckets</td><td class="meh">Colours</td><td class="no">Silent</td><td class="no">No</td><td class="num">2</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Doodle</td><td>Draw</td><td class="yes">Colours, brush</td><td class="no">Silent</td><td class="no">Toy</td><td class="num">2</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Animal Band</td><td>Tap animals for notes</td><td class="no">None</td><td class="yes">Yes</td><td class="no">Toy</td><td class="num">1</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Bubble Pop</td><td>Tap bubbles</td><td class="meh">Speed</td><td class="yes">Yes</td><td class="no">No</td><td class="num">1</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Surprise Eggs</td><td>Tap an egg, something hatches</td><td class="no">None</td><td class="yes">Yes</td><td class="no">Toy</td><td class="num">1</td><td class="yes">Yes</td></tr>
+        <tr><td class="game">Bob's Potty Crew</td><td>Help the crew, flush, decorate</td><td class="yes">Crew, decor</td><td class="yes">Yes + mute</td><td class="no">Toy</td><td class="num">—</td><td class="yes">Purpose-built</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08</span>What I'd do, in order</h2>
+  <p class="lede">Cheapest and highest-value first. The first three are an evening each.</p>
+
+  <ol class="steps">
+    <li class="done"><b>Rename Soccer Stars' storage key.</b><span class="why">Done — <code>sst_diff</code>. Every other key in the library was checked for the same trap; none collide.</span></li>
+    <li class="done"><b>Give the silent games a voice.</b><span class="why">Done — twelve games gained sound (the thirteenth, High-Five Foxes, was merged away). Verified by counting oscillators in a real browser, game by game.</span></li>
+    <li class="done"><b>Put a mute in the shared top bar.</b><span class="why">Done — one 🔊 button in all 22 games on a shared <code>gt_mute</code> key, so muting anywhere mutes everywhere.</span></li>
+    <li class="done"><b>Soften Diamond Hunt.</b><span class="why">Done — bumping a wall is now just a bonk. The run never ends, so the maze they were learning is never taken away.</span></li>
+    <li class="done"><b>Teach the game without words.</b><span class="why">Done both ways — every game has a 🗣️ button that reads its own instructions aloud via <code>speechSynthesis</code> (emoji stripped, respects mute), and the four games with a non-obvious swipe or drag loop a silent ghost-hand demo behind the start screen.</span></li>
+    <li class="done"><b>Merge one of the duplicate pairs.</b><span class="why">Done — High-Five Foxes is now the Den cast inside Peekaboo Meadow, with its own dusk palette, foxes and rats. The grid is 22 tiles.</span></li>
+    <li><b>Let their work survive being closed.</b><span class="why">Doodle should keep the drawing. Build-a-Buddy should keep the buddy. Not a reward for coming back — just their own thing still being there, the way Block Craft's world is. Three or four <code>localStorage</code> writes in total.</span></li>
+    <li><b>Then build upward for Oisín.</b><span class="why">The gap is planning, sequencing and consequence — none of which the current four verbs touch. That's a new game, not a patch.</span></li>
+  </ol>
+</section>
+
+<footer>
+  Reviewed by loading all 23 games in Chromium at 1024×768 and 768×1024 with touch emulation, screenshotting start and play states, and comparing sources as overlapping token sequences. Rendering was verified in Chromium, not Safari 12 — the iPad mini 2 fallbacks remain unproven on the device itself.
+</footer>
+
+</div>
+
+</body>
+</html>
