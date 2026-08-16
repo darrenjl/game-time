@@ -270,6 +270,7 @@
   (function () {
     'use strict';
 
+
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var actionBtn = document.getElementById('actionBtn');
@@ -302,7 +303,7 @@
 
     // ---------- Sound (Web Audio only — no files) ----------
     var AC = null, muted = false, noiseBuf = null;
-    try { muted = localStorage.getItem('bp_mute') === '1'; } catch (e) {}
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
 
     function audio() {
       if (muted) return null;
@@ -1353,7 +1354,7 @@
     document.getElementById('muteBtn').addEventListener('click', function (e) {
       e.stopPropagation();
       muted = !muted;
-      try { localStorage.setItem('bp_mute', muted ? '1' : '0'); } catch (err) {}
+      try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (err) {}
       updateMuteBtn();
     });
 

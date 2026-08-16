@@ -423,6 +423,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="title">⛏️ Block Craft</div>
     <div class="rightbtns">
+      <button class="refresh" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <div class="badge clock hidden" id="clockBadge" aria-label="Time of day">☀️</div>
       <div class="badge" id="heroBadge" aria-label="Your hero and weapon"></div>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
@@ -497,6 +498,24 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
 
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
@@ -625,6 +644,7 @@
     /* ---------------- Audio ---------------- */
     var actx = null;
     function audio() {
+      if (muted) return null;
       if (!actx) {
         try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
       }

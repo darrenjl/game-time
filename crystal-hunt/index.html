@@ -200,6 +200,7 @@
       <span class="gem" id="hudDiamond">💎<span class="tick" style="visibility:hidden">✓</span></span>
       <span class="gem" id="hudCrystal">🔮<span class="tick" style="visibility:hidden">✓</span></span>
     </div>
+    <button class="refresh" id="muteBtn" aria-label="Sound on or off">🔊</button>
     <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
   </div>
 
@@ -236,6 +237,24 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
 
     // ---------- Config ----------
     var CELLS = 6;                 // maze is CELLS x CELLS "rooms"
@@ -482,7 +501,7 @@
       if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
     }
     function thud() {
-      if (!audioCtx) return;
+      if (muted || !audioCtx) return;
       try {
         var t0 = audioCtx.currentTime;
         var o = audioCtx.createOscillator(), g = audioCtx.createGain();

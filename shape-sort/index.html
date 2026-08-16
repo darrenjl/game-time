@@ -44,6 +44,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">0</div>
     <div class="rightbtns">
+      <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -77,6 +78,51 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
+
+    /* ---- Audio (Web Audio only; no files) ---- */
+    var actx = null;
+    function audio() {
+      if (muted) return null;
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+      }
+      if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+      return actx;
+    }
+    function tone(freq, dur, type, vol, slideTo, delay) {
+      var a = audio(); if (!a) return;
+      var t0 = a.currentTime + (delay || 0);
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+    function jingle(notes, vol) {
+      for (var i = 0; i < notes.length; i++) tone(notes[i], 0.16, 'triangle', vol || 0.22, null, i * 0.12);
+    }
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var scoreEl = document.getElementById('score');
@@ -147,6 +193,10 @@
         dragging = true; item.settled = false; dragDX = item.x - p.x; dragDY = item.y - p.y;
       }
     }
+    function sLift() { tone(430, 0.06, 'sine', 0.14); }
+    function sRight() { tone(660, 0.09, 'sine', 0.2); tone(990, 0.13, 'sine', 0.18, null, 0.07); }
+    function sWrong() { tone(220, 0.16, 'square', 0.16, 150); }
+
     function onMove(e) {
       if (!dragging || !item) return;
       if (e) e.preventDefault();
@@ -164,12 +214,13 @@
       }
       if (target && target.colorIdx === item.colorIdx) {
         points++; if (points > best) { best = points; try { localStorage.setItem('ss2_best', String(best)); } catch (e) {} }
+        sRight();
         spawnSparks(target.x + target.w / 2, target.y + target.h * 0.3, PALETTE[item.colorIdx].c);
         updateScore();
         spawnItem();
       } else {
         // wrong or dropped in empty space — bounce home
-        if (target) shake = 0.4;
+        if (target) { shake = 0.4; sWrong(); }
         item.settled = false;   // ease back to home in update()
       }
     }

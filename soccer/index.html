@@ -202,6 +202,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">⚽ Shootout</div>
     <div class="rightbtns">
+      <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -248,6 +249,24 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
 
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
@@ -433,7 +452,7 @@
       try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
     }
     function tone(freq, start, dur, type, vol) {
-      if (!actx) return;
+      if (muted || !actx) return;
       var o = actx.createOscillator(), g = actx.createGain();
       o.type = type || 'square';
       o.frequency.value = freq;
@@ -445,7 +464,7 @@
       o.start(t); o.stop(t + dur + 0.02);
     }
     function sfx(kind) {
-      if (!actx) return;
+      if (muted || !actx) return;
       if (kind === 'kick') { tone(190, 0, 0.09, 'square', 0.22); }
       else if (kind === 'pass') { tone(300, 0, 0.08, 'triangle', 0.16); }
       else if (kind === 'goal') {

@@ -170,6 +170,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score">Moves: 0</div>
     <div class="rightbtns">
+      <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -212,6 +213,51 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
+
+    /* ---- Audio (Web Audio only; no files) ---- */
+    var actx = null;
+    function audio() {
+      if (muted) return null;
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+      }
+      if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+      return actx;
+    }
+    function tone(freq, dur, type, vol, slideTo, delay) {
+      var a = audio(); if (!a) return;
+      var t0 = a.currentTime + (delay || 0);
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+    function jingle(notes, vol) {
+      for (var i = 0; i < notes.length; i++) tone(notes[i], 0.16, 'triangle', vol || 0.22, null, i * 0.12);
+    }
 
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
@@ -329,8 +375,14 @@
       }
     }
 
+    function sFlip() { tone(440, 0.07, 'sine', 0.16, 620); }
+    function sMatch() { tone(660, 0.1, 'sine', 0.2); tone(990, 0.14, 'sine', 0.18, null, 0.07); }
+    function sNope() { tone(260, 0.14, 'triangle', 0.14, 200); }
+    function sWin() { jingle([523, 659, 784, 1047], 0.26); }
+
     function flipUp(c) {
       c.faceUp = true; c.ft = 1;
+      sFlip();
       selected.push(c);
       if (selected.length === 2) {
         moves++;
@@ -347,10 +399,12 @@
     function resolveSelection() {
       if (selected[0].creature === selected[1].creature) {
         selected[0].matched = true; selected[1].matched = true;
+        sMatch();
         matchedPairs++;
         spawnSparkles(selected[0]); spawnSparkles(selected[1]);
-        if (matchedPairs >= totalPairs) win();
+        if (matchedPairs >= totalPairs) { sWin(); win(); }
       } else {
+        sNope();
         selected[0].faceUp = false; selected[0].ft = 0;
         selected[1].faceUp = false; selected[1].ft = 0;
       }

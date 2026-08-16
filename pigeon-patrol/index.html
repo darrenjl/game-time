@@ -225,6 +225,7 @@
   (function () {
     'use strict';
 
+
     var canvas = document.getElementById('game');
     var ctx = canvas.getContext('2d');
     var scoreEl = document.getElementById('score');
@@ -454,7 +455,7 @@
     // ---------- Sound (Web Audio, generated — no audio files) ----------
     // The AudioContext is created lazily inside a touch handler so iOS allows it.
     var audio = { ctx: null, muted: false };
-    try { audio.muted = localStorage.getItem('pp_mute') === '1'; } catch (e) {}
+    try { audio.muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
 
     function audioCtx() {
       if (!audio.ctx) {
@@ -1318,7 +1319,7 @@
     muteBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       audio.muted = !audio.muted;
-      try { localStorage.setItem('pp_mute', audio.muted ? '1' : '0'); } catch (err) {}
+      try { localStorage.setItem('gt_mute', audio.muted ? '1' : '0'); } catch (err) {}
       updateMuteBtn();
       if (!audio.muted) woofSound();   // little confirmation blip
     });

@@ -212,6 +212,7 @@
     <a class="back" href="../index.html">⬅️ Back</a>
     <div class="score" id="score"></div>
     <div class="rightbtns">
+      <button class="pause" id="muteBtn" aria-label="Sound on or off">🔊</button>
       <button class="pause" id="pauseBtn" aria-label="Pause">⏸️</button>
       <button class="refresh" id="refreshBtn" aria-label="Refresh game">🔄</button>
     </div>
@@ -257,6 +258,55 @@
   <script>
   (function () {
     'use strict';
+
+    /* ---- Sound on/off, shared across every game ---- */
+    var muted = false;
+    try { muted = localStorage.getItem('gt_mute') === '1'; } catch (e) {}
+    function wireMute(onUnmute) {
+      var b = document.getElementById('muteBtn');
+      if (!b) return;
+      function paint() { b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd0a'; }
+      paint();
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('gt_mute', muted ? '1' : '0'); } catch (er) {}
+        paint();
+        if (!muted && onUnmute) onUnmute();
+      });
+    }
+    wireMute();
+
+    /* ---- Audio (Web Audio only; no files) ---- */
+    var actx = null;
+    function audio() {
+      if (muted) return null;
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+      }
+      if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+      return actx;
+    }
+    function tone(freq, dur, type, vol, slideTo, delay) {
+      var a = audio(); if (!a) return;
+      var t0 = a.currentTime + (delay || 0);
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+    function jingle(notes, vol) {
+      for (var i = 0; i < notes.length; i++) tone(notes[i], 0.16, 'triangle', vol || 0.22, null, i * 0.12);
+    }
+    function sYum() { tone(620, 0.08, 'sine', 0.2); tone(930, 0.11, 'sine', 0.17, null, 0.05); }
+    function sMiss() { tone(240, 0.16, 'triangle', 0.15, 170); }
+    function sPick() { tone(520, 0.06, 'sine', 0.14, 700); }
+    function sOver() { jingle([392, 330, 262], 0.24); }
 
     // ============================================================================
     //  THEME  —  the parts Oisín & Finley choose from when building their buddy.
@@ -413,6 +463,7 @@
         if (t.y > buddy.y - buddy.s * 0.45 && t.y < buddy.y + buddy.s * 0.3 &&
             Math.abs(t.x - buddy.x) < buddy.s * 0.55 + t.r) {
           treats.splice(i, 1);
+          sYum();
           score++;
           scoreEl.textContent = String(score);
           spawnSparks(t.x, t.y, TREATS[cfg.treat].color, 12);
@@ -421,6 +472,7 @@
         // Missed?
         if (t.y > H + t.r) {
           treats.splice(i, 1);
+          sMiss();
           misses++;
           buddy.hurt = 0.35;
           if (misses >= MAX_MISS) { gameOver(); return; }
