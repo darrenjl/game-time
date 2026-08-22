@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Block Craft Playability Review</title>
+<style>
+  :root {
+    --ground: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef3f7;
+    --ink: #0d1c2b;
+    --ink-soft: #48606f;
+    --ink-faint: #7c93a3;
+    --rule: #d9e3ea;
+    --teal: #0d7d76;
+    --teal-soft: #e0f2f0;
+    --coral: #c33a5e;
+    --coral-soft: #fbe6eb;
+    --amber: #8a6212;
+    --amber-soft: #fbf0d8;
+    --shadow: 0 1px 2px rgba(13,28,43,.06), 0 8px 24px -16px rgba(13,28,43,.3);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #061321; --surface: #0c1d2e; --surface-2: #12283c;
+      --ink: #e7f0f7; --ink-soft: #a3bacb; --ink-faint: #6f8899; --rule: #1d374e;
+      --teal: #52d8c9; --teal-soft: #0b2f30; --coral: #ff8aa6; --coral-soft: #35131f;
+      --amber: #f0c46a; --amber-soft: #33270e;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #061321; --surface: #0c1d2e; --surface-2: #12283c;
+    --ink: #e7f0f7; --ink-soft: #a3bacb; --ink-faint: #6f8899; --rule: #1d374e;
+    --teal: #52d8c9; --teal-soft: #0b2f30; --coral: #ff8aa6; --coral-soft: #35131f;
+    --amber: #f0c46a; --amber-soft: #33270e;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 20px 96px;
+    background: var(--ground); color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 17px; line-height: 1.62;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  .prose { max-width: 68ch; }
+  h1, h2, h3, .ui { font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
+
+  header.top { padding: 54px 0 26px; border-bottom: 2px solid var(--rule); margin-bottom: 34px; }
+  h1 { font-size: 2.3rem; line-height: 1.15; margin: 0 0 10px; letter-spacing: -.02em; }
+  .kicker {
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    text-transform: uppercase; letter-spacing: .12em;
+    font-size: .74rem; font-weight: 700; color: var(--teal); margin: 0 0 14px;
+  }
+  .standfirst { font-size: 1.16rem; color: var(--ink-soft); margin: 0; max-width: 62ch; }
+
+  h2 {
+    font-size: 1.5rem; margin: 52px 0 6px; letter-spacing: -.01em;
+    padding-top: 20px; border-top: 1px solid var(--rule);
+  }
+  h3 { font-size: 1.1rem; margin: 30px 0 6px; }
+  p { margin: 0 0 16px; }
+
+  .verdict {
+    background: var(--coral-soft); border-left: 4px solid var(--coral);
+    padding: 20px 24px; border-radius: 0 10px 10px 0; margin: 0 0 34px;
+  }
+  .verdict p { margin: 0; font-size: 1.1rem; }
+  .verdict strong { color: var(--coral); }
+
+  .finding {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 22px 24px; margin: 0 0 18px; box-shadow: var(--shadow);
+  }
+  .finding h3 { margin-top: 0; display: flex; align-items: baseline; }
+  .tag {
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+    padding: 3px 9px; border-radius: 999px; margin-right: 10px; white-space: nowrap;
+  }
+  .tag.crit { background: var(--coral-soft); color: var(--coral); }
+  .tag.high { background: var(--amber-soft); color: var(--amber); }
+  .tag.med  { background: var(--teal-soft);  color: var(--teal); }
+
+  .measure {
+    background: var(--surface-2); border-radius: 8px;
+    padding: 12px 16px; margin: 14px 0;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .82rem; line-height: 1.7; color: var(--ink-soft);
+    overflow-x: auto; white-space: pre;
+  }
+  .fix {
+    border-top: 1px dashed var(--rule); margin-top: 16px; padding-top: 14px;
+    font-size: .97rem;
+  }
+  .fix b {
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--teal);
+    display: block; margin-bottom: 5px;
+  }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .86em; background: var(--surface-2);
+    padding: 1px 5px; border-radius: 4px;
+  }
+
+  table { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: .95rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    font-size: .74rem; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-faint);
+  }
+  td.n { font-family: ui-monospace, Menlo, monospace; white-space: nowrap; color: var(--teal); font-weight: 700; }
+
+  ol.plan { padding-left: 0; list-style: none; counter-reset: step; }
+  ol.plan li {
+    counter-increment: step; position: relative;
+    padding: 14px 0 14px 52px; border-bottom: 1px solid var(--rule);
+  }
+  ol.plan li::before {
+    content: counter(step); position: absolute; left: 0; top: 14px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--teal); color: var(--ground);
+    font-family: "Trebuchet MS", system-ui, sans-serif; font-weight: 700; font-size: .92rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.plan li b { font-family: "Trebuchet MS", system-ui, sans-serif; }
+
+  .note { color: var(--ink-faint); font-size: .9rem; font-style: italic; }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--ink-faint); font-size: .86rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Game Time · Playability Review</p>
+  <h1>Block Craft: making the quests visible</h1>
+  <p class="standfirst">The quest system was firing correctly all along — it was written in English at the top of the screen, where neither boy could read it. This is what was wrong, what the evidence was, and what the game does now.</p>
+</header>
+
+<div class="verdict prose">
+  <p><strong>The diagnosis in one line:</strong> the quest system was fine and firing correctly — it was just <em>written in English at the top of the screen</em>. Oisín is 6 and Finley is 3. After the first quest there was no arrow, no highlight, no spoken prompt: only a white bar of words. Meanwhile the first quest's target, the trunk, sat buried inside a canopy four times its size that gave nothing when tapped.</p>
+  <p style="margin-top:12px"><strong>Now:</strong> every quest points at something and says itself out loud, leaves give wood, one tap does the whole job, and the panels stop the world while they are open.</p>
+</div>
+
+<p class="prose">This was verified by serving the real game and driving it in a browser, plus a headless harness built from the game's own physics and terrain functions. No console errors, on either the Start or the Continue path.</p>
+
+<h2>Answering the question directly: are the quests showing?</h2>
+
+<p class="prose">Yes. The banner renders on both entry paths and the chain advances correctly. Driving the real page:</p>
+
+<div class="measure">Start  -> banner visible, "Tap a tree to get WOOD! 🌳"  /  "Wood: 0 / 3"
+Continue -> banner visible, same text (loaded save, quest 0)
+console errors: 0
+
+canopy tap @250,200   Wood: 0 / 3 -> Wood: 0 / 3
+canopy tap @320,150   Wood: 0 / 3 -> Wood: 0 / 3
+canopy tap @255,225   Wood: 0 / 3 -> Wood: 0 / 3
+canopy tap @190,225   Wood: 0 / 3 -> Wood: 0 / 3
+canopy tap @320,225   Wood: 0 / 3 -> Wood: 0 / 3
+trunk  tap @447,290   Wood: 0 / 3 -> Wood: 1 / 3
+trunk  tap @447,350   Wood: 1 / 3 -> Wood: 2 / 3
+trunk  tap @447,410   Wood: 2 / 3 -> "Tap ⚒️ and make PLANKS!"</div>
+
+<p class="prose">Five taps on the obvious green target produced nothing. Three taps on the brown blocks completed the quest instantly. The system is not broken — the target is just invisible, and the reward for tapping the wrong thing is indistinguishable from the reward for tapping the right one.</p>
+
+<h2>The critical findings</h2>
+
+<div class="finding">
+  <h3><span class="tag crit">Critical</span> Only quest 1 has a pointer; quests 2–8 are text only</h3>
+  <p><code>drawQuestPointer</code> opens with <code>if (creative() || questIdx !== 0) return;</code>. The bouncing gold arrow — the one piece of non-verbal guidance in the game, and its own comment says it is there so that "a child who cannot read the banner" knows what to do — exists for the <strong>first quest only</strong>. From quest 2 onward the child gets a sentence and nothing else.</p>
+  <p>It is worse than neutral at that point. On quest 2 the banner reads <em>"Tap ⚒️ and make PLANKS!"</em>, but the only highlighted button in the toolbar is <strong>Mine</strong>, because the gold border marks the selected tool. The single visual emphasis on screen is pointing at the wrong control.</p>
+  <div class="fix"><b>Recommended fix</b>
+  Two changes, both small. First, drop the <code>questIdx !== 0</code> guard and give every quest a target: a world cell for the mining quests, and a pulsing ring on the toolbar or swatch button for the crafting and building ones. Second, speak the quest. <code>speakStart()</code> already exists and the boys already have the 🗣️ button — call the same utterance path with <code>q.say</code> whenever the quest changes.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag crit">Critical</span> Four out of five taps on a tree give nothing</h3>
+  <p>The first quest is <em>"Tap a tree to get WOOD! 🌳"</em>. A tree is 3 trunk blocks and 13 leaf blocks. Leaves have <code>drop: null</code> — mining one plays the same chop sound, throws the same particle burst, and gives <strong>nothing</strong>. The wood counter stays on 0&nbsp;/&nbsp;3.</p>
+  <p>The canopy is also the visually dominant part, and it is drawn in almost the same green as the ground, so it reads as scenery rather than as the thing being asked for. Told to tap a tree, a child taps the big green blob, gets full audio-visual confirmation, and makes no progress.</p>
+  <div class="measure">trees on the map: 16 | avg spacing: 10.0 columns
+LOG cells (give wood):     48
+LEAF cells (give nothing): 186
+chance a tap on tree pixels yields wood: 20.5%</div>
+  <p>The quest arrow does aim at the top trunk block, but it floats half a block above it — which puts the arrow graphic itself inside the leaf row. A child who taps the arrow hits a leaf and gets nothing.</p>
+  <div class="fix"><b>Recommended fix</b>
+  Give leaves a drop. <code>TYPES[T.LEAF].drop = 'wood'</code> is a one-word change and makes the whole tree do what the quest says it does. If you'd rather keep the Minecraft distinction, at minimum play <code>sNope()</code> instead of <code>sChop()</code> for a zero-drop block, so the child hears the difference.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag crit">Critical</span> The top of every tree can never be reached</h3>
+  <p>Reach is <code>B * 4.6</code> measured from the hero's mid-body, which sits 0.775 blocks above the ground. The upper two rows of leaves sit 4.72 and 5.72 blocks up. They are outside reach <em>even standing directly underneath</em>. Tapping the crown of a tree walks the hero to its base and then stops, permanently, no matter how many times it's tapped.</p>
+  <div class="measure">total tree cells: 16
+cells unreachable even standing directly beneath them: 6
+    LEAF at dc=-1 height=5 -> distance 4.72 > reach 4.6
+    LEAF at dc= 0 height=5 -> distance 4.72 > reach 4.6
+    LEAF at dc= 1 height=5 -> distance 4.72 > reach 4.6
+    LEAF at dc=-1 height=6 -> distance 5.72 > reach 4.6
+    LEAF at dc= 0 height=6 -> distance 5.72 > reach 4.6
+    LEAF at dc= 1 height=6 -> distance 5.72 > reach 4.6</div>
+  <div class="fix"><b>Recommended fix</b>
+  Raise <code>heroReach()</code> from <code>B * 4.6</code> to <code>B * 6.2</code>. That covers the whole tree and most of the visible screen, and there is no downside for a young child — long reach is forgiving, not cheaty.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag crit">Critical</span> An out-of-reach tap throws away what you asked for</h3>
+  <p>In <code>onTap</code>, a tap outside reach calls <code>walkTo(wx)</code> and returns. The hero walks over — and then nothing happens. The cell you tapped, and the tool you had selected, are never remembered. Every distant object needs two taps: one to travel, one to act, with a pause between them where the game appears to have ignored you.</p>
+  <p>Combined with the reach radius, this is most of the screen:</p>
+  <div class="measure">visible play area: 12 x 8.5 blocks
+reach radius: 4.6 blocks
+share of the visible world you can act on: 62.5%
+share where a tap only walks you (no action): 37.5%</div>
+  <div class="fix"><b>Recommended fix</b>
+  Queue the intent. Store <code>pendingCell = {c, r, tool}</code> alongside <code>hero.target</code>; when the walk finishes in <code>updateHero</code>, if the cell is now in reach, run the action. This is the highest-value change in the whole list — it converts every "the game ignored me" moment into a small piece of automation that looks like the hero understood.</div>
+</div>
+
+<h2>The frustrations underneath</h2>
+
+<div class="finding">
+  <h3><span class="tag high">High</span> 🔥 Fire is free, permanent, and sits next to Build</h3>
+  <p><code>igniteCell</code> costs nothing and needs nothing. Fire spreads on its own tick, consumes logs, planks, leaves and wool, and there is no undo. The toolbar order is <strong>Mine · Build · Fire · Craft · Photo</strong> — Fire is one 58px button away from the tool the game just told them to use to build a house, and quest 5 is literally "build a house".</p>
+  <div class="fix"><b>Recommended fix</b>
+  Take Fire out of the survival toolbar. It's a sandbox toy and Building Blocks already exists for that. If it stays, require a torch in the bag to light anything, so it costs something a child has to earn.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag high">High</span> Twelve of the fourteen block swatches are empty</h3>
+  <p><code>SURVIVAL_ITEMS</code> renders all 14 swatches at all times. At the "place 10 blocks" quest a child owns dirt and stone. The other twelve are dimmed to 35% but remain tappable, and tapping one selects it, then every attempt to place gives a rejection buzz. That's a row of buttons that look like buttons and behave like walls.</p>
+  <div class="fix"><b>Recommended fix</b>
+  In <code>buildSwatches</code>, render only items where <code>have(item) &gt; 0</code>, and rebuild the row on <code>give</code>/<code>take</code>. The palette then grows as the child mines, which is its own small reward.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag high">High</span> The last quest gates on 85 seconds of waiting</h3>
+  <p>Quest 8 ("Night is coming — bonk a monster!") needs a monster. Monsters spawn only when <code>darkness() &gt; 0.55</code>. With <code>DAY_LEN = 200</code> and <code>dayT</code> starting at 0.05, that's 85 seconds of real time after the world starts. The banner announces the goal and then the game does nothing for a minute and a half.</p>
+  <div class="measure">dusk begins at t = 74 s
+monsters can spawn (darkness>0.55) at t = 85 s</div>
+  <div class="fix"><b>Recommended fix</b>
+  When the child reaches the final quest in Fight mode, push <code>dayT</code> forward to dusk. The night arrives because they earned it, which also teaches what the ☀️/🌆/🌙 badge means.</div>
+</div>
+
+<div class="finding">
+  <h3><span class="tag med">Medium</span> There is nothing to do after the quests end</h3>
+  <p>The chain finishes with <em>"🎉 You did it all! Now build whatever you like."</em> and the banner hides after five seconds. Diamonds are generated below row −9 and a Diamond weapon recipe exists, but no quest ever points at them, so in practice they're never found. The most exciting thing in the game is invisible.</p>
+  <div class="fix"><b>Recommended fix</b>
+  Add a ninth quest — "Dig deep and find a DIAMOND 💎" — and a tenth for crafting the diamond weapon. It reuses systems that are already built and gives the game a real ending.</div>
+</div>
+
+<h2>Things that turned out to be fine</h2>
+
+<p class="prose">Two suspicions I tested and had to drop, so they don't get fixed by mistake:</p>
+
+<table>
+  <tr><th>Suspicion</th><th>Measured</th><th>Verdict</th></tr>
+  <tr>
+    <td>A child who digs down gets stuck in the hole</td>
+    <td class="n">escapes a 4-deep<br>shaft in 1.18&nbsp;s</td>
+    <td>Not a problem. The wall-scramble impulse re-applies every frame, so it reads as a climb rather than a jump. One tap is enough — the give-up timer never fires.</td>
+  </tr>
+  <tr>
+    <td>Mining is too slow for a small child</td>
+    <td class="n">1 tap = 1 block</td>
+    <td>Instant. The <code>hard</code> property is set on 11 block types but never read anywhere in the file — dead weight, no gameplay effect.</td>
+  </tr>
+</table>
+
+<h2>What the game does now</h2>
+
+<ol class="plan">
+  <li><b>Every quest points at something.</b> The <code>questIdx !== 0</code> guard is gone. Mining quests put a bouncing arrow on the nearest block of the type they want, or a cyan dig-here arrow at the hero's feet when it is still buried; crafting and building quests pulse the toolbar button they need.</li>
+  <li><b>Every quest says itself out loud</b> when it changes, through the same speech path as the 🗣️ button.</li>
+  <li><b>Leaves give wood</b>, and the canopy greens moved away from the ground green so a tree reads as a separate object rather than scenery.</li>
+  <li><b>One tap does the whole job.</b> A tap out of reach is remembered; the hero walks and acts the moment the target comes within arm's length, then stops. Firing on reach rather than on arrival matters — the hero often never arrives, and the old behaviour dropped the intent silently.</li>
+  <li><b>Reach is <code>B * 6.2</code></b>, up from 4.6, so the whole tree and most of the screen are in play.</li>
+  <li><b>🔥 Fire is gone</b> from the survival game, along with its spread-and-burn machinery. Building Blocks is where burning things belongs.</li>
+  <li><b>The palette is what is in the bag.</b> Swatches appear as items are mined instead of showing fourteen buttons that only buzz.</li>
+  <li><b>Night arrives with the quest that asks for it</b>, not 85 seconds later.</li>
+  <li><b>Two diamond quests close the chain</b> — find two diamonds, craft the diamond weapon — so the deep part of the world has a reason to exist. Diamonds were made slightly less rare to suit.</li>
+  <li><b>The world stops while a panel is open.</b> Monsters were still walking up and taking hearts while the craft and how-to-play panels were covering the screen.</li>
+  <li><b>Quests can be skipped.</b> The pause menu carries ⏭️ Skip quests, which flips to 🎯 Do the quests again.</li>
+  <li><b>The start panel fits a short screen.</b> New World shares the Start row, the pickers shrink at 700px and 560px of height, and touches inside an overlay now scroll it — the global scroll lock had made anything below the fold unreachable.</li>
+</ol>
+
+<footer>
+  Findings measured against <code>block-craft/index.html</code> at commit <code>98fff5d</code>; fixes applied and verified in the working tree. Verified by serving the game and driving the real page in a browser, plus a headless Node harness built from the game's own physics and terrain functions. Refreshed 22 August 2026.
+</footer>
+
+</div>
+</body>
+</html>
