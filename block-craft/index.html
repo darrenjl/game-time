@@ -197,6 +197,33 @@
     .toolbar button:active { transform: scale(0.94); }
     .toolbar button.hidden { display: none; }
 
+    /* The quest banner is text, which neither boy can read — so the button the
+       quest is asking for pulses until they press it. */
+    @-webkit-keyframes hintpulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.85); }
+      70%  { box-shadow: 0 0 0 14px rgba(255, 209, 102, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0); }
+    }
+    @keyframes hintpulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.85); }
+      70%  { box-shadow: 0 0 0 14px rgba(255, 209, 102, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0); }
+    }
+    .hint {
+      border-color: var(--gold);
+      -webkit-animation: hintpulse 1.2s ease-out infinite;
+      animation: hintpulse 1.2s ease-out infinite;
+    }
+
+    .swatchhint {
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
     /* ---- Block swatch row (shown with the Build tool) ---- */
     .swatches {
       position: absolute;
@@ -249,7 +276,6 @@
       text-shadow: 0 1px 2px #000, 0 0 3px #000;
     }
     .swatches button.sel { border-color: var(--gold); transform: scale(1.1); }
-    .swatches button.out { opacity: 0.35; }
     .swatches button:active { transform: scale(0.92); }
 
     .bigbtn.blue { background: linear-gradient(135deg, #8ab6ff, #6a8cff); color: #fff; }
@@ -363,8 +389,8 @@
       border: 3px solid rgba(255, 255, 255, 0.35);
     }
     .startpanel > * + * { margin-top: 8px; }
-    .startrow { display: flex; align-items: center; }
-    .startrow > * + * { margin-left: 10px; }
+    .startrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; }
+    .startrow > * { margin: 4px 5px; }
     .infobtn {
       -webkit-appearance: none;
       appearance: none;
@@ -388,6 +414,19 @@
       .modepick.small button span { font-size: 0.6rem; }
       .picklabel { font-size: 0.85rem; }
       .startpanel .bigbtn { min-height: 52px; padding: 10px 26px; }
+    }
+    @media (max-height: 700px) {
+      .startpanel > * + * { margin-top: 2px; }
+      .modepick.small button { min-width: 52px; min-height: 48px; font-size: 1.3rem; margin: 2px; }
+      .modepick.small button span { font-size: 0.55rem; margin-top: 1px; }
+      .picklabel { font-size: 0.75rem; }
+      .startpanel .bigbtn { min-height: 46px; padding: 8px 18px; font-size: 1rem; }
+      .startpanel .infobtn { min-width: 46px; min-height: 46px; font-size: 1.2rem; }
+    }
+    @media (max-height: 560px) {
+      .modepick.small button span { display: none; }
+      .modepick.small button { min-width: 46px; min-height: 42px; }
+      .picklabel { font-size: 0.7rem; }
     }
 
     /* ---- Crafting ---- */
@@ -508,9 +547,8 @@
     <div class="swatches hidden" id="swatches"><div class="swatchbar" id="swatchBar"></div></div>
 
     <div class="toolbar hidden" id="toolbar">
-      <button data-tool="mine">⛏️<span>Mine</span></button>
-      <button data-tool="build">🧱<span>Build</span></button>
-      <button data-tool="fire">🔥<span>Fire</span></button>
+      <button data-tool="mine" id="mineTool">⛏️<span>Mine</span></button>
+      <button data-tool="build" id="buildTool">🧱<span>Build</span></button>
       <button data-act="craft" id="craftTool">⚒️<span>Craft</span></button>
       <button data-act="photo">📷<span>Photo</span></button>
     </div>
@@ -539,15 +577,16 @@
 
         <div class="startrow">
           <button class="bigbtn" id="startBtn">▶️ Start</button>
+          <button class="bigbtn grey hidden" id="newWorldBtn">✨ New World</button>
           <button class="infobtn" id="infoBtn" aria-label="How to play">ℹ️</button>
         </div>
-        <button class="bigbtn grey hidden" id="newWorldBtn">✨ New World</button>
       </div>
     </div>
 
     <div class="overlay hidden" id="pauseOverlay">
       <h2>⏸️ Paused</h2>
       <button class="bigbtn" id="resumeBtn">▶️ Keep Playing</button>
+      <button class="bigbtn grey" id="questToggle">⏭️ Skip quests</button>
       <button class="bigbtn grey" id="pauseInfoBtn">ℹ️ How to play</button>
     </div>
 
@@ -600,26 +639,34 @@
     wireMute();
 
     /* ---- Read the instructions aloud (speechSynthesis needs no files) ---- */
+    function plainWords(s) {
+      return (s || '')
+        .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
+        .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')   // emoji get read out by name
+        .replace(/\s+/g, ' ').trim();
+    }
+    function speak(text) {
+      if (muted || !window.speechSynthesis) return;
+      var t = plainWords(text);
+      if (!t) return;
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(t);
+        u.rate = 0.9; u.pitch = 1.1;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
     function speakStart() {
       if (muted || !window.speechSynthesis) return;
       var o = document.getElementById('infoOverlay') || document.getElementById('startOverlay');
       if (!o) return;
       var ps = o.querySelectorAll('p'), parts = [];
       for (var i = 0; i < ps.length; i++) {
-        var t = (ps[i].textContent || '')
-          .replace(/[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]/g, ' ')
-          .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')   // emoji get read out by name
-          .replace(/\s+/g, ' ').trim();
+        var t = plainWords(ps[i].textContent);
         if (!t || /^Pick\b/i.test(t)) continue;   // picker labels are for the grown-up
         parts.push(t);
       }
-      if (!parts.length) return;
-      try {
-        window.speechSynthesis.cancel();
-        var u = new SpeechSynthesisUtterance(parts.join(' '));
-        u.rate = 0.9; u.pitch = 1.1;
-        window.speechSynthesis.speak(u);
-      } catch (e) {}
+      if (parts.length) speak(parts.join(' '));
     }
     (function wireSpeak() {
       var b = document.getElementById('speakBtn');
@@ -659,14 +706,14 @@
     };
 
     // solid: blocks movement. pass: you can walk through it. falls: obeys gravity.
-    // burn: catches fire. light: lights the night. drop: what mining it gives you.
+    // light: lights the night. drop: what mining it gives you.
     var TYPES = {};
     TYPES[T.GRASS]   = { name: 'Grass',   color: '#5bbf4b', solid: 1, drop: 'dirt', hard: 1 };
     TYPES[T.DIRT]    = { name: 'Dirt',    color: '#7a5228', solid: 1, drop: 'dirt', hard: 1 };
     TYPES[T.STONE]   = { name: 'Stone',   color: '#9aa2ad', solid: 1, drop: 'stone', hard: 1, needPick: 1 };
-    TYPES[T.LOG]     = { name: 'Wood',    color: '#8a5a2b', solid: 1, drop: 'wood', hard: 1, burn: 1 };
-    TYPES[T.LEAF]    = { name: 'Leaves',  color: '#4caf3f', solid: 1, drop: null, hard: 1, burn: 1 };
-    TYPES[T.PLANK]   = { name: 'Planks',  color: '#c68a4c', solid: 1, drop: 'plank', hard: 1, burn: 1 };
+    TYPES[T.LOG]     = { name: 'Wood',    color: '#8a5a2b', solid: 1, drop: 'wood', hard: 1 };
+    TYPES[T.LEAF]    = { name: 'Leaves',  color: '#2f8f3a', solid: 1, drop: 'wood', hard: 1 };
+    TYPES[T.PLANK]   = { name: 'Planks',  color: '#c68a4c', solid: 1, drop: 'plank', hard: 1 };
     TYPES[T.SAND]    = { name: 'Sand',    color: '#e3c27a', solid: 1, drop: 'sand', hard: 1, falls: 1 };
     TYPES[T.SNOW]    = { name: 'Snow',    color: '#f2f8ff', solid: 1, drop: 'dirt', hard: 1 };
     TYPES[T.GLASS]   = { name: 'Glass',   color: '#bfe9ff', solid: 1, drop: 'glass', hard: 1, clear: 1 };
@@ -678,7 +725,7 @@
     TYPES[T.TNT]     = { name: 'TNT',     color: '#d1493f', solid: 1, drop: 'tnt' };
     TYPES[T.COAL]    = { name: 'Coal',    color: '#8d97a3', solid: 1, drop: 'coal', hard: 1, needPick: 1, ore: '#2b2f36' };
     TYPES[T.DIAMOND] = { name: 'Diamond', color: '#8d97a3', solid: 1, drop: 'diamond', hard: 1, needPick: 1, ore: '#5ef0e0' };
-    TYPES[T.WOOL]    = { name: 'Wool',    color: '#f6f2ee', solid: 1, drop: 'wool', hard: 1, burn: 1 };
+    TYPES[T.WOOL]    = { name: 'Wool',    color: '#f6f2ee', solid: 1, drop: 'wool', hard: 1 };
     TYPES[T.BEDROCK] = { name: 'Bedrock', color: '#5a616c', solid: 1, drop: null, tough: 1 };
     var COLOURS = ['#ff6b6b', '#ff9f43', '#feca57', '#5bbf4b', '#54a0ff', '#a55eea', '#ff8ac2', '#ffffff'];
     for (var ci = 0; ci < COLOURS.length; ci++) {
@@ -709,13 +756,13 @@
     var WORLDS = [
       { icon: '🌳', name: 'Forest', top: T.GRASS, sub: T.DIRT,
         skyTop: '#aee6ff', skyBot: '#7ec0ee', grass: '#5bbf4b', dirt: '#7a5228',
-        leaf: '#4caf3f', trunk: '#8a5a2b', cloud: 'rgba(255,255,255,0.9)' },
+        leaf: '#2f8f3a', trunk: '#8a5a2b', cloud: 'rgba(255,255,255,0.9)' },
       { icon: '⛄', name: 'Snow', top: T.SNOW, sub: T.DIRT,
         skyTop: '#e4f4ff', skyBot: '#a8d3f0', grass: '#f2f8ff', dirt: '#7c8794',
         leaf: '#cfe6f5', trunk: '#6b4a2b', cloud: 'rgba(255,255,255,0.95)' },
       { icon: '🌵', name: 'Desert', top: T.SAND, sub: T.SAND,
         skyTop: '#ffeeb8', skyBot: '#ffc46b', grass: '#e8c27a', dirt: '#c98f4a',
-        leaf: '#4f9e4a', trunk: '#7d6b3b', cloud: 'rgba(255,255,255,0.6)' },
+        leaf: '#357f38', trunk: '#7d6b3b', cloud: 'rgba(255,255,255,0.6)' },
       { icon: '🌙', name: 'Night', top: T.GRASS, sub: T.DIRT,
         skyTop: '#2a3466', skyBot: '#4a5288', grass: '#2f7a3f', dirt: '#4a3a26',
         leaf: '#2f6d33', trunk: '#5c3f22', cloud: 'rgba(200,210,255,0.35)', dusk: 1 }
@@ -734,7 +781,7 @@
     var COLS = 160, FLOOR = -20;
     var seed = 1;
     var edits = {};                 // "c_r" -> type id (0 = mined away)
-    var fireMap = {}, fuseMap = {}, waterLvl = {};
+    var fuseMap = {}, waterLvl = {};
     var placedCount = 0, bonkCount = 0, torchPlaced = false;
     var inv = {};
     var hasPick = false, hasWeapon = false, hasDiamondWeapon = false;
@@ -749,7 +796,7 @@
     var camX = 0, camY = 0;
     var lastTs = 0, shakeT = 0, tickT = 0, sleepT = 0, saveT = 0, autoT = 20, dirty = false;
     var giveUpT = 0, lastProgressX = 0, lastProgressY = 0;   // stop walking at somewhere he can't reach
-    var tool = 'mine', blockSel = T.DIRT;
+    var tool = 'mine', blockSel = T.DIRT, pending = null;
     var clouds = [], stars = [];
 
     var hero = {
@@ -838,7 +885,7 @@
       if (r === s) return wd.top;
       if (r > s - 4) return wd.sub;
       if (caveNoise(c, r) > 0.78) return T.AIR;
-      if (r < -9 && h1(c * 3.1 + r * 7.7) > 0.966) return T.DIAMOND;
+      if (r < -8 && h1(c * 3.1 + r * 7.7) > 0.955) return T.DIAMOND;
       if (r < -5 && h1(c * 5.3 + r * 2.9) > 0.935) return T.COAL;
       return T.STONE;
     }
@@ -853,7 +900,6 @@
       edits[k] = t;
       if (t !== T.WATER) delete waterLvl[k];
       if (t !== T.TNT) delete fuseMap[k];
-      if (!t || t !== cellAt(c, r)) delete fireMap[k];
       dirty = true; saveT = 1.5;
     }
     function colAt(wx) { return Math.floor(wx / B); }
@@ -890,7 +936,7 @@
       inv = d.inv || {};
       hasPick = !!d.pick; hasWeapon = !!d.weap; hasDiamondWeapon = !!d.dia;
       placedCount = d.placed || 0; bonkCount = d.bonks || 0; torchPlaced = !!d.torch;
-      questIdx = d.quest || 0;
+      questIdx = clamp(d.quest || 0, 0, QLIST.length);
       dayT = typeof d.day === 'number' ? d.day : 0.05;
       spawn = d.spawn || { x: 0, y: 0 };
       hero.x = d.hx; hero.y = d.hy;
@@ -1018,39 +1064,89 @@
     }
 
     /* ---------------- Quests ---------------- */
+    // Neither boy can read the banner, so every quest also carries a target the
+    // eye can follow: `block` points an arrow at the nearest block of that type
+    // (falling back to a dig-down arrow when it is buried), `ui` pulses the
+    // button the quest is asking for, and `mob` points at what to bonk.
     var QUESTS = [
-      { say: 'Tap a tree to get WOOD! 🌳', prog: function () { return 'Wood: ' + have('wood') + ' / 3'; }, done: function () { return have('wood') >= 3; } },
-      { say: 'Tap ⚒️ and make PLANKS!', prog: function () { return 'Planks: ' + have('plank') + ' / 4'; }, done: function () { return have('plank') >= 4; } },
-      { say: 'Craft a PICKAXE in ⚒️', prog: function () { return 'Needs 3 planks'; }, done: function () { return hasPick; } },
-      { say: 'Dig DOWN and get STONE! ⛏️', prog: function () { return 'Stone: ' + have('stone') + ' / 3'; }, done: function () { return have('stone') >= 3; } },
-      { say: 'Build a house — place 10 blocks 🧱', prog: function () { return 'Blocks: ' + placedCount + ' / 10'; }, done: function () { return placedCount >= 10; } },
-      { say: 'Craft your weapon in ⚒️', prog: function () { return WEAPONS[weapIdx].name + ' = 1 plank + 2 stone'; }, done: function () { return hasWeapon; } },
-      { say: 'Make a TORCH and put it up 🔥', prog: function () { return 'Torches: ' + have('torch'); }, done: function () { return torchPlaced; } },
-      { say: 'Night is coming — bonk a monster! 👾', prog: function () { return 'Bonks: ' + bonkCount; }, done: function () { return bonkCount >= 1; } }
+      { say: 'Tap a tree to get WOOD! 🌳', block: function () { return T.LOG; },
+        prog: function () { return 'Wood: ' + have('wood') + ' / 3'; }, done: function () { return have('wood') >= 3; } },
+      { say: 'Tap ⚒️ and make PLANKS!', ui: function () { return '#craftTool'; },
+        prog: function () { return 'Planks: ' + have('plank') + ' / 4'; }, done: function () { return have('plank') >= 4; } },
+      { say: 'Craft a PICKAXE in ⚒️', ui: function () { return '#craftTool'; },
+        prog: function () { return 'Needs 3 planks'; }, done: function () { return hasPick; } },
+      { say: 'Dig DOWN and get STONE! ⛏️', block: function () { return T.STONE; },
+        prog: function () { return 'Stone: ' + have('stone') + ' / 3'; }, done: function () { return have('stone') >= 3; } },
+      { say: 'Build a house — place 10 blocks 🧱', ui: function () { return '#buildTool'; },
+        prog: function () { return 'Blocks: ' + placedCount + ' / 10'; }, done: function () { return placedCount >= 10; } },
+      { say: 'Craft your weapon in ⚒️', ui: function () { return '#craftTool'; },
+        prog: function () { return WEAPONS[weapIdx].name + ' = 1 plank + 2 stone'; }, done: function () { return hasWeapon; } },
+      { say: 'Make a TORCH and put it up ✨', ui: function () { return have('torch') > 0 ? '#buildTool' : '#craftTool'; },
+        prog: function () { return have('torch') > 0 ? 'Now place it 🧱' : 'Torches: 0'; }, done: function () { return torchPlaced; } },
+      { say: 'Night is coming — bonk a monster! 👾', fight: 1, night: 1, mob: 'monster',
+        prog: function () { return 'Bonks: ' + bonkCount; }, done: function () { return bonkCount >= 1; } },
+      { say: 'Dig DEEP and find a DIAMOND 💎', block: function () { return T.DIAMOND; },
+        prog: function () { return 'Diamonds: ' + have('diamond') + ' / 2'; }, done: function () { return have('diamond') >= 2; } },
+      { say: 'Craft the DIAMOND weapon in ⚒️', ui: function () { return '#craftTool'; },
+        prog: function () { return '2 diamonds + 1 plank'; }, done: function () { return hasDiamondWeapon; } }
     ];
+    // The monster quest only exists in Fight mode, so the live chain is rebuilt
+    // whenever the mode is chosen rather than indexed straight off QUESTS.
+    var QLIST = [];
+    function buildQuestList() {
+      QLIST = [];
+      for (var i = 0; i < QUESTS.length; i++) {
+        if (QUESTS[i].fight && !fightMode) continue;
+        QLIST.push(QUESTS[i]);
+      }
+    }
+    buildQuestList();
+
     function setBanner(say, prog) {
       saySay.textContent = say;
       sayProg.textContent = prog || '';
       sayProg.style.display = prog ? 'block' : 'none';
       bannerEl.classList.remove('hidden');
     }
-    function questCount() { return QUESTS.length - (fightMode ? 0 : 1); }
+    function questCount() { return QLIST.length; }
+    function currentQuest() { return questIdx < QLIST.length ? QLIST[questIdx] : null; }
+
+    var spokenQuest = -1;
     function showQuest() {
-      if (creative() || questIdx >= questCount()) { bannerEl.classList.add('hidden'); return; }
-      var q = QUESTS[questIdx];
+      var q = creative() ? null : currentQuest();
+      if (!q) { bannerEl.classList.add('hidden'); setUiHint(null); return; }
       setBanner(q.say, q.prog());
+      setUiHint(q.ui ? q.ui() : null);
+      if (spokenQuest !== questIdx) { spokenQuest = questIdx; speak(q.say); }
     }
     function checkQuest() {
-      if (creative() || questIdx >= questCount()) return;
-      while (questIdx < questCount() && QUESTS[questIdx].done()) {
+      if (creative() || !currentQuest()) return;
+      var advanced = false;
+      while (currentQuest() && currentQuest().done()) {
         questIdx++;
+        advanced = true;
         sWin();
         dirty = true; saveT = 0.5;
       }
-      if (questIdx >= questCount()) {
+      // Waiting 85 seconds for astronomical dusk reads as the game doing nothing,
+      // so the night arrives when the quest asking for it does.
+      var q = currentQuest();
+      if (advanced && q && q.night && fightMode && dayT < 0.46) dayT = 0.46;
+      if (!q) {
+        setUiHint(null);
         setBanner('🎉 You did it all! Now build whatever you like.', '');
-        setTimeout(function () { if (questIdx >= questCount()) bannerEl.classList.add('hidden'); }, 5000);
+        speak('You did it all! Now build whatever you like.');
+        setTimeout(function () { if (!currentQuest()) bannerEl.classList.add('hidden'); }, 5000);
       } else showQuest();
+    }
+
+    var hintEl = null;
+    function setUiHint(sel) {
+      var next = sel ? document.querySelector(sel) : null;
+      if (next === hintEl) return;
+      if (hintEl) hintEl.classList.remove('hint');
+      hintEl = next;
+      if (hintEl) hintEl.classList.add('hint');
     }
 
     /* ---------------- Physics ---------------- */
@@ -1129,10 +1225,11 @@
       if (hero.swing > 0) hero.swing = Math.max(0, hero.swing - dt * 1.8);
       if (invuln > 0) invuln -= dt;
       if (hurtT > 0) hurtT -= dt;
+      if (pending) tryPending();
 
       if (hero.target !== null) {
         var d = hero.target - hero.x;
-        if (Math.abs(d) < B * 0.35) { hero.target = null; hero.vx = 0; giveUpT = 0; }
+        if (Math.abs(d) < B * 0.35) { hero.target = null; hero.vx = 0; giveUpT = 0; pending = null; }
         else {
           hero.vx = (d > 0 ? 1 : -1) * heroSpeed();
           hero.face = d > 0 ? 1 : -1;
@@ -1144,7 +1241,7 @@
             lastProgressX = hero.x; lastProgressY = hero.y; giveUpT = 0;
           } else {
             giveUpT += dt;
-            if (giveUpT > 1.6) { hero.target = null; hero.vx = 0; giveUpT = 0; }
+            if (giveUpT > 1.6) { hero.target = null; hero.vx = 0; giveUpT = 0; pending = null; }
           }
         }
       } else { hero.vx = 0; lastProgressX = hero.x; lastProgressY = hero.y; giveUpT = 0; }
@@ -1154,7 +1251,7 @@
 
       moveEntity(hero, dt);
     }
-    function heroReach() { return creative() ? Infinity : B * 4.6; }
+    function heroReach() { return creative() ? Infinity : B * 6.2; }
     function inReach(wx, wy) {
       var dx = wx - hero.x, dy = wy - (hero.y - hero.h * 0.5);
       return Math.sqrt(dx * dx + dy * dy) <= heroReach();
@@ -1250,16 +1347,6 @@
       return null;
     }
 
-    function igniteCell(c, r) {
-      var t = cellAt(c, r);
-      var d = typeOf(t);
-      if (t === T.TNT) { fuseMap[key(c, r)] = 0.12; return; }
-      if (!d || (!d.burn && !creative())) { sNope(); return; }
-      if (!d.burn) { sNope(); return; }
-      fireMap[key(c, r)] = 0.001;
-      tone(90, 0.18, 'sawtooth', 0.12, 200);
-    }
-
     function explode(c, r) {
       var cx = cellX(c) + B / 2, cy = cellY(r) + B / 2;
       shakeT = Math.min(18, shakeT + 14);
@@ -1342,38 +1429,10 @@
         fuseMap[k] -= 0.1;
         if (fuseMap[k] <= 0) { delete fuseMap[k]; setCell(c, r, T.AIR); explode(c, r); }
       }
-      // fire: burn down, spread, put out by water
-      var spread = [];
-      for (k in fireMap) {
-        if (!fireMap.hasOwnProperty(k)) continue;
-        var fc = k.split('_'); c = +fc[0]; r = +fc[1];
-        t = cellAt(c, r); d = typeOf(t);
-        if (!d || !d.burn) { delete fireMap[k]; continue; }
-        if (nearWater(c, r)) { delete fireMap[k]; puff(cellX(c) + B / 2, cellY(r) + B / 2); continue; }
-        fireMap[k] += 0.1;
-        if (Math.random() < 0.25) {
-          var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-          var dd = dirs[(Math.random() * 4) | 0];
-          var nk = key(c + dd[0], r + dd[1]);
-          var nt = cellAt(c + dd[0], r + dd[1]);
-          var nd = typeOf(nt);
-          if (nd && nd.burn && !fireMap[nk]) spread.push(nk);
-        }
-        if (fireMap[k] >= 2.4) {
-          delete fireMap[k];
-          burst(cellX(c) + B / 2, cellY(r) + B / 2, '#555', 6);
-          setCell(c, r, T.AIR);
-        }
-      }
-      for (var s = 0; s < spread.length; s++) fireMap[spread[s]] = 0.001;
       // water flow
       flowWater(v);
     }
 
-    function nearWater(c, r) {
-      return cellAt(c + 1, r) === T.WATER || cellAt(c - 1, r) === T.WATER ||
-             cellAt(c, r + 1) === T.WATER || cellAt(c, r - 1) === T.WATER;
-    }
     function flowWater(v) {
       var moves = [];
       for (var k in waterLvl) {
@@ -1391,8 +1450,6 @@
         if (cellAt(m[0], m[1]) !== T.AIR) continue;
         setCell(m[0], m[1], T.WATER);
         waterLvl[key(m[0], m[1])] = m[2];
-        var fk = key(m[0], m[1]);
-        delete fireMap[fk];
       }
     }
 
@@ -1464,39 +1521,42 @@
       for (var i = 0; i < mobs.length; i++) {
         var m = mobs[i];
         if (Math.abs(wx - m.x) > m.w * 1.1 || Math.abs(wy - (m.y - m.h * 0.5)) > m.h * 1.1) continue;
-        if (!inReach(m.x, m.y - m.h * 0.5)) { walkTo(m.x); return true; }
-        hero.face = m.x > hero.x ? 1 : -1;
-        hero.swing = 0.5;
-        if (m.kind === 'monster') {
-          if (!creative() && !hasWeapon) {
-            setBanner('Craft a weapon first! ⚒️', '');
-            sNope();
-            setTimeout(showQuest, 2000);
-            return true;
-          }
-          m.hits = (m.hits || 0) + (hasDiamondWeapon || creative() ? 3 : 1);
-          burst(m.x, m.y - m.h * 0.5, WEAPONS[weapIdx].hit, 8, true);
-          sBonk();
-          if (m.hits >= 2) {
-            poofMob(m);
-            mobs.splice(i, 1);
-            bonkCount++;
-            checkQuest();
-          }
-        } else if (m.kind === 'sheep' && m.wool && tool === 'mine') {
-          m.wool = false; m.woolT = 25;
-          if (!creative()) give('wool', 2);
-          burst(m.x, m.y - m.h * 0.6, '#fff', 12);
-          sBaa();
-        } else {
-          m.hop = 0.4;
-          m.vy = -B * 11;
-          burst(m.x, m.y - m.h, '#ff8ac2', 5, true);
-          if (m.kind === 'pig') sOink(); else sBaa();
-        }
+        if (!inReach(m.x, m.y - m.h * 0.5)) { pending = { mob: m }; walkTo(m.x); return true; }
+        hitMob(m, i);
         return true;
       }
       return false;
+    }
+    function hitMob(m, i) {
+      hero.face = m.x > hero.x ? 1 : -1;
+      hero.swing = 0.5;
+      if (m.kind === 'monster') {
+        if (!creative() && !hasWeapon) {
+          setBanner('Craft a weapon first! ⚒️', '');
+          sNope();
+          setTimeout(showQuest, 2000);
+          return;
+        }
+        m.hits = (m.hits || 0) + (hasDiamondWeapon || creative() ? 3 : 1);
+        burst(m.x, m.y - m.h * 0.5, WEAPONS[weapIdx].hit, 8, true);
+        sBonk();
+        if (m.hits >= 2) {
+          poofMob(m);
+          mobs.splice(i, 1);
+          bonkCount++;
+          checkQuest();
+        }
+      } else if (m.kind === 'sheep' && m.wool && tool === 'mine') {
+        m.wool = false; m.woolT = 25;
+        if (!creative()) give('wool', 2);
+        burst(m.x, m.y - m.h * 0.6, '#fff', 12);
+        sBaa();
+      } else {
+        m.hop = 0.4;
+        m.vy = -B * 11;
+        burst(m.x, m.y - m.h, '#ff8ac2', 5, true);
+        if (m.kind === 'pig') sOink(); else sBaa();
+      }
     }
 
     /* ---------------- Particles ---------------- */
@@ -1563,20 +1623,48 @@
       if (tapMob(wx, wy)) return;
 
       var c = colAt(wx), r = rowAt(wy);
-      if (!inReach(cellX(c) + B / 2, cellY(r) + B / 2)) { walkTo(wx); return; }
-
+      if (!inReach(cellX(c) + B / 2, cellY(r) + B / 2)) {
+        // Remember what was asked for. Without this every distant thing needs a
+        // second tap after the walk, which reads as the game ignoring you.
+        pending = { c: c, r: r, tool: tool };
+        walkTo(wx);
+        return;
+      }
+      pending = null;
       if (tool === 'mine') {
-        if (!mineCell(c, r)) walkTo(wx);
+        if (!mineCell(c, r)) { pending = { c: c, r: r, tool: tool }; walkTo(wx); }
       } else if (tool === 'build') {
         buildCell(c, r);
-      } else if (tool === 'fire') {
-        igniteCell(c, r);
       }
+    }
+    // Runs every frame while something is queued: the hero stops and acts as
+    // soon as the thing he was sent for comes within arm's length.
+    function tryPending() {
+      var p = pending;
+      if (!p || phase !== PHASE.PLAY) return;
+      if (p.mob) {
+        var i = mobs.indexOf(p.mob);
+        if (i < 0) { pending = null; return; }
+        if (!inReach(p.mob.x, p.mob.y - p.mob.h * 0.5)) return;
+        pending = null; hero.target = null; hero.vx = 0;
+        hitMob(p.mob, i);
+        return;
+      }
+      if (!inReach(cellX(p.c) + B / 2, cellY(p.r) + B / 2)) return;
+      pending = null; hero.target = null; hero.vx = 0;
+      if (p.tool === 'mine') mineCell(p.c, p.r);
+      else if (p.tool === 'build') buildCell(p.c, p.r);
     }
 
     /* ---------------- Update ---------------- */
+    // A panel covering the screen has to stop the world too, or a monster walks
+    // up and takes your hearts while you are busy reading the recipes.
+    function menuOpen() {
+      return !document.getElementById('craftOverlay').classList.contains('hidden') ||
+             !document.getElementById('infoOverlay').classList.contains('hidden');
+    }
     function update(dt) {
-      if (phase === PHASE.DIZZY || phase === PHASE.PAUSED) return;
+      if (phase === PHASE.DIZZY || phase === PHASE.PAUSED || menuOpen()) return;
       if (sleepT > 0) {
         sleepT -= dt;
         if (sleepT <= 0.7 && dayT !== 0.02) {
@@ -2150,7 +2238,6 @@
           var x = sx(cellX(c)), y = sy(cellY(r));
           var k = key(c, r);
           drawBlockAt(t, x, y, B, ts, k);
-          if (fireMap[k]) drawFlame(x + B * 0.5, y + B * 0.1, B * 0.9, ts, c * 3 + r);
         }
       }
     }
@@ -2172,11 +2259,6 @@
           punchLight(sx(cellX(c)) + B / 2, sy(cellY(r)) + B / 2, B * td.light);
         }
       }
-      for (var k in fireMap) {
-        if (!fireMap.hasOwnProperty(k)) continue;
-        var pc = k.split('_');
-        punchLight(sx(cellX(+pc[0])) + B / 2, sy(cellY(+pc[1])) + B / 2, B * 3);
-      }
       punchLight(sx(hero.x), sy(hero.y) - hero.h * 0.5, B * 4);
       lctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(lightCanvas, 0, 0, W, H);
@@ -2191,26 +2273,53 @@
       lctx.beginPath(); lctx.arc(x, y, r, 0, 6.28); lctx.fill();
     }
 
-    // Quest one says "tap a tree" — so point at one. A bouncing arrow teaches
-    // a child who cannot read the banner what the banner is asking for.
-    function drawQuestPointer(ts) {
-      if (creative() || questIdx !== 0) return;
+    // The banner is words, which neither boy can read, so the quest also points.
+    // Every quest gets a target: a block to tap, a monster to bonk, or — when
+    // what it wants is still buried — an arrow at the ground saying dig here.
+    function questTargetPoint() {
+      var q = creative() ? null : currentQuest();
+      if (!q) return null;
+
+      if (q.mob) {
+        var near = null, nd = 1e9;
+        for (var i = 0; i < mobs.length; i++) {
+          if (mobs[i].kind !== q.mob) continue;
+          var md = Math.abs(mobs[i].x - hero.x);
+          if (md < nd) { nd = md; near = mobs[i]; }
+        }
+        return near ? { x: near.x, y: near.y - near.h } : null;
+      }
+
+      if (!q.block) return null;
+      var want = q.block();
       var v = visibleCellRange(), best = null, bestD = 1e9;
       for (var c = v.c0; c <= v.c1; c++) {
         for (var r = v.r0; r <= v.r1; r++) {
-          if (cellAt(c, r) !== T.LOG) continue;
-          var d = Math.abs(cellX(c) - hero.x);
+          if (cellAt(c, r) !== want) continue;
+          var dx = cellX(c) + B / 2 - hero.x, dy = cellY(r) + B / 2 - (hero.y - hero.h * 0.5);
+          var d = Math.sqrt(dx * dx + dy * dy);
           if (d < bestD) { bestD = d; best = { c: c, r: r }; }
         }
       }
-      if (!best) return;
-      var topR = best.r;
-      while (cellAt(best.c, topR + 1) === T.LOG) topR++;
-      var x = sx(cellX(best.c)) + B / 2;
-      var y = sy(cellY(topR)) - B * 0.5 - Math.abs(Math.sin(ts / 320)) * B * 0.35;
+      if (best) {
+        var topR = best.r;
+        while (cellAt(best.c, topR + 1) === want) topR++;
+        return { x: cellX(best.c) + B / 2, y: cellY(topR) };
+      }
+      // Nothing of that kind in sight — it is under his feet, so say so.
+      var fc = colAt(hero.x), fr = rowAt(hero.y - 1) - 1;
+      return { x: cellX(fc) + B / 2, y: cellY(fr), down: true };
+    }
+
+    function drawQuestPointer(ts) {
+      var t = questTargetPoint();
+      if (!t) return;
+      var x = sx(t.x);
+      var y = sy(t.y) - B * 0.5 - Math.abs(Math.sin(ts / 320)) * B * 0.35;
+      if (x < -B || x > W + B || y < -B || y > H + B) return;
       ctx.save();
       ctx.globalAlpha = 0.92;
-      ctx.fillStyle = '#ffd166';
+      ctx.fillStyle = t.down ? '#7dffe8' : '#ffd166';
       ctx.strokeStyle = 'rgba(60,40,0,0.55)';
       ctx.lineWidth = Math.max(2, B * 0.06);
       ctx.beginPath();
@@ -2322,11 +2431,22 @@
     var SURVIVAL_ITEMS = ['dirt', 'stone', 'wood', 'plank', 'sand', 'glass', 'wool', 'ladder', 'torch', 'lamp', 'bed', 'tnt', 'coal', 'diamond'];
     var swatchBtns = [];
 
+    // Showing all fourteen blocks from the start gives a small child a row of
+    // buttons that only ever buzz at him, so the palette is what is in the bag.
+    var swatchSig = '';
+    function ownedItems() {
+      var out = [];
+      for (var i = 0; i < SURVIVAL_ITEMS.length; i++) {
+        if (have(SURVIVAL_ITEMS[i]) > 0) out.push(SURVIVAL_ITEMS[i]);
+      }
+      return out;
+    }
     function buildSwatches() {
+      var items = creative() ? null : ownedItems();
+      var list = creative() ? CREATIVE_BLOCKS : items.map(function (it) { return ITEM_BLOCK[it]; });
+      swatchSig = creative() ? 'creative' : items.join(',');
       swatchBar.innerHTML = '';
       swatchBtns = [];
-      var list = creative() ? CREATIVE_BLOCKS : SURVIVAL_ITEMS.map(function (it) { return ITEM_BLOCK[it]; });
-      var items = creative() ? null : SURVIVAL_ITEMS;
       for (var i = 0; i < list.length; i++) {
         (function (idx) {
           var t = list[idx];
@@ -2352,25 +2472,33 @@
           swatchBtns.push(b);
         })(i);
       }
-      if (!creative()) blockSel = ITEM_BLOCK.dirt;
-      markSwatches();
-      refreshSwatches();
+      if (!list.length) {
+        var hint = document.createElement('div');
+        hint.className = 'swatchhint';
+        hint.textContent = '⛏️ Mine something first!';
+        swatchBar.appendChild(hint);
+      }
+      if (items && items.indexOf(blockItem(blockSel)) < 0) {
+        blockSel = list.length ? list[0] : T.DIRT;
+      }
+      updateSwatchCounts();
     }
     function markSwatches() {
       for (var i = 0; i < swatchBtns.length; i++) {
         var b = swatchBtns[i];
-        var cls = (b.blockType === blockSel) ? 'sel' : '';
-        if (b.item && have(b.item) <= 0) cls += ' out';
-        b.className = cls;
+        b.className = (b.blockType === blockSel) ? 'sel' : '';
       }
     }
-    function refreshSwatches() {
+    function updateSwatchCounts() {
       for (var i = 0; i < swatchBtns.length; i++) {
         var b = swatchBtns[i];
-        if (!b.item) continue;
-        b.cnt.textContent = String(have(b.item));
+        if (b.item) b.cnt.textContent = String(have(b.item));
       }
       markSwatches();
+    }
+    function refreshSwatches() {
+      if (!creative() && ownedItems().join(',') !== swatchSig) { buildSwatches(); return; }
+      updateSwatchCounts();
     }
 
     function selectTool(t) {
@@ -2491,7 +2619,7 @@
 
     function freshWorld() {
       seed = Math.floor(Math.random() * 9999) + 1;
-      edits = {}; fireMap = {}; fuseMap = {}; waterLvl = {};
+      edits = {}; fuseMap = {}; waterLvl = {};
       inv = {}; hasPick = false; hasWeapon = false; hasDiamondWeapon = false;
       placedCount = 0; bonkCount = 0; torchPlaced = false; questIdx = 0;
       dayT = 0.05; hearts = 3; mobs = []; parts = [];
@@ -2512,6 +2640,9 @@
     }
     function startGame(fresh) {
       phase = PHASE.PLAY;
+      buildQuestList();
+      spokenQuest = -1;
+      pending = null;
       hero.vx = 0; hero.vy = 0; hero.target = null; hero.swing = 0;
       mobs = []; parts = [];
       layout();
@@ -2681,6 +2812,7 @@
             e.stopPropagation(); audio();
             fightMode = b.getAttribute('data-fight') === '1';
             try { localStorage.setItem('bc_fight', fightMode ? '1' : '0'); } catch (er) {}
+            buildQuestList();
             mark();
           });
         })(btns[i]);
@@ -2700,12 +2832,32 @@
     document.getElementById('infoDone').addEventListener('click', function (e) {
       e.stopPropagation(); audio();
       document.getElementById('infoOverlay').classList.add('hidden');
+      lastTs = 0;
       if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (er) {} }
+    });
+    function updateQuestToggle() {
+      document.getElementById('questToggle').textContent =
+        currentQuest() ? '⏭️ Skip quests' : '🎯 Do the quests again';
+    }
+    document.getElementById('questToggle').addEventListener('click', function (e) {
+      e.stopPropagation(); audio();
+      if (currentQuest()) {
+        questIdx = QLIST.length;
+        setUiHint(null);
+        bannerEl.classList.add('hidden');
+      } else {
+        questIdx = 0;
+        spokenQuest = -1;
+        showQuest();
+      }
+      updateQuestToggle();
+      dirty = true; saveT = 0.4;
     });
     document.getElementById('pauseBtn').addEventListener('click', function (e) {
       e.stopPropagation(); audio();
       if (phase === PHASE.PLAY) {
         phase = PHASE.PAUSED;
+        updateQuestToggle();
         document.getElementById('pauseOverlay').classList.remove('hidden');
       }
     });
@@ -2719,6 +2871,7 @@
     document.getElementById('craftDone').addEventListener('click', function (e) {
       e.stopPropagation(); audio();
       document.getElementById('craftOverlay').classList.add('hidden');
+      lastTs = 0;
     });
     document.getElementById('photoDone').addEventListener('click', function (e) {
       e.stopPropagation(); audio(); exitPhoto();
@@ -2750,7 +2903,12 @@
     });
     window.addEventListener('pagehide', function () { saveWorld(); });
     // Block page scroll/rubber-band during play (single- or multi-finger).
-    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      // The overlays can be taller than a short screen, and this lock would
+      // otherwise make whatever sits below the fold unreachable.
+      if (e.target && e.target.closest && e.target.closest('.overlay')) return;
+      e.preventDefault();
+    }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
     // Keep links inside the iOS home-screen (standalone) app on OLD iOS (<13) only.
